@@ -506,7 +506,15 @@ function bombBlocked(x, y, self, ignorePlayers) {
 const ASSIST = 0.7; // aide aux virages : distance max pour glisser dans le couloir voisin
 function tryMove(p, ax, dir, dist) {
   const pa = ax === 'x' ? 'y' : 'x';
-  const C = (along, perp) => ax === 'x' ? blockedFor(p, along, perp) : blockedFor(p, perp, along);
+  const C = (along, perp) => {
+    const x = ax === 'x' ? along : perp, y = ax === 'x' ? perp : along;
+    if (solidAt(x, y)) return true;
+    const b = G.bombAt[y * COLS + x];
+    if (!b || b.passers.has(p.id)) return false;
+    // une bombe qui glisse dans notre couloir, sur le même axe, ne bloque pas par case : voir movingBombClamp
+    if ((ax === 'x' ? b.mdx : b.mdy) && (ax === 'x' ? b.y : b.x) === perp) return false;
+    return true;
+  };
   let moved = 0, lane = Math.round(p[pa]);
   const off = p[pa] - lane;
   if (Math.abs(off) > 1e-4) {
@@ -533,9 +541,34 @@ function tryMove(p, ax, dir, dist) {
     const c2 = Math.round(nv);
     if (c2 !== c && (nv - c2) * dir > 0 && C(c2 + dir, lane)) nv = c2;
   }
+  nv = movingBombClamp(p, ax, dir, lane, v, nv);
   moved += Math.abs(nv - v); p[ax] = nv;
   return moved;
 }
+// On peut suivre une bombe qui glisse (et entrer dans la case d'où elle part),
+// mais sans jamais s'approcher à moins d'une demi-case de son centre.
+// Même règle pour une bombe arrêtée qu'on chevauche encore (après l'avoir suivie) : on ne la traverse pas,
+// et avec le coup de pied, foncer dedans la relance.
+const FOLLOW_GAP = 0.5;
+function movingBombClamp(p, ax, dir, lane, v, nv) {
+  for (const b of G.bombs) {
+    if ((ax === 'x' ? b.y : b.x) !== lane) continue;
+    const moving = ax === 'x' ? b.mdx : b.mdy;
+    if (!moving && (b.mdx || b.mdy || b.passers.has(p.id))) continue;
+    const along = ax === 'x' ? b.x + b.mdx * b.prog : b.y + b.mdy * b.prog;
+    const gap = (along - v) * dir;
+    if (gap <= 0 || gap >= 1) continue;
+    const lim = along - dir * FOLLOW_GAP;
+    const before = nv;
+    nv = dir > 0 ? Math.min(nv, Math.max(v, lim)) : Math.max(nv, Math.min(v, lim));
+    if (!moving && nv !== before && p.kick && !p.ai) {
+      const bx = b.x, by = b.y, dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
+      if (!bombBlocked(bx + dx, by + dy, b)) requestKick(bx, by, dx, dy);
+    }
+  }
+  return nv;
+}
+function stopBomb(b) { b.mdx = b.mdy = 0; b.prog = 0; }
 function tryKick(p, ax, dir, c, lane) {
   if (!p.kick) return;
   const bx = ax === 'x' ? c + dir : lane, by = ax === 'x' ? lane : c + dir;
@@ -637,13 +670,12 @@ function updateBombs(dt) {
       // La bombe ne vérifie les joueurs qu'au moment de s'engager dans la case suivante :
       // une fois lancée vers une case, elle y va sans revenir en arrière.
       const nx = b.x + b.mdx, ny = b.y + b.mdy;
-      if (bombBlocked(nx, ny, b, b.prog > 0)) { b.mdx = b.mdy = 0; b.prog = 0; }
+      if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
         b.prog += KICK_SPEED * dt;
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
-          for (const o of G.players) if (o.alive && Math.abs(o.x - nx) < 0.98 && Math.abs(o.y - ny) < 0.98) b.passers.add(o.id);
-          if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) { b.mdx = b.mdy = 0; }
+          if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
       }
     }
