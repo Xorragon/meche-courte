@@ -521,6 +521,7 @@ function tryMove(p, ax, dir, dist) {
     if (dist <= 1e-6) return moved;
   }
   const v = p[ax], c = Math.round(v);
+  if (p.kick && !p.ai) kickOwnBomb(p, ax, dir, v, c, lane);
   let nv;
   if (C(c + dir, lane)) {
     const toC = (c - v) * dir;
@@ -541,6 +542,20 @@ function tryKick(p, ax, dir, c, lane) {
   const b = G.bombAt[idx(bx, by)];
   if (!b || b.mdx || b.mdy || b.passers.has(p.id)) return;
   const dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
+  requestKick(bx, by, dx, dy);
+}
+// Pousser sa propre bombe quand on est encore à moitié dessus : il suffit d'être à une demi-case de son centre.
+function kickOwnBomb(p, ax, dir, v, c, lane) {
+  for (const cc of [c, c + dir]) {
+    const bx = ax === 'x' ? cc : lane, by = ax === 'x' ? lane : cc;
+    if (bx < 0 || by < 0 || bx >= COLS || by >= ROWS) continue;
+    const b = G.bombAt[idx(bx, by)];
+    if (!b || b.mdx || b.mdy || !b.passers.has(p.id)) continue;
+    const d = (cc - v) * dir;
+    if (d > 0.05 && d <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0); return; }
+  }
+}
+function requestKick(bx, by, dx, dy) {
   if (NET.role === 'guest') { if (G.t - NET.kickT > 0.2) { NET.kickT = G.t; NET.kickReq = [++NET.kickSeq, bx, by, dx, dy]; } return; }
   doKick(bx, by, dx, dy);
 }
@@ -548,7 +563,7 @@ function doKick(bx, by, dx, dy) {
   if (bx < 1 || by < 1 || bx >= COLS - 1 || by >= ROWS - 1 || Math.abs(dx) + Math.abs(dy) !== 1) return;
   const b = G.bombAt[idx(bx, by)];
   if (!b || b.mdx || b.mdy || bombBlocked(b.x + dx, b.y + dy, b)) return;
-  b.mdx = dx; b.mdy = dy; b.prog = 0;
+  b.mdx = dx; b.mdy = dy; b.prog = 0; b.passers.clear();
   fx('kick', b.x, b.y, dx, dy);
 }
 
