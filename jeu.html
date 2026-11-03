@@ -522,7 +522,7 @@ function tryMove(p, ax, dir, dist) {
     if (dist <= 1e-6) return moved;
   }
   const v = p[ax], c = Math.round(v);
-  if (p.kick && !p.ai) kickOwnBomb(p, ax, dir, v, c, lane);
+  if (p.kick && !p.ai) kickOwnBomb(p, ax, dir, v, c, lane, dist);
   let nv;
   if (C(c + dir, lane)) {
     const toC = (c - v) * dir;
@@ -545,15 +545,16 @@ function tryKick(p, ax, dir, c, lane) {
   const dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
   requestKick(bx, by, dx, dy);
 }
-// Pousser sa propre bombe quand on est encore à moitié dessus : il suffit d'être à une demi-case de son centre.
-function kickOwnBomb(p, ax, dir, v, c, lane) {
+// Sa propre bombe : tant qu'on reste dans sa case, on passe dessus librement.
+// Si on en sort (même en la chevauchant encore) puis qu'on revient, elle part dès qu'on rentre dans sa case.
+function kickOwnBomb(p, ax, dir, v, c, lane, dist) {
   for (const cc of [c, c + dir]) {
     const bx = ax === 'x' ? cc : lane, by = ax === 'x' ? lane : cc;
     if (bx < 0 || by < 0 || bx >= COLS || by >= ROWS) continue;
     const b = G.bombAt[idx(bx, by)];
     if (!b || b.mdx || b.mdy || !b.passers.has(p.id)) continue;
     const d = (cc - v) * dir;
-    if (d > 0.05 && d <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0); return; }
+    if (d >= 0.495 && d - dist <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0); return; }
   }
 }
 function requestKick(bx, by, dx, dy) {
