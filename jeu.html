@@ -492,12 +492,13 @@ function rebuildBombAt() {
   G.bombAt.fill(null);
   for (const b of G.bombs) { const c = bombCell(b); G.bombAt[idx(c[0], c[1])] = b; }
 }
-function bombBlocked(x, y, self) {
+function bombBlocked(x, y, self, ignorePlayers) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
   const o = G.bombAt[k]; if (o && o !== self) return true;
   for (const f of G.falling) if (f.k === k) return true;
+  if (ignorePlayers) return false;
   for (const p of G.players) if (p.alive && Math.abs(p.x - x) < 0.9 && Math.abs(p.y - y) < 0.9) return true;
   return false;
 }
@@ -556,8 +557,26 @@ function kickOwnBomb(p, ax, dir, v, c, lane) {
   }
 }
 function requestKick(bx, by, dx, dy) {
-  if (NET.role === 'guest') { if (G.t - NET.kickT > 0.2) { NET.kickT = G.t; NET.kickReq = [++NET.kickSeq, bx, by, dx, dy]; } return; }
+  if (NET.role === 'guest') {
+    const lb = G.bombAt[idx(bx, by)];
+    if (!lb || lb.mdx || lb.mdy || bombBlocked(lb.x + dx, lb.y + dy, lb)) return;
+    if (G.t - NET.kickT > 0.2) {
+      NET.kickT = G.t; NET.kickReq = [++NET.kickSeq, bx, by, dx, dy];
+      // prédiction locale : la bombe part tout de suite chez l'invité, en attendant la confirmation de l'hôte
+      NET.pendKick = { bx, by, dx, dy, until: G.t + 0.5, prog: 0 };
+      predictKick();
+    }
+    return;
+  }
   doKick(bx, by, dx, dy);
+}
+function predictKick() {
+  const pk = NET.pendKick; if (!pk) return;
+  if (G.t > pk.until) { NET.pendKick = null; return; }
+  const b = G.bombs.find(o => o.x === pk.bx && o.y === pk.by && !o.mdx && !o.mdy);
+  if (!b) { if (G.bombs.some(o => o.mdx || o.mdy)) NET.pendKick = null; return; }
+  b.mdx = pk.dx; b.mdy = pk.dy; b.prog = Math.max(b.prog, pk.prog); b.passers.clear();
+  rebuildBombAt();
 }
 function doKick(bx, by, dx, dy) {
   if (bx < 1 || by < 1 || bx >= COLS - 1 || by >= ROWS - 1 || Math.abs(dx) + Math.abs(dy) !== 1) return;
@@ -614,12 +633,15 @@ function updateBombs(dt) {
       if (!p || !p.alive || Math.abs(p.x - cx) >= 0.98 || Math.abs(p.y - cy) >= 0.98) b.passers.delete(id);
     }
     if (b.mdx || b.mdy) {
+      // La bombe ne vérifie les joueurs qu'au moment de s'engager dans la case suivante :
+      // une fois lancée vers une case, elle y va sans revenir en arrière.
       const nx = b.x + b.mdx, ny = b.y + b.mdy;
-      if (bombBlocked(nx, ny, b)) { b.mdx = b.mdy = 0; b.prog = 0; }
+      if (bombBlocked(nx, ny, b, b.prog > 0)) { b.mdx = b.mdy = 0; b.prog = 0; }
       else {
         b.prog += KICK_SPEED * dt;
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
+          for (const o of G.players) if (o.alive && Math.abs(o.x - nx) < 0.98 && Math.abs(o.y - ny) < 0.98) b.passers.add(o.id);
           if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) { b.mdx = b.mdy = 0; }
         }
       }
@@ -1772,7 +1794,7 @@ function joinGame(raw) {
   if (code.length !== 4) { renderLobby('Le code de la partie fait 4 caractères.'); try { $('#net-code-in').focus(); } catch (e) {} return; }
   let peer;
   try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, mi: -1, lastSeen: 0 });
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, mi: -1, lastSeen: 0 });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   G.players = [makePlayer(0, null), makePlayer(1, null)]; G.players[0].remote = true;
@@ -1935,6 +1957,7 @@ function decodeSnap(s) {
   }
   if (first || newMatch || num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); setupHud(); }
   rebuildBombAt();
+  predictKick();
   if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); }
   if (newMatch && !first) { endEl.hidden = true; }
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) showEnd();
@@ -1949,6 +1972,8 @@ function updateGuest(dt) {
     if (G.items[k] >= 0) G.itemAge[k] += dt;
   }
   for (const b of G.bombs) { b.timer = Math.max(0, b.timer - dt); if (b.mdx || b.mdy) b.prog = Math.min(0.99, b.prog + KICK_SPEED * dt); }
+  if (NET.pendKick) { NET.pendKick.prog = Math.min(0.99, NET.pendKick.prog + KICK_SPEED * dt); }
+  rebuildBombAt();
   for (const o of G.falling) o.t = Math.max(0.001, o.t - dt);
   if (G.phase === 'intro' || G.phase === 'roundEnd') G.phaseT = Math.max(0, G.phaseT - dt);
   if (G.phase === 'play') G.time = Math.max(0, G.time - dt);
