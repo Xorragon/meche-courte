@@ -301,9 +301,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 const TAU = Math.PI * 2;
 const COLS = 15, ROWS = 13, T = 48, W = COLS * T, H = ROWS * T, N = COLS * ROWS;
 const EMPTY = 0, WALL = 1, PILLAR = 2, CRATE = 3, STONE = 4;
-const FUSE = 2.4, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 9.5;
+const FUSE = 2.4, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 3.2; // bombe poussée : vitesse constante, plus lente que le perso de base
 const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5;
-const BASE_SPEED = 3.3, SPEED_STEP = 0.5, MAX_SPEED_LV = 5, MAX_BOMBS = 8, MAX_RANGE = 8;
+const BASE_SPEED = 4, SPEED_STEP = 0.4, MAX_SPEED_LV = 5, MAX_BOMBS = 8, MAX_RANGE = 8;
 const SKIN = '#f2c79d';
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
