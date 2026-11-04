@@ -129,7 +129,7 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .ctrl{display:grid;gap:12px;margin:0 0 30px}
 .ctrl p{margin:0;line-height:1.7}
 .who{font-family:var(--font-display);font-size:18px;margin-right:6px}
-.who.c1{color:var(--p1)} .who.c2{color:var(--p2)}
+.who.c1{color:var(--p1)} .who.c2{color:var(--p2)} .who.c3{color:var(--gold)}
 .ctrl .small{color:var(--muted);font-size:15px}
 .items{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .items li{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center}
@@ -288,7 +288,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <div class="ctrl">
         <p><span class="who c1">Mèche</span> <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) pour bouger, <kbd>Espace</kbd> pour poser une bombe</p>
         <p><span class="who c2">Braise</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour bouger, <kbd>Entrée</kbd> pour poser une bombe</p>
-        <p class="small">Seul ou en ligne, les flèches et <kbd>Entrée</kbd> marchent aussi pour ton perso. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
+        <p><span class="who c3">Manette</span> croix ou stick gauche pour bouger, <kbd>A</kbd> pour poser une bombe, <kbd>Start</kbd> pour la pause</p>
+        <p class="small">Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
+        <p class="small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
       </div>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
@@ -806,7 +808,7 @@ function pickup(p, k) {
 
 /* Effets visuels et sonores : joués ici, et rejoués chez l'invité en ligne */
 const FX = {
-  boom(cx, cy) { explosionFx(cx, cy); if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); Sfx.play('boom'); },
+  boom(cx, cy) { explosionFx(cx, cy); if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); Sfx.play('boom'); rumble(0.15, 0.35, 90); },
   crate(x, y) { crateDebris(x, y); },
   poof(x, y, it) { if (ITEMS[it]) itemPoof(x, y, it); },
   land(x, y) {
@@ -1087,7 +1089,7 @@ function updateHuman(p, dt) {
   const dist = speedOf(p) * dt, st = p.dirStack;
   p.moving = false;
   for (let i = st.length - 1; i >= 0; i--) {
-    const d = st[i] === 'T' ? touchDir : DIR_OF[st[i]];
+    const d = st[i] === 'T' ? touchDir : st[i][0] === 'G' ? padDir[st[i]] : DIR_OF[st[i]];
     if (!d) continue;
     if (i === st.length - 1) p.face = d;
     const [ax, dir] = DIRV[d];
@@ -1807,7 +1809,7 @@ window.addEventListener('keydown', e => {
   else if (code === 'Space' || code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (G.phase === 'play') p.bombQueued = true; }
 });
 window.addEventListener('keyup', e => { for (const p of G.players) removeFrom(p.dirStack, e.code); });
-window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T'); });
+window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c[0] === 'G'); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.role && G.mode === 'match' && (G.phase === 'play' || G.phase === 'intro')) pause(); });
 
 /* ---------- Tactile ---------- */
@@ -2230,6 +2232,75 @@ document.getElementById('net-invite').addEventListener('click', () => {
 });
 
 
+/* ---------- Manettes (API Gamepad, disposition standard) ---------- */
+const padDir = {}, padSt = {};
+const PAD_DEAD = 0.45;
+function rumble(strong, weak, ms) {
+  if (G.mode !== 'match' || !navigator.getGamepads) return;
+  try {
+    for (const gp of navigator.getGamepads()) {
+      const va = gp && gp.vibrationActuator;
+      if (va && va.playEffect) va.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: weak }).catch(() => {});
+    }
+  } catch (e) {}
+}
+// Quel perso pilote la manette n° i ? Seul ou en ligne : le tien. À deux : 1 manette = Braise, 2 manettes = Mèche puis Braise.
+function padOwner(i, order) {
+  if (G.mode !== 'match') return -1;
+  if (NET.role) return localIdx();
+  if (settings.mode === 'duo') { if (order.length === 1) return 1; const r = order.indexOf(i); return r === 0 ? 0 : r === 1 ? 1 : -1; }
+  return 0;
+}
+function releasePad(code, st) {
+  for (const p of G.players) removeFrom(p.dirStack, code);
+  st.dir = null; padDir[code] = null;
+}
+function pollPads() {
+  if (!navigator.getGamepads) return;
+  let list; try { list = navigator.getGamepads(); } catch (e) { return; }
+  const order = [];
+  for (const gp of list) if (gp && gp.connected) order.push(gp.index);
+  for (const gp of list) {
+    if (!gp || !gp.connected) continue;
+    const code = 'G' + gp.index;
+    const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [] });
+    const btn = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
+    const hit = k => btn(k) && !st.prev[k];
+    let dir = null;
+    if (btn(12)) dir = 'up'; else if (btn(13)) dir = 'down'; else if (btn(14)) dir = 'left'; else if (btn(15)) dir = 'right';
+    else {
+      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      if (Math.max(Math.abs(ax), Math.abs(ay)) > PAD_DEAD) dir = Math.abs(ax) > Math.abs(ay) ? (ax > 0 ? 'right' : 'left') : (ay > 0 ? 'down' : 'up');
+    }
+    const confirm = hit(0) || hit(9), back = hit(1);
+    // menus et fenêtres
+    if (!onlineEl.hidden) { releasePad(code, st); if (back) toMenu(); }
+    else if (!menuEl.hidden) { releasePad(code, st); if (confirm) onPlay(); }
+    else if (!endEl.hidden) { releasePad(code, st); if (confirm && !$('#again').hidden) onAgain(); else if (back) toMenu(); }
+    else if (!pauseEl.hidden) { releasePad(code, st); if (confirm || back) resume(); }
+    else if (G.mode === 'match') {
+      if (hit(9)) { pause(); releasePad(code, st); }
+      else {
+        const owner = padOwner(gp.index, order), p = G.players[owner];
+        if (owner !== st.owner || p !== st.pl) { releasePad(code, st); st.owner = owner; st.pl = p; }
+        if (p && !p.ai && !p.remote) {
+          if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
+          if ((hit(0) || hit(2)) && G.phase === 'play' && !G.paused) p.bombQueued = true;
+        }
+      }
+    }
+    st.prev = gp.buttons.map(b => b.pressed);
+  }
+}
+function padStatus() {
+  const el = $('#pad-status'); if (!el || !navigator.getGamepads) return;
+  let names = [];
+  try { names = [...navigator.getGamepads()].filter(g => g && g.connected).map(g => g.id.replace(/\s*\(.*$/, '').trim() || 'Manette'); } catch (e) {}
+  el.textContent = names.length ? `Manette${names.length > 1 ? 's' : ''} détectée${names.length > 1 ? 's' : ''} : ${names.join(', ')}.` : "Branche une manette et appuie sur un bouton pour qu'elle soit détectée.";
+}
+window.addEventListener('gamepadconnected', () => { Sfx.init(); padStatus(); });
+window.addEventListener('gamepaddisconnected', e => { const code = 'G' + e.gamepad.index; if (padSt[code]) releasePad(code, padSt[code]); delete padSt[code]; padStatus(); });
+
 /* ---------- Taille ---------- */
 function resize() {
   const stage = $('#stage');
@@ -2250,7 +2321,7 @@ else window.addEventListener('resize', resize);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  update(dt); render(); updateHud(); netTick();
+  pollPads(); update(dt); render(); updateHud(); netTick();
   requestAnimationFrame(loop);
 }
 function boot(data) {
