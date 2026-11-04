@@ -160,8 +160,12 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .nick-note{flex-basis:100%;font-size:13px;color:var(--muted);min-height:0}
 .nick-note:empty{display:none}
 .nick-note.bad{color:#ff8f8f}
+.pick-hint{margin:-12px 0 12px;min-height:1.1em;font-weight:800;font-size:13px;color:var(--gold)}
+.pick-hint:empty{display:none}
+.charpick button.locked{cursor:not-allowed}
+.charpick button.locked span{color:rgba(243,229,192,.6)}
 .end-pick-lb{margin:0 0 6px;font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(243,229,192,.7)}
-.charpick.mini{margin:0 auto 18px;width:min(520px,100%)}
+.charpick.mini{margin:0 auto 18px;width:min(560px,100%)}
 .charpick.mini canvas{width:46px;height:48px}
 .charpick.mini button{font-size:11.5px;border-radius:11px}
 @media (max-width:520px){.charpick.mini canvas{width:40px;height:42px}}
@@ -178,13 +182,13 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ranktable tr.gap td{border:0;text-align:center;color:var(--muted);padding:2px}
 @media (max-width:560px){.ranktable th,.ranktable td{padding:6px 5px}.ranktable th:nth-child(5),.ranktable td:nth-child(5){display:none}}
 .net-players em{font-style:normal;font-weight:800;font-size:12px;color:var(--gold)}
-.charpick{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:min(560px,100%);margin:0 0 18px}
+.charpick{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:min(600px,100%);margin:0 0 18px}
 .charpick button{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;font:800 12.5px/1.1 var(--font-body);color:var(--parchment);background:rgba(12,18,12,.5);border:2px solid rgba(243,229,192,.22);border-radius:14px;padding:4px 2px 6px;cursor:pointer;transition:border-color .15s,background .15s}
 .charpick button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .charpick button:hover{border-color:rgba(243,229,192,.55)}
 .charpick button[aria-checked="true"]{border-color:var(--gold);background:rgba(255,207,90,.14);color:var(--gold)}
 .charpick canvas{width:60px;height:63px}
-@media (max-width:520px){.charpick{grid-template-columns:repeat(4,1fr)}.charpick canvas{width:52px;height:55px}}
+@media (max-width:520px){.charpick{grid-template-columns:repeat(5,1fr);gap:5px}.charpick canvas{width:46px;height:48px}.charpick button{font-size:11px}}
 .net-players .ch{font-weight:800;font-size:12px;color:var(--parchment);opacity:.8}
 .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(580px,100%)}
 @media (max-width:640px){.mbtns{grid-template-columns:1fr}}
@@ -365,6 +369,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <span class="nick-note" id="nick-note" role="status"></span>
     </form>
     <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
+    <p class="pick-hint" role="status"></p>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
@@ -516,6 +521,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="end-elo" id="end-elo" role="status"></p>
     <p class="end-pick-lb">Ton perso pour la revanche</p>
     <div class="charpick mini" id="end-charpick" role="radiogroup" aria-label="Ton perso pour la revanche"></div>
+    <p class="pick-hint" role="status"></p>
     <div class="row">
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
@@ -610,8 +616,9 @@ const CHARS = [
   { key: 'aigle', name: 'Rapace' },
   { key: 'ninja', name: 'Ninja' },
   { key: 'rodeur', name: 'Rôdeur' },
+  { key: 'astral', name: 'Astral', elo: 1100, ph: 92, py: 12 },   // perso à débloquer : 1100 Elo au classement
 ];
-const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]}};
+const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]},"astral":{"down":[[0,0,70,150,35.0,150],[72,0,63,149,31.0,149],[137,0,74,150,35.0,150]],"up":[[213,0,71,151,36.0,151],[286,0,59,153,29.0,153],[347,0,75,152,36.0,152]],"right":[[424,0,70,150,35.0,150],[496,0,70,152,34.0,152],[568,0,76,149,36.0,149]],"bomb":[[646,0,59,72,30.0,72]],"big":[[707,0,120,220,59.0,220]]}};
 const charImg = {};
 const SPR_SCALE = 56 / 128;   // une image de marche (128 px) fait 56 px de haut dans l’arène
 const charName = i => (CHARS[i] || CHARS[0]).name;
@@ -654,6 +661,10 @@ if (typeof settings.pid !== 'string' || !/^[a-z0-9]{12,32}$/.test(settings.pid))
 settings.name = cleanNick(settings.name, 'Artificier ' + (100 + ((Math.random() * 900) | 0)));
 settings.name2 = cleanNick(settings.name2, 'Joueur 2');
 if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CHARS.length) settings.skin = 0;
+// Persos à débloquer : une fois l'Elo requis atteint, le perso reste débloqué dans ce navigateur (settings.unl)
+if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
+const charLocked = i => { const ch = CHARS[i]; return !!(ch && ch.elo && !settings.unl[ch.key] && !(ELO.me && ELO.me.elo >= ch.elo)); };
+if (CHARS[settings.skin].elo && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
@@ -752,8 +763,9 @@ const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
 // Les ordis (et les joueurs sans choix) prennent des persos différents de ceux déjà pris, si possible
 function assignChars(list) {
   const used = new Set(list.filter(p => Number.isInteger(p.skin)).map(p => p.skin));
-  const pool = shuffled(CHARS.map((_, i) => i).filter(i => !used.has(i)));
-  for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : (Math.random() * CHARS.length) | 0;
+  // les ordis ne prennent jamais un perso à débloquer
+  const free = CHARS.map((_, i) => i).filter(i => !CHARS[i].elo), pool = shuffled(free.filter(i => !used.has(i)));
+  for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : free[(Math.random() * free.length) | 0];
 }
 function setPlayers(list) {
   assignChars(list);
@@ -2768,7 +2780,7 @@ function drawPortrait(cv, pal, skin) {
     // grand portrait de face, cadré sur la tête
     // même hauteur pour tous (la largeur varie : hache, bouclier, bâton…), centré sur l'axe du corps
     const [sx, sy, w, h, ax] = CHAR_RECTS[ch.key].big[0], k = (ch.ph || 88) / h; // ph : hauteur du portrait entier, réglée par perso pour cadrer la tête
-    c.drawImage(im, sx, sy, w, h, 26 - ax * k, 3, w * k, h * k);
+    c.drawImage(im, sx, sy, w, h, 26 - ax * k, 3 - (ch.py || 0), w * k, h * k); // py : décalage vers le haut
     c.restore(); return;
   }
   c.translate(26, 26); c.scale(1.25, 1.25);
@@ -2900,6 +2912,12 @@ function buildCharPicker() {
     const lb = document.createElement('span'); lb.textContent = ch.name;
     b.append(cv, lb); box.appendChild(b); charBtns.push({ b, cv, i, root });
     b.addEventListener('click', () => {
+      const hint = root.querySelector('.pick-hint');
+      if (charLocked(i)) {
+        if (hint) { hint.textContent = `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
+        return;
+      }
+      if (hint) hint.textContent = '';
       settings.skin = i; saveSettings(); syncCharPicker();
       if (NET.role === 'host' && !NET.started) refreshHostLobby();
     });
@@ -2907,7 +2925,21 @@ function buildCharPicker() {
   }
   syncCharPicker();
 }
-function syncCharPicker() { charBtns.forEach(({ b, i }) => { b.setAttribute('aria-checked', String(i === settings.skin)); b.setAttribute('aria-label', CHARS[i].name); }); }
+function syncCharPicker() {
+  charBtns.forEach(({ b, i }) => {
+    const lk = charLocked(i);
+    b.setAttribute('aria-checked', String(i === settings.skin)); b.classList.toggle('locked', lk);
+    b.setAttribute('aria-label', lk ? `${CHARS[i].name}, à débloquer à ${CHARS[i].elo} Elo` : CHARS[i].name);
+    b.querySelector('span').textContent = lk ? `${CHARS[i].elo} Elo` : CHARS[i].name;
+  });
+}
+function drawLock(c, x, y) {
+  c.save(); c.translate(x, y);
+  c.strokeStyle = '#f3e5c0'; c.lineWidth = 2.2; c.beginPath(); c.arc(0, -3, 4.2, Math.PI, 0); c.lineTo(4.2, 1); c.moveTo(-4.2, 1); c.lineTo(-4.2, -3); c.stroke();
+  c.fillStyle = '#ffcf5a'; rr(c, -6.5, 0, 13, 10, 2.5); c.fill(); c.lineWidth = 1.2; c.strokeStyle = 'rgba(40,20,8,.8)'; c.stroke();
+  c.fillStyle = 'rgba(40,20,8,.85)'; c.beginPath(); c.arc(0, 4.2, 1.6, 0, TAU); c.fill(); c.fillRect(-0.7, 4.2, 1.4, 3.2);
+  c.restore();
+}
 function drawCharPicker(t) {
   if (menuEl.hidden && endEl.hidden) return;
   charBtns.forEach(({ cv, i, root }) => {
@@ -2915,7 +2947,10 @@ function drawCharPicker(t) {
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
     const sel = i === settings.skin, k = cv.width / 52;
     c.setTransform(k, 0, 0, k, 0, 0);
-    drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false });
+    const lk = charLocked(i);
+    if (lk) c.globalAlpha = 0.35;
+    drawChar(c, 26, 32, i, PALS[0], 'down', lk ? 0 : t * 9, sel, t, { noShadow: false });
+    if (lk) { c.globalAlpha = 1; drawLock(c, 26, 26); }
   });
 }
 function blurActive() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
@@ -3090,6 +3125,8 @@ async function pushName() {
 }
 function renderEloBadge() {
   const b = $('#elo-badge'), m = ELO.me;
+  if (m) { let ch = false; for (const c of CHARS) if (c.elo && m.elo >= c.elo && !settings.unl[c.key]) { settings.unl[c.key] = true; ch = true; } if (ch) saveSettings(); }
+  if (charBtns.length) syncCharPicker();
   b.hidden = !m;
   if (m) { b.textContent = `Elo ${m.elo}` + (m.rank ? ` · ${ordinal(m.rank)}` : ''); b.title = m.games ? `${m.games} partie${m.games > 1 ? 's' : ''} classée${m.games > 1 ? 's' : ''}, ${m.wins} gagnée${m.wins > 1 ? 's' : ''}` : 'Pas encore de partie classée'; }
 }
