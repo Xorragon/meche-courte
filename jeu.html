@@ -60,6 +60,8 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 .pips{display:flex;gap:5px}
 .right .pips{justify-content:flex-end}
 .pip{width:11px;height:11px;border-radius:50%;border:2px solid var(--pc);opacity:.5}
+.pts{font:800 15px/1 var(--font-body);color:var(--pc);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+#hud.many .pts{font-size:13px}
 .pip.on{background:var(--pc);opacity:1;box-shadow:0 0 8px var(--pc)}
 .stats{display:flex;gap:8px;flex-wrap:wrap}
 .right .stats{justify-content:flex-end}
@@ -100,7 +102,7 @@ body.touch #touch{display:flex}
 
 /* ---------- Surimpressions ---------- */
 .overlay{position:fixed;inset:0;z-index:10;display:flex;padding:28px 18px;overflow:auto;background:rgba(8,14,10,.74);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-.overlay[hidden]{display:none}
+.overlay[hidden],.seg[hidden]{display:none}
 .menu{width:min(1000px,100%);margin:auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px 56px;align-items:start}
 @media (max-width:780px){.menu{grid-template-columns:1fr;gap:28px}}
 .kicker{margin:0 0 8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;font-size:13px;color:var(--gold)}
@@ -111,6 +113,7 @@ body.touch #touch{display:flex}
 @keyframes burn{from{width:100%}to{width:4%}}
 @keyframes flick{50%{transform:scale(.72)}}
 .opts{display:grid;gap:18px}
+.opt-note{margin:6px 0 0;font-size:13px;color:var(--muted);line-height:1.35}
 .opt-label{display:block;font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .seg{display:flex;flex-wrap:wrap;gap:8px}
 .seg button{font:700 16px/1.1 var(--font-body);color:var(--parchment);background:rgba(243,229,192,.05);border:2px solid rgba(243,229,192,.22);border-radius:10px;padding:10px 14px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
@@ -297,11 +300,12 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
             <button type="button" id="w-3" data-v="3">3</button>
             <button type="button" id="w-5" data-v="5">5</button>
           </div>
+          <p class="opt-note" id="wins-note"></p>
         </div>
       </div>
       <div class="go">
         <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
-        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers tombent du ciel en spirale.</p>
+        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers tombent du ciel en spirale. À 3 ou 4, la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       </div>
     </section>
     <section class="side">
@@ -527,7 +531,22 @@ const NET = {
   bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
-function setPlayers(list) { G.players = list; G.scores = list.map(() => 0); }
+// À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
+const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
+function setPlayers(list) {
+  G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
+  G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
+}
+const joinFr = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1] : a.join('');
+const ordinal = n => n === 1 ? '1er' : `${n}e`;
+// classement final : points, puis nombre de manches gagnées, puis place dans la dernière manche
+function rankMatch() {
+  const key = i => [-G.scores[i], -G.firsts[i], G.places[i] || 9];
+  const cmp = (a, b) => { const ka = key(a), kb = key(b); for (let j = 0; j < 3; j++) if (ka[j] !== kb[j]) return ka[j] - kb[j]; return 0; };
+  const ids = G.players.map((_, i) => i).sort(cmp);
+  const rank = []; ids.forEach((id, j) => { rank[id] = j && cmp(ids[j - 1], id) === 0 ? rank[ids[j - 1]] : j + 1; });
+  G.ranking = rank; G.matchWin = ids.filter(id => rank[id] === 1);
+}
 const humansLocal = () => settings.mode === 'duo' ? 2 : 1;
 const minBots = () => settings.mode === 'cpu' ? 1 : 0;
 function maxBots() {
@@ -644,7 +663,7 @@ function makePlayer(i, lv) {
 function resetPlayer(p) {
   const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
   p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.active = 0;
-  p.alive = true; p.deathT = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
+  p.alive = true; p.deathT = 0; p.deadTick = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
   if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1 + Math.random() * 0.1; p.ai.sig = -1; p.ai.stuck = 0; p.ai.goal = -1; p.ai.nb = shuffled(NB); }
 }
 const speedOf = p => BASE_SPEED + SPEED_STEP * p.speedLv;
@@ -908,7 +927,7 @@ function land(k) {
 }
 function kill(p, by) {
   if (!p.alive) return;
-  p.killedBy = by; p.alive = false; p.deathT = 0; p.moving = false;
+  p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
 }
@@ -1279,6 +1298,7 @@ function update(dt) {
   G.t += dt;
   updateParticles(dt);
   if (G.paused) return;
+  G.tick = (G.tick || 0) + 1;
   G.shake = Math.max(0, G.shake - dt * 30);
   if (G.suddenFlash > 0) G.suddenFlash -= dt;
   if (G.phase === 'intro') {
@@ -1325,7 +1345,9 @@ function update(dt) {
   }
   if (G.phase === 'play') {
     const alive = G.players.filter(p => p.alive);
-    if (alive.length <= 1) {
+    // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
+    const humansGone = G.mode === 'match' && G.players.length > 2 && G.players.some(p => !p.ai) && !alive.some(p => !p.ai);
+    if (alive.length <= 1 || humansGone) {
       if (G.endTimer === 0) G.endTimer = 1.0;
       G.endTimer -= dt;
       if (G.endTimer <= 0) endRound();
@@ -1338,6 +1360,25 @@ function update(dt) {
 }
 function endRound() {
   const alive = G.players.filter(p => p.alive);
+  if (G.pointsMode) {
+    // place = 1 + nombre d'artificiers qui ont tenu plus longtemps (morts dans la même image = ex aequo)
+    const outlived = (o, p) => !p.alive && (o.alive || o.deadTick > p.deadTick);
+    G.places = G.players.map(p => 1 + G.players.filter(o => o !== p && outlived(o, p)).length);
+    // les ex aequo se partagent les points des places qu'ils occupent (arrondi)
+    G.gains = G.places.map(pl => {
+      const n = G.places.filter(q => q === pl).length;
+      let sum = 0; for (let j = 0; j < n; j++) sum += PTS[pl - 1 + j] || 0;
+      return Math.round(sum / n);
+    });
+    G.places.forEach((pl, i) => { G.scores[i] += G.gains[i]; if (pl === 1) G.firsts[i]++; });
+    const tops = G.players.filter((_, i) => G.places[i] === 1);
+    G.lastWinner = tops.length === 1 ? tops[0].id : -1;
+    G.phase = 'roundEnd'; G.phaseT = 3.2;
+    const done = G.mode === 'match' && G.round >= POINT_ROUNDS;
+    if (done) rankMatch();
+    fx('snd', done ? 'match' : G.lastWinner >= 0 ? 'win' : 'draw');
+    return;
+  }
   let w = -1;
   if (alive.length === 1) { w = alive[0].id; G.scores[w]++; }
   G.lastWinner = w; G.phase = 'roundEnd'; G.phaseT = 2.8;
@@ -1345,6 +1386,13 @@ function endRound() {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 function afterRound() {
+  if (G.pointsMode) {
+    if (G.round >= POINT_ROUNDS) {
+      if (G.mode === 'match') { G.phase = 'matchEnd'; showEnd(); return; }
+      G.players.forEach((_, i) => { G.scores[i] = 0; G.firsts[i] = 0; }); G.round = 0;
+    }
+    G.round++; newRound(); return;
+  }
   if (G.mode === 'match' && G.lastWinner >= 0 && G.scores[G.lastWinner] >= G.winsNeeded) { G.phase = 'matchEnd'; showEnd(); return; }
   if (G.mode === 'demo' && Math.max(...G.scores) >= 3) G.scores = G.scores.map(() => 0);
   G.round++;
@@ -1783,8 +1831,15 @@ function render() {
   // bandeaux
   if (G.phase === 'intro') {
     const tt = G.phaseT;
-    if (tt > 0.55) drawBanner(c, `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
+    if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
+  } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
+    const a = Math.min(1, (3.2 - G.phaseT) * 4);
+    const ids = G.players.map((_, i) => i).sort((x, y) => G.places[x] - G.places[y]);
+    const sub = ids.map(i => `${PALS[i].name} +${(G.gains || [])[i] || 0}`).join('  ·  ');
+    const tops = ids.filter(i => G.places[i] === 1);
+    if (tops.length === 1) drawBanner(c, `${PALS[tops[0]].name} gagne la manche`, sub, PALS[tops[0]].ui, a);
+    else drawBanner(c, tops.length === G.players.length ? 'Égalité !' : `${joinFr(tops.map(i => PALS[i].name))} ex aequo`, sub, '#f3e5c0', a);
   } else if (G.phase === 'roundEnd') {
     const a = Math.min(1, (2.8 - G.phaseT) * 4);
     const sc = G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ');
@@ -1847,6 +1902,7 @@ function setupHud() {
     card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
+    if (G.pointsMode) { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
   }
   hudCache = {};
@@ -1860,11 +1916,15 @@ function updateHud() {
     setTxt(sts[1].lastChild, String(p.range), 'r' + i);
     setTxt(sts[2].lastChild, String(p.speedLv + 1), 's' + i);
     const kk = p.kick ? 1 : 0; if (hudCache['k' + i] !== kk) { hudCache['k' + i] = kk; sts[3].classList.toggle('off', !p.kick); }
-    const sc = G.scores[i]; if (hudCache['p' + i] !== sc) { hudCache['p' + i] = sc; cards[i].querySelectorAll('.pip').forEach((el, j) => el.classList.toggle('on', j < sc)); }
+    const sc = G.scores[i]; if (hudCache['p' + i] !== sc) {
+      hudCache['p' + i] = sc;
+      if (G.pointsMode) { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} pt${sc > 1 ? 's' : ''}`; }
+      else cards[i].querySelectorAll('.pip').forEach((el, j) => el.classList.toggle('on', j < sc));
+    }
   }
   const tl = Math.ceil(G.time), m = Math.floor(tl / 60), s = tl % 60;
   setTxt(timeEl, `${m}:${String(s).padStart(2, '0')}`, 'time');
-  setTxt(roundEl, G.sudden ? 'Mort subite' : `Manche ${G.round}`, 'round');
+  setTxt(roundEl, G.sudden ? 'Mort subite' : G.pointsMode ? `Manche ${G.round}/${POINT_ROUNDS}` : `Manche ${G.round}`, 'round');
   if (hudCache.sud !== G.sudden) { hudCache.sud = G.sudden; timeEl.classList.toggle('sudden', G.sudden); }
 }
 function syncMenu() {
@@ -1879,6 +1939,11 @@ function syncMenu() {
     b.setAttribute('aria-pressed', v === eb ? 'true' : 'false');
   });
   $('#opt-diff').classList.toggle('disabled', eb === 0 && settings.mode !== 'online');
+  const total = settings.mode === 'online' ? 0 : humansLocal() + eb, many = total >= 3;
+  $('.seg[data-key="wins"]').hidden = many;
+  $('#lbl-wins').textContent = many ? 'Manches' : 'Manches pour gagner';
+  $('#wins-note').textContent = many ? `À ${total} artificiers : 3 manches, classement aux points. 1er 5 pts, 2e 3, 3e 1, 4e 0 ; les ex aequo se partagent les points.`
+    : settings.mode === 'online' ? 'Vaut pour un duel. À 3 ou 4 : 3 manches, classement aux points.' : 'À 3 ou 4 artificiers, on joue 3 manches aux points.';
 }
 document.querySelectorAll('.seg').forEach(seg => {
   seg.addEventListener('click', e => {
@@ -1936,6 +2001,8 @@ function pause() {
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
+  if (G.pointsMode) { showEndPoints(); return; }
+  $('#end-score').style.whiteSpace = '';
   const w = G.lastWinner, p = PALS[w];
   const oneHuman = NET.role || humansLocal() === 1, wp = G.players[w];
   $('#end-kicker').textContent = oneHuman ? (w === localIdx() ? 'Victoire' : 'Défaite') : (wp && wp.ai ? 'Les ordis gagnent' : 'Fin de la partie');
@@ -1946,6 +2013,29 @@ function showEnd() {
   const es = $('#end-score');
   es.textContent = G.players.length > 2 ? G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ') : `${G.scores[0]} – ${G.scores[1]}`;
   es.style.fontSize = G.players.length > 2 ? '22px' : '';
+  endEl.hidden = false;
+  try { $('#again').focus({ preventScroll: true }); } catch (e) {}
+}
+function showEndPoints() {
+  if (!G.matchWin.length) rankMatch();
+  const win = G.matchWin, me = localIdx(), oneHuman = NET.role || humansLocal() === 1;
+  const kick = $('#end-kicker');
+  if (oneHuman) kick.textContent = win.includes(me) ? (win.length > 1 ? 'Victoire partagée' : 'Victoire') : `${ordinal(G.ranking[me])} place`;
+  else kick.textContent = win.every(i => G.players[i].ai) ? 'Les ordis gagnent' : 'Fin de la partie';
+  $('#again').hidden = NET.role === 'guest';
+  pauseEl.hidden = true;
+  const title = $('#end-title');
+  if (win.length === 1) { title.textContent = `${PALS[win[0]].name} remporte la partie`; title.style.color = PALS[win[0]].ui; }
+  else { title.textContent = `${joinFr(win.map(i => PALS[i].name))} ex aequo`; title.style.color = '#f3e5c0'; }
+  const ids = G.players.map((_, i) => i).sort((a, b) => G.ranking[a] - G.ranking[b]);
+  const es = $('#end-score');
+  es.textContent = ids.map(i => `${ordinal(G.ranking[i])} ${PALS[i].name} · ${G.scores[i]} pt${G.scores[i] > 1 ? 's' : ''}`).join('\n');
+  es.style.fontSize = '22px'; es.style.whiteSpace = 'pre-line';
+  // départage à égalité de points
+  const best = G.scores[ids[0]], tiedPts = ids.filter(i => G.scores[i] === best);
+  let note = '';
+  if (tiedPts.length > 1 && win.length < tiedPts.length) note = G.firsts[win[0]] > Math.min(...tiedPts.map(i => G.firsts[i])) ? 'À égalité de points : départagés au nombre de manches gagnées.' : 'À égalité de points : départagés par la dernière manche.';
+  $('#end-note').textContent = (note ? note + ' ' : '') + (NET.role === 'guest' ? "L'hôte peut lancer la revanche." : '');
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -2289,7 +2379,7 @@ function buildSnap() {
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
-    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded,
+    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(),
     seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
   };
 }
@@ -2311,6 +2401,9 @@ function decodeSnap(s) {
   NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
   G.round = num(s.rd) | 0; G.scores = G.players.map((_, i) => num(s.sc && s.sc[i]) | 0); G.lastWinner = num(s.lw) | 0;
+  G.places = Array.isArray(s.pl) && s.pl.length === G.players.length ? s.pl.map(v => clamp(num(v) | 0, 1, 4)) : [];
+  G.firsts = G.players.map((_, i) => num(s.fs && s.fs[i]) | 0);
+  G.gains = G.players.map((_, i) => num(s.gn && s.gn[i]) | 0);
   if (num(s.seed) !== G.seed) { G.seed = num(s.seed) | 0; groundDirty = true; }
   const g = String(s.g || '');
   for (let k = 0; k < N; k++) {
@@ -2361,7 +2454,7 @@ function decodeSnap(s) {
   predictKick();
   if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); }
   if (newMatch && !first) { endEl.hidden = true; }
-  if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) showEnd();
+  if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; showEnd(); }
 }
 function updateGuest(dt) {
   G.t += dt; updateParticles(dt);
