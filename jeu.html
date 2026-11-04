@@ -156,6 +156,13 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ranktable tr.gap td{border:0;text-align:center;color:var(--muted);padding:2px}
 @media (max-width:560px){.ranktable th,.ranktable td{padding:6px 5px}.ranktable th:nth-child(5),.ranktable td:nth-child(5){display:none}}
 .net-players em{font-style:normal;font-weight:800;font-size:12px;color:var(--gold)}
+.charpick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(460px,100%);margin:0 0 18px}
+.charpick button{display:flex;flex-direction:column;align-items:center;gap:2px;font:800 14px/1.1 var(--font-body);color:var(--parchment);background:rgba(12,18,12,.5);border:2px solid rgba(243,229,192,.22);border-radius:14px;padding:6px 4px 8px;cursor:pointer;transition:border-color .15s,background .15s}
+.charpick button:hover{border-color:rgba(243,229,192,.55)}
+.charpick button[aria-checked="true"]{border-color:var(--gold);background:rgba(255,207,90,.14);color:var(--gold)}
+.charpick canvas{width:72px;height:76px}
+@media (max-width:420px){.charpick canvas{width:58px;height:62px}}
+.net-players .ch{font-weight:800;font-size:12px;color:var(--parchment);opacity:.8}
 .mbtns{display:grid;gap:12px;width:min(460px,100%)}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
 .mbtn b{font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
@@ -322,6 +329,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="elo-badge" id="elo-badge" type="button" hidden></button>
       <span class="nick-note" id="nick-note" role="status"></span>
     </form>
+    <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
       <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
@@ -545,6 +553,18 @@ const FUSE = 3.5, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 3.2; // bom
 const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5, SD_RINGS = 2, RAIN_EVERY = 7, RAIN_FALL = 0.9;
 const BASE_SPEED = 4, SPEED_STEP = 0.4, MAX_SPEED_LV = 5, MAX_BOMBS = 8, MAX_RANGE = 8;
 const SKIN = '#f2c79d';
+// Persos jouables : l'artificier dessiné en code, puis 3 persos en images (assets/perso-*.png).
+// Chaque image de marche est donnée par [x, y, largeur, hauteur, axe du corps, bas des pieds].
+const CHARS = [
+  { key: 'artificier', name: 'Artificier' },
+  { key: 'robot', name: 'Astro' },
+  { key: 'renard', name: 'Fennec' },
+  { key: 'mage', name: 'Mage' },
+];
+const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]}};
+const charImg = {};
+const SPR_SCALE = 56 / 128;   // une image de marche (128 px) fait 56 px de haut dans l’arène
+const charName = i => (CHARS[i] || CHARS[0]).name;
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const ITEMS = [
@@ -582,6 +602,7 @@ const cleanNick = (v, def) => String(v == null ? '' : v).replace(/[\u0000-\u001f
 if (typeof settings.pid !== 'string' || !/^[a-z0-9]{12,32}$/.test(settings.pid)) settings.pid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
 settings.name = cleanNick(settings.name, 'Artificier ' + (100 + ((Math.random() * 900) | 0)));
 settings.name2 = cleanNick(settings.name2, 'Joueur 2');
+if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CHARS.length) settings.skin = 0;
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
@@ -666,7 +687,14 @@ const NET = {
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
 // À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
 const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
+// Les ordis (et les joueurs sans choix) prennent des persos différents de ceux déjà pris, si possible
+function assignChars(list) {
+  const used = new Set(list.filter(p => Number.isInteger(p.skin)).map(p => p.skin));
+  const pool = shuffled(CHARS.map((_, i) => i).filter(i => !used.has(i)));
+  for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : (Math.random() * CHARS.length) | 0;
+}
 function setPlayers(list) {
+  assignChars(list);
   G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
 }
@@ -1742,6 +1770,7 @@ function drawFieldItem(c, k, t) {
 
 /* ---------- Bombe ---------- */
 function drawBomb(c, x, y, b, t) {
+  if (b && b.owner && b.owner.skin) { const ch = CHARS[b.owner.skin], im = ch && charImg[ch.key]; if (im) { drawCharBomb(c, x, y, b, t, im, CHAR_RECTS[ch.key].bomb[0]); return; } }
   const left = b ? Math.max(0, b.timer) : FUSE, u = 1 - left / FUSE;
   const pulse = 1 + Math.sin(t * (7 + u * 22)) * (0.035 + u * 0.07);
   c.save(); c.translate(x, y + 3);
@@ -1758,6 +1787,45 @@ function drawBomb(c, x, y, b, t) {
   c.beginPath(); c.moveTo(0, -17); c.quadraticCurveTo(1, -17 - 6 * fl, ex, ey); c.stroke();
   drawSpark(c, ex, ey);
   if (u > 0.72 && Math.sin(t * 32) > 0) { c.fillStyle = 'rgba(255,70,40,.35)'; c.beginPath(); c.arc(0, 0, 14, 0, TAU); c.fill(); }
+  c.restore();
+}
+
+/* ---------- Persos en images ---------- */
+// Dessine le perso n° skin ; l'artificier (0), ou un perso dont l'image n'est pas encore chargée, est dessiné en code.
+function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
+  const ch = CHARS[skin], im = ch && charImg[ch.key];
+  if (!skin || !im) { drawHero(c, x, y, pal, face, phase, moving, t, o); return; }
+  o = o || {};
+  const R = CHAR_RECTS[ch.key], fr = R[face === 'left' ? 'right' : face] || R.down;
+  const [sx, sy, w, h, ax, bot] = fr[moving ? [0, 1, 2, 1][Math.floor(phase / (Math.PI / 2)) & 3] : 1];
+  c.save();
+  c.translate(x, y);
+  if (!o.noShadow) {
+    c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, 0, 15, 12, 4.2); c.fill();
+    // anneau à la couleur du joueur : distingue deux joueurs qui ont pris le même perso
+    c.strokeStyle = pal.ui; c.lineWidth = 2; c.globalAlpha = 0.85; ell(c, 0, 15, 13, 4.8); c.stroke(); c.globalAlpha = 1;
+  }
+  if (o.dead !== undefined) { const d = o.dead; c.globalAlpha = Math.max(0, 1 - d); c.translate(0, -d * 12); c.rotate(d * 7); c.scale(1 - d * 0.5, 1 - d * 0.5); }
+  if (o.hop) c.translate(0, -o.hop);
+  c.translate(0, 17 - (moving ? 0 : Math.sin(t * 2.4) * 0.6));
+  if (face === 'left') c.scale(-1, 1);
+  const S = SPR_SCALE * (o.scale || 1);
+  c.drawImage(im, sx, sy, w, h, -ax * S, -bot * S, w * S, h * S);
+  c.restore();
+}
+function drawCharBomb(c, x, y, b, t, im, fr) {
+  const left = Math.max(0, b.timer), u = 1 - left / FUSE;
+  const pulse = 1 + Math.sin(t * (7 + u * 22)) * (0.035 + u * 0.07);
+  const [sx, sy, w, h, ax, bot] = fr, S = 40 / 72;
+  c.save(); c.translate(x, y + 3);
+  c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 12, 12, 4); c.fill();
+  c.translate(0, 14); c.scale(pulse, 2 - pulse);
+  c.drawImage(im, sx, sy, w, h, -ax * S, -bot * S, w * S, h * S);
+  // étincelle vivante au bout de la mèche
+  const tx = (w * 0.8 - ax) * S, ty = (h * 0.13 - bot) * S;
+  c.globalAlpha = 0.55 + Math.random() * 0.45; drawSpark(c, tx, ty); c.globalAlpha = 1;
+  c.strokeStyle = b.owner.pal.ui; c.lineWidth = 2.4; c.beginPath(); c.ellipse(0, -2, 12.5, 4.4, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke();
+  if (u > 0.72 && Math.sin(t * 32) > 0) { c.fillStyle = 'rgba(255,70,40,.35)'; c.beginPath(); c.arc(0, -13, 14, 0, TAU); c.fill(); }
   c.restore();
 }
 
@@ -1973,7 +2041,7 @@ function render() {
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
       const face = (!p.alive || o.hop) ? 'down' : p.face;
-      drawHero(c, ((p.rx ?? p.x) + 0.5) * T, ((p.ry ?? p.y) + 0.5) * T, p.pal, face, p.phase, p.moving, t, o);
+      drawChar(c, ((p.rx ?? p.x) + 0.5) * T, ((p.ry ?? p.y) + 0.5) * T, p.skin, p.pal, face, p.phase, p.moving, t, o);
     }
   }
 
@@ -2032,12 +2100,19 @@ const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute')
 let hudCache = {};
 const STAT_TITLES = ['Bombes', 'Portée', 'Vitesse', 'Coup de pied'];
 
-function drawPortrait(cv, pal) {
+function drawPortrait(cv, pal, skin) {
   const c = cv.getContext('2d'); const s = cv.width / 52;
   c.setTransform(s, 0, 0, s, 0, 0); c.clearRect(0, 0, 52, 52);
   c.save(); c.beginPath(); c.arc(26, 26, 26, 0, TAU); c.clip();
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
+  const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
+  if (im) {
+    // grand portrait de face, cadré sur la tête
+    const [sx, sy, w, h] = CHAR_RECTS[ch.key].big[0], k = 60 / w;
+    c.drawImage(im, sx, sy, w, h, 26 - w * k / 2, 3, w * k, h * k);
+    c.restore(); return;
+  }
   c.translate(26, 26); c.scale(1.25, 1.25);
   drawHero(c, 0, 16, pal, 'down', 0, false, 0, { noShadow: true });
   c.restore();
@@ -2072,7 +2147,7 @@ function setupHud() {
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(i); card.querySelector('.nm').title = nameOf(i);
     card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
-    drawPortrait(card.querySelector('.portrait'), p.pal);
+    drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode) { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
@@ -2142,12 +2217,39 @@ function syncMute() {
 }
 function toggleMute() { Sfx.muted = !Sfx.muted; Sfx.init(); syncMute(); }
 
+// Sélecteur de perso de l'accueil : aperçus animés (le perso choisi marche, les autres respirent)
+const charBtns = [];
+function buildCharPicker() {
+  const box = $('#charpick'); box.innerHTML = '';
+  CHARS.forEach((ch, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.id = 'ch-' + ch.key;
+    const cv = document.createElement('canvas'); cv.width = 144; cv.height = 152;
+    const lb = document.createElement('span'); lb.textContent = ch.name;
+    b.append(cv, lb); box.appendChild(b); charBtns[i] = { b, cv };
+    b.addEventListener('click', () => {
+      settings.skin = i; saveSettings(); syncCharPicker();
+      if (NET.role === 'host' && !NET.started) refreshHostLobby();
+    });
+  });
+  syncCharPicker();
+}
+function syncCharPicker() { charBtns.forEach(({ b }, i) => { b.setAttribute('aria-checked', String(i === settings.skin)); b.setAttribute('aria-label', CHARS[i].name); }); }
+function drawCharPicker(t) {
+  if (menuEl.hidden) return;
+  charBtns.forEach(({ cv }, i) => {
+    const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    const sel = i === settings.skin, k = cv.width / 52;
+    c.setTransform(k, 0, 0, k, 0, 0);
+    drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false });
+  });
+}
 function blurActive() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
 function startMatch() {
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [];
   for (let i = 0; i < humansLocal(); i++) list.push(makePlayer(i, null, i ? settings.name2 : settings.name));
+  list[0].skin = settings.skin;
   for (let i = 0, nb = effBots(); i < nb; i++) list.push(makePlayer(list.length, lv));
   setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
   newRound(); setupHud();
@@ -2554,8 +2656,8 @@ function failOnline(msg) {
 }
 /* ---------- Salon (hôte) : jusqu'à 3 potes + des ordis, 4 artificiers au total ---------- */
 function lobbyList() {
-  const out = [{ k: 'h', n: settings.name, e: ELO.me ? ELO.me.elo | 0 : 0 }];
-  NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote', e: L.elo | 0 }));
+  const out = [{ k: 'h', n: settings.name, e: ELO.me ? ELO.me.elo | 0 : 0, s: settings.skin }];
+  NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote', e: L.elo | 0, s: L.skin | 0 }));
   for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b', n: PALS[out.length].name });
   return out;
 }
@@ -2568,6 +2670,7 @@ function renderNetPlayers(list, you) {
     b.textContent = cleanNick(pl.n, pal.name);
     sp.textContent = i === you ? 'toi' : pl.k === 'b' ? 'ordi' : i === 0 ? 'hôte' : 'pote';
     li.append(b);
+    if (pl.k !== 'b') { const ch = document.createElement('span'); ch.className = 'ch'; ch.textContent = charName(clamp(num(pl.s) | 0, 0, CHARS.length - 1)); li.append(ch); }
     const e = num(pl.e) | 0; if (pl.k !== 'b' && e > 0) { const em = document.createElement('em'); em.textContent = e; em.title = 'Elo'; li.append(em); }
     li.append(sp); ul.appendChild(li);
   });
@@ -2644,6 +2747,7 @@ function onHostData(L, d) {
   L.lastSeen = performance.now();
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
+    if (L.gin && L.gin.sk !== L.skin) { L.skin = L.gin.sk; if (!NET.started) refreshHostLobby(); }
     if (L.gin && (L.gin.aid !== L.aid || L.gin.el !== L.elo)) {
       L.aid = L.gin.aid; L.elo = L.gin.el;
       const p = G.players[L.slot]; if (NET.started && p && p.remote) p.aid = L.aid;
@@ -2681,9 +2785,10 @@ function startOnlineMatch() {
   G.mode = 'match'; G.paused = false;
   NET.mid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null, settings.name)];
+  list[0].skin = settings.skin;
   list[0].aid = myAid();
   NET.links.forEach((L, i) => {
-    L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; p.aid = L.aid || ''; list.push(p);
+    L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; p.aid = L.aid || ''; if (Number.isInteger(L.skin)) p.skin = L.skin; list.push(p);
     if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
@@ -2809,7 +2914,7 @@ function onGuestData(d) {
   NET.lastSeen = performance.now();
   if (d.t === 'lobby') {
     if (!NET.gotSnap) {
-      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n, e: x && x.e })) : [];
+      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n, e: x && x.e, s: x && x.s })) : [];
       renderNetPlayers(list, num(d.you) | 0);
       $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg });
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
@@ -2848,6 +2953,7 @@ function readGuest(pr) {
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
     nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
     aid: typeof pr.aid === 'string' && /^[a-z0-9]{12}$/.test(pr.aid) ? pr.aid : '', el: clamp(num(pr.el) | 0, 0, 9999),
+    sk: clamp(num(pr.sk) | 0, 0, CHARS.length - 1),
   };
 }
 function applyGuestInput() {
@@ -2880,7 +2986,7 @@ function buildSnap() {
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
-    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '',
+    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0),
     seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
   };
 }
@@ -2904,6 +3010,8 @@ function decodeSnap(s) {
     p.aid = aid;
     const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', PALS[i].name);
     if (p.nick !== nk) { p.nick = nk; hudDirty = true; }
+    const sk = Array.isArray(s.sk) ? clamp(num(s.sk[i]) | 0, 0, CHARS.length - 1) : 0;
+    if (p.skin !== sk) { p.skin = sk; hudDirty = true; }
   });
   NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
@@ -2992,7 +3100,7 @@ function sendGuest() {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
       f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
-      nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0,
+      nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0, sk: settings.skin,
     });
   } catch (e) {}
 }
@@ -3277,14 +3385,19 @@ else window.addEventListener('resize', resize);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  pollPads(); update(dt); render(); updateHud(); netTick();
+  pollPads(); update(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000);
   requestAnimationFrame(loop);
 }
 function boot(data) {
   data = data || {};
   if (data.settings) Object.assign(settings, data.settings);
   if (typeof data.muted === 'boolean') Sfx.muted = data.muted;
-  buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp();
+  buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp(); buildCharPicker();
+  for (const ch of CHARS.slice(1)) {
+    const im = new Image();
+    im.onload = () => { charImg[ch.key] = im; setupHud(); };
+    im.src = 'assets/perso-' + ch.key + '.png';
+  }
   resize(); toMenu();
   refreshMe();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
