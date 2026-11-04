@@ -615,7 +615,7 @@ const CHARS = [
   { key: 'slime', name: 'Gloop', ph: 60 },
   { key: 'aigle', name: 'Rapace' },
   { key: 'ninja', name: 'Ninja' },
-  { key: 'rodeur', name: 'Rôdeur' },
+  { key: 'rodeur', name: 'Rôdeur', rev: true },
   { key: 'astral', name: 'Astral', elo: 1100, ph: 92, py: 12 },   // perso à débloquer : 1100 Elo au classement
 ];
 const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]},"astral":{"down":[[0,0,70,150,35.0,150],[72,0,63,149,31.0,149],[137,0,74,150,35.0,150]],"up":[[213,0,71,151,36.0,151],[286,0,59,153,29.0,153],[347,0,75,152,36.0,152]],"right":[[424,0,70,150,35.0,150],[496,0,70,152,34.0,152],[568,0,76,149,36.0,149]],"bomb":[[646,0,59,72,30.0,72]],"big":[[707,0,120,220,59.0,220]]}};
@@ -2133,7 +2133,7 @@ function brSeekEnd() {
   if (slot < 0) { brToast('Tous les battle royale sont pleins : partie hors ligne'); return; }
   let peer;
   try { peer = new window.Peer(brId(slot), peerOptions()); } catch (err) { return; }
-  Object.assign(NET, { role: 'host', peer, links: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0 });
+  Object.assign(NET, { role: 'host', peer, links: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0, pubN: 0 });
   NET.mi++;
   peer.on('connection', conn => {
     if (NET.peer !== peer) return;
@@ -2451,7 +2451,8 @@ function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
   if (o.dead !== undefined) { const d = o.dead; c.globalAlpha = Math.max(0, 1 - d); c.translate(0, -d * 12); c.rotate(d * 7); c.scale(1 - d * 0.5, 1 - d * 0.5); }
   if (o.hop) c.translate(0, -o.hop);
   c.translate(0, 17 - (moving ? 0 : Math.sin(t * 2.4) * 0.6));
-  if (face === 'left') c.scale(-1, 1);
+  // rev : planche dont la marche « DROITE » regarde en fait à gauche
+  if ((face === 'left') !== !!(ch.rev && (face === 'left' || face === 'right'))) c.scale(-1, 1);
   const S = SPR_SCALE * (o.scale || 1);
   c.drawImage(im, sx, sy, w, h, -ax * S, -bot * S, w * S, h * S);
   c.restore();
@@ -3371,7 +3372,7 @@ function dropPeer() {
 function failOnline(msg) {
   dropPeer();
   if (NET.seek) clearTimeout(NET.seek.timer);
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0 });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0 });
   setNetView(false); renderLobby(msg); syncMenu();
   try { (NET.view === 'join' ? $('#net-code-in') : $('#net-retry')).focus({ preventScroll: true }); } catch (e) {}
 }
@@ -3409,8 +3410,8 @@ function cfgText(m) {
   return (bots ? `Ordis : ${LV_NAMES[clamp(num(c.diff) | 0, 0, 2)]}. ` : '') + `Partie en ${rounds}.`;
 }
 function pubWaitText(humans, cd) {
-  if (cd >= 0) return `${humans} joueurs dans la partie. Elle démarre dans ${cd} s…`;
-  return "En attente d'autres joueurs… La partie démarre dès qu'un 2e joueur arrive (15 s plus tard, ou tout de suite à 4).";
+  if (cd >= 0) return humans >= 4 ? `Partie complète (4 joueurs) : départ dans ${cd} s…` : `${humans} joueurs sur 4. La partie démarre dans ${cd} s si personne d'autre n'arrive…`;
+  return "En attente d'autres joueurs (4 au plus)… Dès 2 joueurs, la partie démarre 15 s après la dernière arrivée, ou tout de suite à 4.";
 }
 function refreshHostLobby() {
   if (NET.role !== 'host' || NET.started) return;
@@ -3432,7 +3433,7 @@ function hostGame(e, attempt = 0, pub = null) {
   const code = pub ? 'pub-' + pub.slot : makeCode();
   let peer;
   try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0 });
+  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Lobby créé.';
@@ -3656,7 +3657,7 @@ function leaveOnline() {
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, br: false });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false });
 }
 function opponentLeft(msg) {
   leaveOnline();
@@ -3872,11 +3873,13 @@ function netTick() {
       }
     } else {
       if (NET.pub) {
-        // partie publique : départ auto 15 s après l'arrivée du 2e joueur, 3 s à 4 joueurs
+        // partie publique (jusqu'à 4 joueurs) : dès 2 joueurs, départ quand personne n'est arrivé depuis PUB_WAIT ;
+        // chaque nouvelle arrivée relance l'attente ; à 4 (complet), départ 3 s plus tard
         const humans = 1 + NET.links.filter(L => L.conn.open).length;
+        const grew = humans > (NET.pubN | 0); NET.pubN = humans;
         if (humans < 2) { if (NET.cdEnd) { NET.cdEnd = 0; NET.sendT = 0; } }
         else {
-          if (!NET.cdEnd) { NET.cdEnd = now + PUB_WAIT; NET.sendT = 0; }
+          if (!NET.cdEnd || grew) { NET.cdEnd = now + PUB_WAIT; NET.sendT = 0; }
           if (humans >= 4 && NET.cdEnd - now > PUB_FULL_WAIT) { NET.cdEnd = now + PUB_FULL_WAIT; NET.sendT = 0; }
           if (now >= NET.cdEnd) { startOnlineMatch(); return; }
         }
