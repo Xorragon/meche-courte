@@ -57,6 +57,11 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 .ptag{font-family:var(--font-body);font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-left:7px;vertical-align:middle}
 .right .ptag{margin-left:0;margin-right:7px}
 .right .pname{display:flex;flex-direction:row-reverse;justify-content:flex-start;align-items:center}
+.nm{display:inline-block;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;min-width:0}
+.right .nm{display:block}
+#hud.many .nm{max-width:6.2em}
+@media (max-width:560px){#hud.many .nm{max-width:3.6em}.nm{max-width:5.5em}}
+.pts{white-space:nowrap}
 .pips{display:flex;gap:5px}
 .right .pips{justify-content:flex-end}
 .pip{width:11px;height:11px;border-radius:50%;border:2px solid var(--pc);opacity:.5}
@@ -129,6 +134,11 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ghost:hover{border-color:var(--parchment)}
 .home{width:min(1000px,100%);margin:auto;display:flex;flex-direction:column;align-items:flex-start}
 .fusebox{width:min(460px,100%)}
+.nick{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-6px 0 18px}
+.nick label{font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.txt{font:700 18px/1.2 var(--font-body);color:var(--parchment);background:rgba(0,0,0,.28);border:2px solid rgba(243,229,192,.3);border-radius:10px;padding:8px 12px;width:min(240px,100%);user-select:text;-webkit-user-select:text}
+.txt:focus{outline:3px solid var(--gold);outline-offset:2px;border-color:var(--parchment)}
+#opt-name2[hidden]{display:none}
 .mbtns{display:grid;gap:12px;width:min(460px,100%)}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
 .mbtn b{font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
@@ -151,7 +161,10 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .keytable{border-collapse:collapse;margin:14px auto 6px;width:min(100%,640px)}
 .keytable th,.keytable td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(243,229,192,.12)}
 .keytable th{font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.keytable th.c1{color:var(--p1)} .keytable th.c2{color:var(--p2)} .keytable th.c3{color:var(--gold)}
+.keytable th.c1,.keytable th.c2,.keytable th.c3{color:var(--parchment)}
+.colh{display:inline-flex;align-items:center;gap:7px}
+.ico{width:24px;height:16px;flex:none}
+.who .ico{width:22px;height:15px;margin-right:4px;vertical-align:-2px}
 .keytable .fixed{color:var(--muted);font-weight:700;font-size:14px;padding-left:12px}
 .keysbox{max-width:760px}
 body.pad-nav :focus{outline:3px solid var(--gold);outline-offset:3px}
@@ -170,7 +183,7 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .ctrl{display:grid;gap:12px;margin:0 0 30px}
 .ctrl p{margin:0;line-height:1.7}
 .who{font-family:var(--font-display);font-size:18px;margin-right:6px}
-.who.c1{color:var(--p1)} .who.c2{color:var(--p2)} .who.c3{color:var(--gold)}
+.who.c1,.who.c2,.who.c3{color:var(--gold)}
 .ctrl .small{color:var(--muted);font-size:15px}
 .items{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .items li{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center}
@@ -286,6 +299,10 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="kicker">Jusqu'à 4 artificiers</p>
     <h1 class="title">Mèche<br><span>Courte</span></h1>
     <div class="fusebox"><div class="fuse" aria-hidden="true"></div></div>
+    <form class="nick" id="nick-form" autocomplete="off">
+      <label for="nick-in">Ton pseudo</label>
+      <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
+    </form>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
       <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
@@ -310,6 +327,10 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
           <button type="button" id="m-cpu" data-v="cpu">Seul</button>
           <button type="button" id="m-duo" data-v="duo">À deux</button>
         </div>
+      </div>
+      <div class="opt" id="opt-name2">
+        <label class="opt-label" for="name2-in">Pseudo du joueur 2</label>
+        <input id="name2-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
       </div>
       <div class="opt" id="opt-bots">
         <span class="opt-label" id="lbl-bots">Ordis dans l'arène</span>
@@ -362,7 +383,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <p id="keys-help-0"></p>
         <p id="keys-help-1"></p>
         <p id="pad-help"></p>
-        <p class="small">La manette navigue aussi dans les menus (croix ou stick, <kbd>A</kbd> pour valider, <kbd>B</kbd> pour revenir). Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
+        <p class="small">La manette navigue aussi dans les menus (croix ou stick, <kbd>A</kbd> pour valider, <kbd>B</kbd> pour revenir). Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle pilote le joueur 2 ; avec deux, la 1re pilote le joueur 1 et la 2e le joueur 2. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
       </div>
       <div class="row" style="justify-content:flex-start">
         <button class="ghost tiny" type="button" id="help-keys">Changer les touches</button>
@@ -393,10 +414,10 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <h2>Touches et manette</h2>
     <p class="rule" id="keys-status" role="status"></p>
     <table class="keytable">
-      <thead><tr><th scope="col">Action</th><th scope="col" class="c1">Mèche</th><th scope="col" class="c2">Braise</th><th scope="col" class="c3">Manette</th></tr></thead>
+      <thead><tr><th scope="col">Action</th><th scope="col" class="c1"><span class="colh"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><rect x="1" y="1" width="22" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 5h1.6M9 5h1.6M13 5h1.6M17 5h1.6M5 8.3h1.6M9 8.3h1.6M13 8.3h1.6M17 8.3h1.6M7 11.6h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Clavier</span></th><th scope="col" class="c2"><span class="colh"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="8.5" y="1" width="7" height="6.5" rx="1.4"/><rect x="1" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="8.5" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="16" y="8.5" width="7" height="6.5" rx="1.4"/></g><path d="M12 5.6V3M10.8 4.2 12 3l1.2 1.2M5.6 11.75H3.2M4.4 10.55 3.2 11.75l1.2 1.2M12 10.3v2.6M10.8 11.7 12 12.9l1.2-1.2M18.4 11.75h2.4M19.6 10.55l1.2 1.2-1.2 1.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Flèches</span></th><th scope="col" class="c3"><span class="colh"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><path d="M7 2.5h10c3 0 4.6 2.2 5.3 5.6l.7 3.6c.4 2.1-1.6 3.6-3.3 2.4L16.8 12H7.2l-2.9 2.1C2.6 15.3.6 13.8 1 11.7l.7-3.6C2.4 4.7 4 2.5 7 2.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 5.8v3.6M5.2 7.6h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="16.4" cy="6.3" r="1.05" fill="currentColor"/><circle cx="18.6" cy="8.5" r="1.05" fill="currentColor"/></svg>Manette</span></th></tr></thead>
       <tbody id="keys-body"></tbody>
     </table>
-    <p class="rule small">Seul ou en ligne, les colonnes Mèche et Braise pilotent toutes les deux ton perso. À deux sur un clavier, la colonne Mèche est au 1er joueur, la colonne Braise au 2e. La colonne Manette vaut pour toutes les manettes ; le stick gauche fait toujours bouger. Échap reste la touche de pause au clavier.</p>
+    <p class="rule small">Seul ou en ligne, les colonnes Clavier et Flèches pilotent toutes les deux ton perso. À deux sur un clavier, la colonne Clavier est au joueur 1, la colonne Flèches au joueur 2. La colonne Manette vaut pour toutes les manettes ; le stick gauche fait toujours bouger. Échap reste la touche de pause au clavier.</p>
     <p class="rule small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
     <div class="row" style="margin-top:14px">
       <button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button>
@@ -521,6 +542,12 @@ function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let 
 const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true, keys: null, keyLabels: {}, pad: null };
 try { const s = JSON.parse(localStorage.getItem('meche-courte') || 'null'); if (s) Object.assign(settings, s); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} }
+// Pseudo (16 caractères max) et identifiant de joueur stable, gardé pour le futur classement en ligne
+const cleanNick = (v, def) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f-\u009f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || def;
+if (typeof settings.pid !== 'string' || !/^[a-z0-9]{12,32}$/.test(settings.pid)) settings.pid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
+settings.name = cleanNick(settings.name, 'Artificier ' + (100 + ((Math.random() * 900) | 0)));
+settings.name2 = cleanNick(settings.name2, 'Joueur 2');
+saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
 const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter la bombe poussée']];
@@ -609,6 +636,7 @@ function setPlayers(list) {
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
 }
 const joinFr = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1] : a.join('');
+const nameOf = i => (G.players[i] && G.players[i].nick) || (PALS[i] ? PALS[i].name : '?');
 const ordinal = n => n === 1 ? '1er' : `${n}e`;
 // classement final : points, puis nombre de manches gagnées, puis place dans la dernière manche
 function rankMatch() {
@@ -725,9 +753,9 @@ function shuffled(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i-
 function newAI(lv, i) {
   return { lv, path: [], cd: 0.25 + i * 0.1 + Math.random() * 0.1, sig: -1, stuck: 0, goal: -1, nb: shuffled(NB), noise: 0.6 + Math.random() * 1.2 };
 }
-function makePlayer(i, lv) {
+function makePlayer(i, lv, nick) {
   return {
-    id: i, pal: PALS[i], x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
+    id: i, pal: PALS[i], nick: nick || PALS[i].name, x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
     alive: true, deathT: 0, phase: 0, moving: false, dirStack: [], bombQueued: false,
     ai: lv ? newAI(lv, i) : null,
   };
@@ -1100,7 +1128,7 @@ const FX = {
   },
   left(slot) {
     const pal = PALS[slot]; if (!pal) return;
-    addP({ kind: 'text', x: W / 2, y: 70, vx: 0, vy: 0, life: 3.5, max: 3.5, size: 18, color: pal.ui, text: `${pal.name} a quitté la partie : un ordi prend sa place` });
+    addP({ kind: 'text', x: W / 2, y: 70, vx: 0, vy: 0, life: 3.5, max: 3.5, size: 18, color: pal.ui, text: `${nameOf(slot)} a quitté la partie : un ordi prend sa place` });
   },
   snd(n) { Sfx.play(n); },
 };
@@ -1943,14 +1971,14 @@ function render() {
   } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
     const a = Math.min(1, (3.2 - G.phaseT) * 4);
     const ids = G.players.map((_, i) => i).sort((x, y) => G.places[x] - G.places[y]);
-    const sub = ids.map(i => `${PALS[i].name} +${(G.gains || [])[i] || 0}`).join('  ·  ');
+    const sub = ids.map(i => `${nameOf(i)} +${(G.gains || [])[i] || 0}`).join('  ·  ');
     const tops = ids.filter(i => G.places[i] === 1);
-    if (tops.length === 1) drawBanner(c, `${PALS[tops[0]].name} gagne la manche`, sub, PALS[tops[0]].ui, a);
-    else drawBanner(c, tops.length === G.players.length ? 'Égalité !' : `${joinFr(tops.map(i => PALS[i].name))} ex aequo`, sub, '#f3e5c0', a);
+    if (tops.length === 1) drawBanner(c, `${nameOf(tops[0])} gagne la manche`, sub, PALS[tops[0]].ui, a);
+    else drawBanner(c, tops.length === G.players.length ? 'Égalité !' : `${joinFr(tops.map(nameOf))} ex aequo`, sub, '#f3e5c0', a);
   } else if (G.phase === 'roundEnd') {
     const a = Math.min(1, (2.8 - G.phaseT) * 4);
-    const sc = G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ');
-    if (G.lastWinner >= 0) drawBanner(c, `${PALS[G.lastWinner].name} gagne la manche`, sc, PALS[G.lastWinner].ui, a);
+    const sc = G.players.map(o => `${nameOf(o.id)} ${G.scores[o.id]}`).join('  ·  ');
+    if (G.lastWinner >= 0) drawBanner(c, `${nameOf(G.lastWinner)} gagne la manche`, sc, PALS[G.lastWinner].ui, a);
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   }
   if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', "L'arène rétrécit, puis des bonus tombent du ciel", '#ff7a2f', Math.min(1, G.suddenFlash * 2));
@@ -2005,7 +2033,7 @@ function setupHud() {
   for (let i = 0; i < 4; i++) {
     const p = G.players[i], card = cards[i];
     card.hidden = !p; if (!p) continue;
-    card.querySelector('.nm').textContent = p.pal.name;
+    card.querySelector('.nm').textContent = nameOf(i); card.querySelector('.nm').title = nameOf(i);
     card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
@@ -2045,6 +2073,9 @@ function syncMenu() {
     b.disabled = v < lo || v > Math.max(lo, hi);
     b.setAttribute('aria-pressed', v === eb ? 'true' : 'false');
   });
+  $('#opt-name2').hidden = settings.mode !== 'duo';
+  if (document.activeElement !== $('#nick-in')) $('#nick-in').value = settings.name;
+  if (document.activeElement !== $('#name2-in')) $('#name2-in').value = settings.name2;
   document.querySelectorAll('.opt-diff').forEach(o => o.classList.toggle('disabled', eb === 0 && settings.mode !== 'online'));
   // nombre d'artificiers : écran solo (clavier + ordis) ou lobby (hôte + potes + ordis)
   const online = settings.mode === 'online', total = online ? 1 + NET.links.length + eb : humansLocal() + eb, many = total >= 3;
@@ -2079,7 +2110,7 @@ function startMatch() {
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [];
-  for (let i = 0; i < humansLocal(); i++) list.push(makePlayer(i, null));
+  for (let i = 0; i < humansLocal(); i++) list.push(makePlayer(i, null, i ? settings.name2 : settings.name));
   for (let i = 0, nb = effBots(); i < nb; i++) list.push(makePlayer(list.length, lv));
   setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
   newRound(); setupHud();
@@ -2128,9 +2159,9 @@ function showEnd() {
   $('#again').hidden = NET.role === 'guest';
   $('#end-note').textContent = NET.role === 'guest' ? "L'hôte peut lancer la revanche." : '';
   pauseEl.hidden = true;
-  const title = $('#end-title'); title.textContent = `${p.name} remporte la partie`; title.style.color = p.ui;
+  const title = $('#end-title'); title.textContent = `${nameOf(w)} remporte la partie`; title.style.color = p.ui;
   const es = $('#end-score');
-  es.textContent = G.players.length > 2 ? G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ') : `${G.scores[0]} – ${G.scores[1]}`;
+  es.textContent = G.players.length > 2 ? G.players.map(o => `${nameOf(o.id)} ${G.scores[o.id]}`).join('  ·  ') : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
   es.style.fontSize = G.players.length > 2 ? '22px' : '';
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
@@ -2144,11 +2175,11 @@ function showEndPoints() {
   $('#again').hidden = NET.role === 'guest';
   pauseEl.hidden = true;
   const title = $('#end-title');
-  if (win.length === 1) { title.textContent = `${PALS[win[0]].name} remporte la partie`; title.style.color = PALS[win[0]].ui; }
-  else { title.textContent = `${joinFr(win.map(i => PALS[i].name))} ex aequo`; title.style.color = '#f3e5c0'; }
+  if (win.length === 1) { title.textContent = `${nameOf(win[0])} remporte la partie`; title.style.color = PALS[win[0]].ui; }
+  else { title.textContent = `${joinFr(win.map(nameOf))} ex aequo`; title.style.color = '#f3e5c0'; }
   const ids = G.players.map((_, i) => i).sort((a, b) => G.ranking[a] - G.ranking[b]);
   const es = $('#end-score');
-  es.textContent = ids.map(i => `${ordinal(G.ranking[i])} ${PALS[i].name} · ${G.scores[i]} pt${G.scores[i] > 1 ? 's' : ''}`).join('\n');
+  es.textContent = ids.map(i => `${ordinal(G.ranking[i])} ${nameOf(i)} · ${G.scores[i]} pt${G.scores[i] > 1 ? 's' : ''}`).join('\n');
   es.style.fontSize = '22px'; es.style.whiteSpace = 'pre-line';
   // départage à égalité de points
   const best = G.scores[ids[0]], tiedPts = ids.filter(i => G.scores[i] === best);
@@ -2163,6 +2194,15 @@ function onAgain() { if (NET.role === 'host') startOnlineMatch(); else if (!NET.
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
+function bindNick(inp, key, def) {
+  const commit = () => { settings[key] = cleanNick(inp.value, def()); inp.value = settings[key]; saveSettings(); renderNetPlayersIfHost(); };
+  inp.addEventListener('change', commit); inp.addEventListener('blur', commit);
+  inp.addEventListener('input', () => { const v = cleanNick(inp.value, ''); if (v) { settings[key] = v; saveSettings(); } });
+}
+function renderNetPlayersIfHost() { if (NET.role === 'host' && !NET.started) refreshHostLobby(); }
+bindNick($('#nick-in'), 'name', () => settings.name);
+bindNick($('#name2-in'), 'name2', () => 'Joueur 2');
+$('#nick-form').addEventListener('submit', e => { e.preventDefault(); $('#nick-in').blur(); });
 $('#solo-back').addEventListener('click', closeSolo);
 $('#btn-help').addEventListener('click', openHelp);
 $('#help-close').addEventListener('click', closeHelp);
@@ -2336,9 +2376,9 @@ function failOnline(msg) {
 }
 /* ---------- Salon (hôte) : jusqu'à 3 potes + des ordis, 4 artificiers au total ---------- */
 function lobbyList() {
-  const out = [{ k: 'h' }];
-  NET.links.forEach(() => out.push({ k: 'h' }));
-  for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b' });
+  const out = [{ k: 'h', n: settings.name }];
+  NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote' }));
+  for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b', n: PALS[out.length].name });
   return out;
 }
 function renderNetPlayers(list, you) {
@@ -2347,7 +2387,7 @@ function renderNetPlayers(list, you) {
     const pal = PALS[i]; if (!pal) return;
     const li = document.createElement('li'); li.style.setProperty('--pc', pal.ui);
     const b = document.createElement('b'), sp = document.createElement('span');
-    b.textContent = pal.name;
+    b.textContent = cleanNick(pl.n, pal.name);
     sp.textContent = i === you ? 'toi' : pl.k === 'b' ? 'ordi' : i === 0 ? 'hôte' : 'pote';
     li.append(b, sp); ul.appendChild(li);
   });
@@ -2422,7 +2462,14 @@ function hostGame(e, attempt = 0, pub = null) {
 function onHostData(L, d) {
   if (!d || typeof d !== 'object' || NET.links.indexOf(L) < 0) return;
   L.lastSeen = performance.now();
-  if (d.t === 'g') L.gin = readGuest(d) || L.gin;
+  if (d.t === 'g') {
+    L.gin = readGuest(d) || L.gin;
+    if (L.gin && L.gin.nk && L.gin.nk !== L.nick) {
+      L.nick = L.gin.nk; L.pid = L.gin.pid;
+      const p = G.players[L.slot]; if (NET.started && p && p.remote) { p.nick = L.nick; setupHud(); }
+      else if (!NET.started) refreshHostLobby();
+    }
+  }
   else if (d.t === 'bye') dropLink(L);
 }
 // Un pote s'en va : en salon il disparaît de la liste ; en partie, un ordi prend sa place.
@@ -2447,9 +2494,9 @@ function startOnlineMatch() {
   const bots = NET.pub ? 0 : clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
   Sfx.init(); NET.mi++; NET.started = true;
   G.mode = 'match'; G.paused = false;
-  const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null)];
+  const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null, settings.name)];
   NET.links.forEach((L, i) => {
-    L.slot = i + 1; const p = makePlayer(i + 1, null); p.remote = true; list.push(p);
+    L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; list.push(p);
     if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
@@ -2575,7 +2622,7 @@ function onGuestData(d) {
   NET.lastSeen = performance.now();
   if (d.t === 'lobby') {
     if (!NET.gotSnap) {
-      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h' })) : [];
+      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n })) : [];
       renderNetPlayers(list, num(d.you) | 0);
       $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg });
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
@@ -2611,6 +2658,7 @@ function readGuest(pr) {
     mi: num(pr.mi), rd: num(pr.rd), x: clamp(num(pr.x), 1, COLS - 2), y: clamp(num(pr.y), 1, ROWS - 2),
     f: num(pr.f) | 0, m: pr.m ? 1 : 0, b: num(pr.b) | 0, st: num(pr.st) | 0,
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
+    nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
   };
 }
 function applyGuestInput() {
@@ -2643,7 +2691,7 @@ function buildSnap() {
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
-    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(),
+    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick),
     seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
   };
 }
@@ -2661,7 +2709,11 @@ function decodeSnap(s) {
     for (let i = 0; i < n; i++) { const p = makePlayer(i, null); p.remote = i !== NET.me; resetPlayer(p); list.push(p); }
     setPlayers(list); hudDirty = true;
   }
-  G.players.forEach((p, i) => { p.isBot = kinds[i] === 'b'; });
+  G.players.forEach((p, i) => {
+    p.isBot = kinds[i] === 'b';
+    const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', PALS[i].name);
+    if (p.nick !== nk) { p.nick = nk; hudDirty = true; }
+  });
   NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
   G.round = num(s.rd) | 0; G.scores = G.players.map((_, i) => num(s.sc && s.sc[i]) | 0); G.lastWinner = num(s.lw) | 0;
@@ -2748,6 +2800,7 @@ function sendGuest() {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
       f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
+      nk: settings.name, pid: settings.pid,
     });
   } catch (e) {}
 }
@@ -2926,13 +2979,13 @@ let capture = null, keysFrom = null;
 const kbd = code => `<kbd>${keyLabel(code).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))}</kbd>`;
 const KEYS_HINT = "Choisis une case du tableau (souris, clavier ou manette), puis appuie sur la nouvelle touche ou le nouveau bouton. Échap pour annuler.";
 function renderKeyHelp() {
-  const names = [['c1', 'Mèche'], ['c2', 'Braise']];
+  const names = [['c1', '<svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><rect x="1" y="1" width="22" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 5h1.6M9 5h1.6M13 5h1.6M17 5h1.6M5 8.3h1.6M9 8.3h1.6M13 8.3h1.6M17 8.3h1.6M7 11.6h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Clavier'], ['c2', '<svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="8.5" y="1" width="7" height="6.5" rx="1.4"/><rect x="1" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="8.5" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="16" y="8.5" width="7" height="6.5" rx="1.4"/></g><path d="M12 5.6V3M10.8 4.2 12 3l1.2 1.2M5.6 11.75H3.2M4.4 10.55 3.2 11.75l1.2 1.2M12 10.3v2.6M10.8 11.7 12 12.9l1.2-1.2M18.4 11.75h2.4M19.6 10.55l1.2 1.2-1.2 1.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Flèches']];
   settings.keys.forEach((k, i) => {
     const el = document.getElementById('keys-help-' + i); if (!el) return;
     el.innerHTML = `<span class="who ${names[i][0]}">${names[i][1]}</span> ${kbd(k.up)} ${kbd(k.left)} ${kbd(k.down)} ${kbd(k.right)} pour bouger, ${kbd(k.bomb)} pour poser une bombe, ${kbd(k.stop)} pour arrêter la bombe poussée`;
   });
   const pb = settings.pad, ph = document.getElementById('pad-help');
-  if (ph) ph.innerHTML = `<span class="who c3">Manette</span> ${pb.up === 12 && pb.down === 13 && pb.left === 14 && pb.right === 15 ? 'croix' : [pb.up, pb.left, pb.down, pb.right].map(i => `<kbd>${esc(padLabel(i))}</kbd>`).join(' ')} ou stick gauche pour bouger, <kbd>${esc(padLabel(pb.bomb))}</kbd> pour poser une bombe, <kbd>${esc(padLabel(pb.stop))}</kbd> pour arrêter la bombe poussée, <kbd>${esc(padLabel(pb.pause))}</kbd> pour la pause`;
+  if (ph) ph.innerHTML = `<span class="who c3"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><path d="M7 2.5h10c3 0 4.6 2.2 5.3 5.6l.7 3.6c.4 2.1-1.6 3.6-3.3 2.4L16.8 12H7.2l-2.9 2.1C2.6 15.3.6 13.8 1 11.7l.7-3.6C2.4 4.7 4 2.5 7 2.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 5.8v3.6M5.2 7.6h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="16.4" cy="6.3" r="1.05" fill="currentColor"/><circle cx="18.6" cy="8.5" r="1.05" fill="currentColor"/></svg>Manette</span> ${pb.up === 12 && pb.down === 13 && pb.left === 14 && pb.right === 15 ? 'croix' : [pb.up, pb.left, pb.down, pb.right].map(i => `<kbd>${esc(padLabel(i))}</kbd>`).join(' ')} ou stick gauche pour bouger, <kbd>${esc(padLabel(pb.bomb))}</kbd> pour poser une bombe, <kbd>${esc(padLabel(pb.stop))}</kbd> pour arrêter la bombe poussée, <kbd>${esc(padLabel(pb.pause))}</kbd> pour la pause`;
   const body = $('#keys-body'); if (!body) return;
   const focusedId = document.activeElement && document.activeElement.id;
   body.innerHTML = '';
@@ -2941,7 +2994,7 @@ function renderKeyHelp() {
     for (let si = 0; si < 3; si++) {
       const td = document.createElement('td');
       if (si < 2 && a === 'pause') { td.className = 'fixed'; td.textContent = si === 0 ? 'Échap' : ''; tr.appendChild(td); continue; }
-      const b = document.createElement('button'), who = si === 2 ? 'Manette' : si ? 'Braise' : 'Mèche';
+      const b = document.createElement('button'), who = si === 2 ? 'Manette' : si ? 'Flèches' : 'Clavier';
       const cur = si === 2 ? padLabel(settings.pad[a]) : keyLabel(settings.keys[si][a]);
       b.type = 'button'; b.className = 'keybtn'; b.id = `kb-${si}-${a}`;
       const waiting = capture && capture.set === si && capture.act === a;
@@ -2976,7 +3029,7 @@ function finishCapture(e) {
   const old = settings.keys[c.set][c.act];
   // la touche était déjà prise ailleurs : on échange
   let swapped = null;
-  settings.keys.forEach((set, si) => { for (const [a, l] of ACTIONS) if (set[a] === e.code && !(si === c.set && a === c.act)) { set[a] = old; swapped = `${l} (${si ? 'Braise' : 'Mèche'})`; } });
+  settings.keys.forEach((set, si) => { for (const [a, l] of ACTIONS) if (set[a] === e.code && !(si === c.set && a === c.act)) { set[a] = old; swapped = `${l} (${si ? 'Flèches' : 'Clavier'})`; } });
   settings.keys[c.set][c.act] = e.code;
   if (e.key && e.key.length === 1 && e.key !== ' ') settings.keyLabels[e.code] = e.key.toUpperCase();
   rebuildKeyMap(); saveSettings();
