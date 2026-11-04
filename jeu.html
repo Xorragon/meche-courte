@@ -91,6 +91,9 @@ body.touch #touch{display:flex}
 #pad .left{top:50%;left:12px;margin-top:-11px;border-right:14px solid var(--parchment);border-left:0}
 #pad .right{top:50%;right:12px;margin-top:-11px;border-left:14px solid var(--parchment);border-right:0}
 #pad[data-dir="up"] .up,#pad[data-dir="down"] .down,#pad[data-dir="left"] .left,#pad[data-dir="right"] .right{opacity:1;filter:drop-shadow(0 0 6px var(--gold))}
+.tright{display:flex;align-items:center;gap:14px}
+#tstop{width:62px;height:62px;border-radius:50%;border:2px solid rgba(243,229,192,.45);background:rgba(243,229,192,.08);color:var(--parchment);font:800 14px/1 var(--font-body);letter-spacing:.06em;text-transform:uppercase;touch-action:none;cursor:pointer}
+#tstop:active{background:rgba(243,229,192,.25)}
 #tbomb{width:96px;height:96px;border-radius:50%;border:0;background:var(--ember);box-shadow:0 6px 0 #a3410f;display:grid;place-items:center;touch-action:none;cursor:pointer}
 #tbomb:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
 #tbomb canvas{width:56px;height:56px}
@@ -234,7 +237,10 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <main id="stage"><div id="frame"><canvas id="game" aria-label="Arène de jeu"></canvas></div></main>
   <div id="touch" aria-hidden="true">
     <div id="pad"><span class="ar up"></span><span class="ar down"></span><span class="ar left"></span><span class="ar right"></span></div>
-    <button id="tbomb" type="button" tabindex="-1"><canvas width="112" height="112"></canvas></button>
+    <div class="tright">
+      <button id="tstop" type="button" tabindex="-1" aria-label="Arrêter la bombe poussée">Stop</button>
+      <button id="tbomb" type="button" tabindex="-1"><canvas width="112" height="112"></canvas></button>
+    </div>
   </div>
 </div>
 
@@ -288,9 +294,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <section class="side">
       <h2>Commandes</h2>
       <div class="ctrl">
-        <p><span class="who c1">Mèche</span> <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) pour bouger, <kbd>Espace</kbd> pour poser une bombe</p>
-        <p><span class="who c2">Braise</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour bouger, <kbd>Entrée</kbd> pour poser une bombe</p>
-        <p><span class="who c3">Manette</span> croix ou stick gauche pour bouger, <kbd>A</kbd> pour poser une bombe, <kbd>Start</kbd> pour la pause</p>
+        <p><span class="who c1">Mèche</span> <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) pour bouger, <kbd>Espace</kbd> pour poser une bombe, <kbd>E</kbd> pour arrêter la bombe que tu as poussée</p>
+        <p><span class="who c2">Braise</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour bouger, <kbd>Entrée</kbd> pour poser une bombe, <kbd>Maj droite</kbd> pour l'arrêter</p>
+        <p><span class="who c3">Manette</span> croix ou stick gauche pour bouger, <kbd>A</kbd> pour poser une bombe, <kbd>B</kbd> pour arrêter la bombe poussée, <kbd>Start</kbd> pour la pause</p>
         <p class="small">Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
         <p class="small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
         <p><button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button></p>
@@ -383,7 +389,7 @@ const ITEMS = [
   { name: 'Bombe en plus',    short: '+1 bombe',  desc: 'Une bombe de plus à poser en même temps.', c1: '#9a90ff', c2: '#4a3cc0' },
   { name: 'Poudre vive',      short: '+1 portée', desc: 'Tes explosions vont une case plus loin.',  c1: '#ff9152', c2: '#c43f0b' },
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
-  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser.', c1: '#ffd66e', c2: '#c4860c' },
+  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête.', c1: '#ffd66e', c2: '#c4860c' },
 ];
 const PALS = [
   { name: 'Mèche',  coat: '#2a9d8f', coatDark: '#1c6e64', scarf: '#ffcf5a', scarfDark: '#dfa327', helm: '#b86a2e', helmLight: '#e8a05a', helmDark: '#7d4318', ui: '#3cc7b5' },
@@ -431,7 +437,7 @@ const NET = {
   role: null, peer: null, link: null, guestOn: false, lastSeen: 0, code: null, mi: 0,
   guestPeer: null, hostPeer: null, myPeer: null, gin: null, lastBomb: 0, lastKick: 0,
   events: [], fxSeq: 0, lastFx: 0, lastQ: -1, q: 0, gotSnap: false,
-  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1,
+  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
 function setPlayers(list) { G.players = list; G.scores = list.map(() => 0); }
@@ -483,6 +489,7 @@ const Sfx = {
         }
         case 'item': this.tone('triangle', 660, 660, 0.09, 0.28); this.tone('triangle', 990, 990, 0.09, 0.28, 0.07); this.tone('triangle', 1320, 1320, 0.14, 0.24, 0.14); break;
         case 'kick': this.noise(0.09, 0.4, 3500, 700); this.tone('square', 210, 90, 0.07, 0.12); break;
+        case 'halt': this.tone('square', 180, 70, 0.08, 0.14); this.noise(0.06, 0.25, 1500, 400); break;
         case 'death': this.tone('sawtooth', 520, 70, 0.7, 0.22); this.noise(0.4, 0.3, 1200, 200, 0.05); break;
         case 'win': [523, 659, 784, 1047].forEach((f, i) => this.tone('triangle', f, f, 0.18, 0.25, i * 0.1)); break;
         case 'draw': this.tone('triangle', 392, 330, 0.3, 0.22); this.tone('triangle', 330, 262, 0.4, 0.22, 0.25); break;
@@ -653,12 +660,12 @@ function movingBombClamp(p, ax, dir, lane, v, nv) {
     nv = dir > 0 ? Math.min(nv, Math.max(v, lim)) : Math.max(nv, Math.min(v, lim));
     if (!moving && nv !== before && p.kick && !p.ai) {
       const bx = b.x, by = b.y, dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
-      if (!bombBlocked(bx + dx, by + dy, b)) requestKick(bx, by, dx, dy);
+      if (!bombBlocked(bx + dx, by + dy, b)) requestKick(bx, by, dx, dy, p);
     }
   }
   return nv;
 }
-function stopBomb(b) { b.mdx = b.mdy = 0; b.prog = 0; }
+function stopBomb(b) { b.mdx = b.mdy = 0; b.prog = 0; b.stopReq = false; }
 function tryKick(p, ax, dir, c, lane) {
   if (!p.kick) return;
   const bx = ax === 'x' ? c + dir : lane, by = ax === 'x' ? lane : c + dir;
@@ -666,7 +673,7 @@ function tryKick(p, ax, dir, c, lane) {
   const b = G.bombAt[idx(bx, by)];
   if (!b || b.mdx || b.mdy || b.passers.has(p.id)) return;
   const dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
-  requestKick(bx, by, dx, dy);
+  requestKick(bx, by, dx, dy, p);
 }
 // Sa propre bombe : tant qu'on reste dans sa case, on passe dessus librement.
 // Si on en sort (même en la chevauchant encore) puis qu'on revient, elle part dès qu'on rentre dans sa case.
@@ -677,10 +684,10 @@ function kickOwnBomb(p, ax, dir, v, c, lane, dist) {
     const b = G.bombAt[idx(bx, by)];
     if (!b || b.mdx || b.mdy || !b.passers.has(p.id)) continue;
     const d = (cc - v) * dir;
-    if (d >= 0.495 && d - dist <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0); return; }
+    if (d >= 0.495 && d - dist <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0, p); return; }
   }
 }
-function requestKick(bx, by, dx, dy) {
+function requestKick(bx, by, dx, dy, p) {
   if (NET.role === 'guest') {
     const lb = G.bombAt[idx(bx, by)];
     if (!lb || lb.mdx || lb.mdy || bombBlocked(lb.x + dx, lb.y + dy, lb)) return;
@@ -692,7 +699,7 @@ function requestKick(bx, by, dx, dy) {
     }
     return;
   }
-  doKick(bx, by, dx, dy);
+  doKick(bx, by, dx, dy, p);
 }
 function predictKick() {
   const pk = NET.pendKick; if (!pk) return;
@@ -702,12 +709,19 @@ function predictKick() {
   b.mdx = pk.dx; b.mdy = pk.dy; b.prog = Math.max(b.prog, pk.prog); b.passers.clear();
   rebuildBombAt();
 }
-function doKick(bx, by, dx, dy) {
+function doKick(bx, by, dx, dy, p) {
   if (bx < 1 || by < 1 || bx >= COLS - 1 || by >= ROWS - 1 || Math.abs(dx) + Math.abs(dy) !== 1) return;
   const b = G.bombAt[idx(bx, by)];
   if (!b || b.mdx || b.mdy || bombBlocked(b.x + dx, b.y + dy, b)) return;
-  b.mdx = dx; b.mdy = dy; b.prog = 0; b.passers.clear();
+  b.mdx = dx; b.mdy = dy; b.prog = 0; b.stopReq = false; b.passers.clear();
+  if (p) p.lastKicked = b;
   fx('kick', b.x, b.y, dx, dy);
+}
+// Bouton « stop » : la dernière bombe qu'on a poussée s'arrête sur la prochaine case (avant d'heurter quoi que ce soit).
+function stopKicked(p) {
+  const b = p.lastKicked;
+  if (!b || G.bombs.indexOf(b) < 0 || !(b.mdx || b.mdy)) return;
+  if (b.prog <= 0) { stopBomb(b); fx('halt', b.x, b.y); } else b.stopReq = true;
 }
 
 /* =========================================================
@@ -765,7 +779,8 @@ function updateBombs(dt) {
         b.prog += KICK_SPEED * dt;
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
-          if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
+          if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
+          else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
       }
     }
@@ -877,6 +892,10 @@ const FX = {
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
   drop() { Sfx.play('drop'); },
+  halt(bx, by) {
+    Sfx.play('halt');
+    for (let i = 0; i < 5; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T + (Math.random() - 0.5) * 20, y: (by + 0.5) * T + 12, vx: (Math.random() - 0.5) * 60, vy: -10 - Math.random() * 20, life: 0.35, max: 0.35, size: 4, color: '220,210,180' });
+  },
   toss(fx0, fy0, k, it) {
     k = k | 0; it = it | 0; if (k < 0 || k >= N || !ITEMS[it]) return;
     const d = Math.hypot(k % COLS - fx0, ((k / COLS) | 0) - fy0);
@@ -1162,6 +1181,7 @@ function updateHuman(p, dt) {
     if (tryMove(p, ax, dir, dist) > 1e-5) { p.moving = true; p.face = d; break; }
   }
   if (p.bombQueued) { p.bombQueued = false; if (NET.role === 'guest') NET.bombSeq++; else placeBomb(p); }
+  if (p.stopQueued) { p.stopQueued = false; if (NET.role === 'guest') NET.stopSeq++; else stopKicked(p); }
 }
 
 /* =========================================================
@@ -1881,6 +1901,7 @@ window.addEventListener('keydown', e => {
   const p = G.players[ownerOf(code)]; if (!p || p.ai || p.remote) return;
   if (DIR_OF[code]) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
   else if (code === 'Space' || code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (G.phase === 'play') p.bombQueued = true; }
+  else if (code === 'KeyE' || code === 'ShiftRight' || code === 'Numpad0') { e.preventDefault(); if (G.phase === 'play') p.stopQueued = true; }
 });
 window.addEventListener('keyup', e => { for (const p of G.players) removeFrom(p.dirStack, e.code); });
 window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c[0] === 'G'); });
@@ -1904,6 +1925,7 @@ pad.addEventListener('pointerdown', e => { e.preventDefault(); try { pad.setPoin
 pad.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') padMove(e); });
 pad.addEventListener('pointerup', () => padSet(null));
 pad.addEventListener('pointercancel', () => padSet(null));
+$('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && G.mode === 'match' && G.phase === 'play' && !G.paused) p.stopQueued = true; });
 tbomb.addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && G.mode === 'match' && G.phase === 'play' && !G.paused) p.bombQueued = true; });
 
 /* =========================================================
@@ -2016,7 +2038,7 @@ function hostGame(e, attempt = 0) {
     const refuse = t => conn.on('open', () => { try { conn.send({ t }); } catch (err) {} setTimeout(() => { try { conn.close(); } catch (err) {} }, 300); });
     if (NET.started) { refuse('started'); return; }
     if (NET.links.length >= 3) { refuse('full'); return; }
-    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastSeen: performance.now(), slot: -1 };
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastSeen: performance.now(), slot: -1 };
     NET.links.push(L);
     conn.on('open', () => { L.lastSeen = performance.now(); refreshHostLobby(); });
     conn.on('data', d => onHostData(L, d));
@@ -2061,7 +2083,7 @@ function startOnlineMatch() {
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null)];
   NET.links.forEach((L, i) => {
     L.slot = i + 1; const p = makePlayer(i + 1, null); p.remote = true; list.push(p);
-    if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; }
+    if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
   setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
@@ -2076,7 +2098,7 @@ function joinGame(raw) {
   if (code.length !== 4) { renderLobby('Le code de la partie fait 4 caractères.'); try { $('#net-code-in').focus(); } catch (e) {} return; }
   let peer;
   try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, mi: -1, lastSeen: 0, me: 1, kinds: '' });
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, mi: -1, lastSeen: 0, me: 1, kinds: '' });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -2144,7 +2166,7 @@ function readGuest(pr) {
   if (!pr || pr.role !== 'guest') return null;
   return {
     mi: num(pr.mi), rd: num(pr.rd), x: clamp(num(pr.x), 1, COLS - 2), y: clamp(num(pr.y), 1, ROWS - 2),
-    f: num(pr.f) | 0, m: pr.m ? 1 : 0, b: num(pr.b) | 0,
+    f: num(pr.f) | 0, m: pr.m ? 1 : 0, b: num(pr.b) | 0, st: num(pr.st) | 0,
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
   };
 }
@@ -2154,9 +2176,10 @@ function applyGuestInput() {
     if (p.alive && gi.mi === NET.mi && gi.rd === G.round) {
       p.x = gi.x; p.y = gi.y; p.face = FACES[gi.f] || 'down'; p.moving = !!gi.m;
       if (gi.b > L.lastBomb) { L.lastBomb = gi.b; placeBomb(p); }
-      if (gi.k && gi.k[0] > L.lastKick) { L.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4])); }
+      if (gi.k && gi.k[0] > L.lastKick) { L.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4]), p); }
+      if (gi.st > L.lastStop) { L.lastStop = gi.st; stopKicked(p); }
     } else {
-      L.lastBomb = Math.max(L.lastBomb, gi.b); if (gi.k) L.lastKick = Math.max(L.lastKick, gi.k[0]);
+      L.lastBomb = Math.max(L.lastBomb, gi.b); if (gi.k) L.lastKick = Math.max(L.lastKick, gi.k[0]); L.lastStop = Math.max(L.lastStop, gi.st);
       p.moving = false;
     }
   }
@@ -2278,7 +2301,7 @@ function sendGuest() {
   try {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
-      f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq,
+      f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
     });
   } catch (e) {}
 }
@@ -2361,6 +2384,7 @@ function pollPads() {
         if (p && !p.ai && !p.remote) {
           if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
           if ((hit(0) || hit(2)) && G.phase === 'play' && !G.paused) p.bombQueued = true;
+          if (hit(1) && G.phase === 'play' && !G.paused) p.stopQueued = true;
         }
       }
     }
