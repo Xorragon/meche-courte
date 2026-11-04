@@ -346,7 +346,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <div id="touch" aria-hidden="true">
     <div id="pad"><span class="ar up"></span><span class="ar down"></span><span class="ar left"></span><span class="ar right"></span></div>
     <div class="tright">
-      <button id="tstop" type="button" tabindex="-1" aria-label="Arrêter la bombe poussée">Stop</button>
+      <button id="tstop" type="button" tabindex="-1" aria-label="Arrêter la bombe poussée, ou garder appuyé pour lancer sa bombe">Stop</button>
       <button id="tbomb" type="button" tabindex="-1"><canvas width="112" height="112"></canvas></button>
     </div>
   </div>
@@ -621,6 +621,7 @@ const ITEMS = [
   { name: 'Poudre vive',      short: '+1 portée', desc: 'Tes explosions vont une case plus loin.',  c1: '#ff9152', c2: '#c43f0b' },
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
   { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête.', c1: '#ffd66e', c2: '#c4860c' },
+  { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde E (B à la manette) enfoncé et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
 ];
 const PALS = [
   { name: 'Mèche',  coat: '#2a9d8f', coatDark: '#1c6e64', scarf: '#ffcf5a', scarfDark: '#dfa327', helm: '#b86a2e', helmLight: '#e8a05a', helmDark: '#7d4318', ui: '#3cc7b5' },
@@ -655,7 +656,7 @@ if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CH
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
-const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter la bombe poussée']];
+const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter / lancer la bombe']];
 const DIRS = new Set(['up', 'down', 'left', 'right']);
 const DEFAULT_KEYS = [
   { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', bomb: 'Space', stop: 'KeyE' },
@@ -719,7 +720,7 @@ const G = {
   items: new Int8Array(N).fill(-1), itemAge: new Float32Array(N),
   flameT: new Float32Array(N), flameBits: new Uint8Array(N), flameOwner: new Int8Array(N),
   bombAt: new Array(N).fill(null), grow: new Float32Array(N),
-  bombs: [], players: [], particles: [], falling: [], flying: [],
+  bombs: [], players: [], particles: [], falling: [], flying: [], thrown: [],
   time: ROUND_TIME, sudden: false, sdOrder: [], sdIdx: 0, sdTimer: 0, suddenFlash: 0, rainT: 0,
   phaseT: 0, endTimer: 0, lastWinner: -2, scores: [0, 0], round: 1, winsNeeded: 3,
   seed: 1, t: 0, shake: 0, introBeep: false,
@@ -741,7 +742,7 @@ const NET = {
   role: null, peer: null, link: null, guestOn: false, lastSeen: 0, code: null, mi: 0,
   guestPeer: null, hostPeer: null, myPeer: null, gin: null, lastBomb: 0, lastKick: 0,
   events: [], fxSeq: 0, lastFx: 0, lastQ: -1, q: 0, gotSnap: false,
-  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
+  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, throwSeq: 0, throwReq: null, throwT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
 const inGame = () => G.mode === 'match' || G.mode === 'br';
@@ -817,6 +818,8 @@ const Sfx = {
         }
         case 'item': this.tone('triangle', 660, 660, 0.09, 0.28); this.tone('triangle', 990, 990, 0.09, 0.28, 0.07); this.tone('triangle', 1320, 1320, 0.14, 0.24, 0.14); break;
         case 'kick': this.noise(0.09, 0.4, 3500, 700); this.tone('square', 210, 90, 0.07, 0.12); break;
+        case 'throw': this.noise(0.22, 0.3, 2600, 500); this.tone('sine', 260, 620, 0.2, 0.14); break;
+        case 'bounce': this.tone('sine', 300, 150, 0.08, 0.22); break;
         case 'halt': this.tone('square', 180, 70, 0.08, 0.14); this.noise(0.06, 0.25, 1500, 400); break;
         case 'death': this.tone('sawtooth', 520, 70, 0.7, 0.22); this.noise(0.4, 0.3, 1200, 200, 0.05); break;
         case 'win': [523, 659, 784, 1047].forEach((f, i) => this.tone('triangle', f, f, 0.18, 0.25, i * 0.1)); break;
@@ -853,7 +856,7 @@ function genMap(seed) {
     if (r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
   }
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
-  const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3];
+  const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 4];
   for (let i = 0; i < bag.length && i < pairs.length; i++) { G.hidden[pairs[i][0]] = bag[i]; G.hidden[pairs[i][1]] = bag[i]; }
   // ordre de chute de la mort subite : spirale sur les 2 rangées du bord seulement
   const order = []; let x0 = 1, y0 = 1, x1 = COLS - 2, y1 = ROWS - 2;
@@ -878,14 +881,14 @@ function newAI(lv, i) {
 }
 function makePlayer(i, lv, nick) {
   return {
-    id: i, pal: palFor(i), nick: nick || palFor(i).name, kills: 0, shield: 0, life: 0, x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
+    id: i, pal: palFor(i), nick: nick || palFor(i).name, kills: 0, shield: 0, life: 0, x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, throw: false, hold: new Set(), active: 0,
     alive: true, deathT: 0, phase: 0, moving: false, dirStack: [], bombQueued: false,
     ai: lv ? newAI(lv, i) : null,
   };
 }
 function resetPlayer(p) {
   const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
-  p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.active = 0;
+  p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.throw = false; p.active = 0;
   p.alive = true; p.deathT = 0; p.deadTick = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
   if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1 + Math.random() * 0.1; p.ai.sig = -1; p.ai.stuck = 0; p.ai.goal = -1; p.ai.nb = shuffled(NB); }
 }
@@ -895,7 +898,7 @@ function newRound() {
   setMapSize(VCOLS, VROWS);
   G.seed = (Math.random() * 2147483647) | 0;
   genMap(G.seed);
-  G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.bombAt.fill(null);
+  G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
   G.phase = 'intro'; G.phaseT = 1.7; G.endTimer = 0; G.lastWinner = -2; G.introBeep = false;
   for (const p of G.players) resetPlayer(p);
@@ -957,12 +960,12 @@ function tryMove(p, ax, dir, dist) {
     if (dist <= 1e-6) return moved;
   }
   const v = p[ax], c = Math.round(v);
-  if (p.kick && !p.ai) kickOwnBomb(p, ax, dir, v, c, lane, dist);
+  if ((p.kick || p.throw) && !p.ai) kickOwnBomb(p, ax, dir, v, c, lane, dist);
   let nv;
   if (C(c + dir, lane)) {
     const toC = (c - v) * dir;
     if (toC > 1e-4) nv = v + dir * Math.min(dist, toC);
-    else { nv = v; tryKick(p, ax, dir, c, lane); }
+    else { nv = v; if (!tryThrow(p, ax, dir, c, lane)) tryKick(p, ax, dir, c, lane); }
   } else {
     nv = v + dir * dist;
     const c2 = Math.round(nv);
@@ -988,14 +991,88 @@ function movingBombClamp(p, ax, dir, lane, v, nv) {
     const lim = along - dir * FOLLOW_GAP;
     const before = nv;
     nv = dir > 0 ? Math.min(nv, Math.max(v, lim)) : Math.max(nv, Math.min(v, lim));
-    if (!moving && nv !== before && p.kick && !p.ai) {
+    if (!moving && nv !== before && (p.kick || p.throw) && !p.ai) {
       const bx = b.x, by = b.y, dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
-      if (!bombBlocked(bx + dx, by + dy, b)) requestKick(bx, by, dx, dy, p);
+      if (canThrow(p, b)) requestThrow(bx, by, dx, dy, p);
+      else if (p.kick && !bombBlocked(bx + dx, by + dy, b)) requestKick(bx, by, dx, dy, p);
     }
   }
   return nv;
 }
+// Bombe lancée : sort de la grille, vole 3 cases, puis rebondit case par case tant que la case d'arrivée
+// est occupée (mur, pilier, caisse, rocher, bombe, bonus). Au-delà d'un bord, elle revient par le bord opposé.
+// Sa mèche est suspendue pendant le vol.
+const THROW_DIST = 3, THROW_STEP = 0.11, BOUNCE_STEP = 0.16;
+const wrapX = x => ((x % COLS) + COLS) % COLS, wrapY = y => ((y % ROWS) + ROWS) % ROWS;
+function requestThrow(bx, by, dx, dy, p) {
+  if (NET.role === 'guest') {
+    if (G.t - NET.throwT > 0.25) { NET.throwT = G.t; NET.throwReq = [++NET.throwSeq, bx, by, dx, dy]; }
+    return;
+  }
+  doThrow(bx, by, dx, dy, p);
+}
+function doThrow(bx, by, dx, dy, p) {
+  if (bx < 0 || by < 0 || bx >= COLS || by >= ROWS) return;
+  const b = G.bombAt[idx(bx, by)];
+  if (!b || b.owner !== p || b.mdx || b.mdy || !p.throw || !p.alive || (!dx && !dy) || (dx && dy)) return;
+  const i = G.bombs.indexOf(b); if (i < 0) return;
+  G.bombs.splice(i, 1); rebuildBombAt();
+  if (p.lastKicked === b) p.lastKicked = null;
+  G.thrown.push({ b, sx: b.x, sy: b.y, dx, dy, n: THROW_DIST, t: 0 });
+  fx('toss2', bx, by, dx, dy);
+}
+// temps écoulé quand la bombe atteint la case (étape) s
+const throwTime = s => s <= THROW_DIST ? s * THROW_STEP : THROW_DIST * THROW_STEP + (s - THROW_DIST) * BOUNCE_STEP;
+function landFree(k) {
+  if (G.grid[k] !== EMPTY || G.bombAt[k] || G.items[k] >= 0) return false;
+  for (const f of G.falling) if (f.k === k) return false;
+  for (const f of G.flying) if (f.k === k) return false;
+  return true;
+}
+function updateThrown(dt) {
+  for (let i = G.thrown.length - 1; i >= 0; i--) {
+    const f = G.thrown[i]; f.t += dt;
+    while (f.t >= throwTime(f.n)) {
+      const x = wrapX(f.sx + f.dx * f.n), y = wrapY(f.sy + f.dy * f.n), k = idx(x, y);
+      if (landFree(k) || f.n > THROW_DIST + COLS + ROWS) {
+        G.thrown.splice(i, 1);
+        const b = f.b; b.x = x; b.y = y; b.mdx = b.mdy = 0; b.prog = 0; b.passers = new Set();
+        for (const o of G.players) if (o.alive && Math.abs(o.x - x) < 0.98 && Math.abs(o.y - y) < 0.98) b.passers.add(o.id);
+        if (!landFree(k)) b.timer = 0; // aucune case libre sur toute la ligne : elle saute sur place
+        G.bombs.push(b); rebuildBombAt();
+        fx('land', x, y);
+        break;
+      }
+      fx('bounce', x, y);
+      f.n++;
+    }
+  }
+}
+// position affichée : étape s (décimale) le long de la ligne, avec retour par le bord opposé
+function thrownPos(f) {
+  let s = 0;
+  if (f.t <= THROW_DIST * THROW_STEP) s = f.t / THROW_STEP;
+  else s = THROW_DIST + (f.t - THROW_DIST * THROW_STEP) / BOUNCE_STEP;
+  s = Math.min(s, f.n);
+  const wx = v => ((v + 0.5) % COLS + COLS) % COLS - 0.5, wy = v => ((v + 0.5) % ROWS + ROWS) % ROWS - 0.5;
+  // hauteur : grande cloche pour les 3 premières cases, petits bonds ensuite
+  let h;
+  if (s <= THROW_DIST) h = Math.sin(Math.PI * s / THROW_DIST) * 1.5;
+  else h = Math.abs(Math.sin(Math.PI * (s - THROW_DIST))) * 0.45;
+  return [wx(f.sx + f.dx * s), wy(f.sy + f.dy * s), h, s];
+}
 function stopBomb(b) { b.mdx = b.mdy = 0; b.prog = 0; b.stopReq = false; }
+// Gant de lanceur : touche Stop/lancer maintenue + contact avec sa propre bombe (immobile) = lancer
+const holding = p => !!(p.hold && p.hold.size);
+function canThrow(p, b) { return !!(p.throw && !p.ai && holding(p) && b && b.owner === p && !b.mdx && !b.mdy); }
+function tryThrow(p, ax, dir, c, lane) {
+  if (!p.throw || p.ai || !holding(p)) return false;
+  const bx = ax === 'x' ? c + dir : lane, by = ax === 'x' ? lane : c + dir;
+  if (bx < 0 || by < 0 || bx >= COLS || by >= ROWS) return false;
+  const b = G.bombAt[idx(bx, by)];
+  if (!canThrow(p, b) || b.passers.has(p.id)) return false;
+  requestThrow(b.x, b.y, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0, p); return true;
+}
 function tryKick(p, ax, dir, c, lane) {
   if (!p.kick) return;
   const bx = ax === 'x' ? c + dir : lane, by = ax === 'x' ? lane : c + dir;
@@ -1014,7 +1091,11 @@ function kickOwnBomb(p, ax, dir, v, c, lane, dist) {
     const b = G.bombAt[idx(bx, by)];
     if (!b || b.mdx || b.mdy || !b.passers.has(p.id)) continue;
     const d = (cc - v) * dir;
-    if (d >= 0.495 && d - dist <= 0.55) { requestKick(bx, by, ax === 'x' ? dir : 0, ax === 'y' ? dir : 0, p); return; }
+    if (d >= 0.495 && d - dist <= 0.55) {
+      const dx = ax === 'x' ? dir : 0, dy = ax === 'y' ? dir : 0;
+      if (canThrow(p, b)) requestThrow(bx, by, dx, dy, p); else if (p.kick) requestKick(bx, by, dx, dy, p);
+      return;
+    }
   }
 }
 function requestKick(bx, by, dx, dy, p) {
@@ -1144,7 +1225,7 @@ function updateFalling(dt) {
     if (f.t <= 0) { G.falling.splice(i, 1); land(f.k); }
   }
 }
-const RAIN_BAG = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3];
+const RAIN_BAG = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 4];
 function rainBonus() {
   const cands = [];
   for (let k = 0; k < N; k++) {
@@ -1179,6 +1260,7 @@ function scatterLoot(p) {
   for (let i = 2; i < p.range; i++) loot.push(1);
   for (let i = 0; i < p.speedLv; i++) loot.push(2);
   if (p.kick) loot.push(3);
+  if (p.throw) loot.push(4);
   if (!loot.length) return;
   const cx = Math.round(p.x), cy = Math.round(p.y), cands = [];
   for (let y = cy - 4; y <= cy + 4; y++) for (let x = cx - 4; x <= cx + 4; x++) {
@@ -1189,7 +1271,7 @@ function scatterLoot(p) {
     cands.push(k);
   }
   for (let i = cands.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [cands[i], cands[j]] = [cands[j], cands[i]]; }
-  p.maxBombs = 1; p.range = 2; p.speedLv = 0; p.kick = false; // il a tout lâché
+  p.maxBombs = 1; p.range = 2; p.speedLv = 0; p.kick = false; p.throw = false; // il a tout lâché
   for (let i = 0; i < loot.length && i < cands.length; i++) fx('toss', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100, cands[i], loot[i]);
 }
 function updateFlying(dt, apply) {
@@ -1209,6 +1291,7 @@ function pickup(p, k) {
   else if (it === 1) p.range = Math.min(MAX_RANGE, p.range + 1);
   else if (it === 2) p.speedLv = Math.min(MAX_SPEED_LV, p.speedLv + 1);
   else if (it === 3) p.kick = true;
+  else if (it === 4) p.throw = true;
   fx('pickup', k, it);
 }
 
@@ -1252,6 +1335,17 @@ const FX = {
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
   drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
+  toss2(bx, by, dx, dy) {
+    if (!nearView(bx, by)) return;
+    Sfx.play('throw');
+    for (let i = 0; i < 5; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T, y: (by + 0.5) * T + 12, vx: -dx * 50 + (Math.random() - 0.5) * 40, vy: -dy * 50 - 15, life: 0.35, max: 0.35, size: 4.5, color: '225,215,190' });
+  },
+  bounce(x, y) { if (nearView(x, y)) Sfx.play('bounce'); },
+  land(x, y) {
+    if (!nearView(x, y)) return;
+    Sfx.play('drop');
+    for (let i = 0; i < 6; i++) addP({ kind: 'smoke', x: (x + 0.5) * T + (Math.random() - 0.5) * 22, y: (y + 0.5) * T + 14, vx: (Math.random() - 0.5) * 70, vy: -8 - Math.random() * 16, life: 0.35, max: 0.35, size: 4, color: '220,210,180' });
+  },
   halt(bx, by) {
     if (!nearView(bx, by)) return;
     Sfx.play('halt');
@@ -1597,19 +1691,20 @@ function freeNudge(p, ax, dir, amt) {
   return freeAxis(p, o, Math.sign(target - p[o]) * step).moved;
 }
 function freeKick(p, b, dx, dy) {
-  if (!p.kick || !b || b.mdx || b.mdy) return;
+  if (!b || b.mdx || b.mdy) return;
   if (Math.abs(dx ? p.y - b.y : p.x - b.x) >= 0.5) return; // il faut être à peu près en face
-  requestKick(b.x, b.y, dx, dy, p);
+  if (canThrow(p, b)) requestThrow(b.x, b.y, dx, dy, p);
+  else if (p.kick) requestKick(b.x, b.y, dx, dy, p);
 }
 // relancer sa propre bombe (on est encore dessus) en fonçant dedans après avoir reculé
 function freeKickOwn(p, vx, vy) {
-  if (!p.kick) return;
+  if (!p.kick && !p.throw) return;
   const hx = Math.abs(vx) >= Math.abs(vy), dx = hx ? Math.sign(vx) : 0, dy = hx ? 0 : Math.sign(vy);
   if (!dx && !dy) return;
   for (const b of G.bombs) {
     if (b.mdx || b.mdy || !b.passers.has(p.id)) continue;
     const gap = dx ? (b.x - p.x) * dx : (b.y - p.y) * dy, side = dx ? Math.abs(p.y - b.y) : Math.abs(p.x - b.x);
-    if (gap >= 0.45 && gap < 0.98 && side < 0.5) { requestKick(b.x, b.y, dx, dy, p); return; }
+    if (gap >= 0.45 && gap < 0.98 && side < 0.5) { if (canThrow(p, b)) requestThrow(b.x, b.y, dx, dy, p); else if (p.kick) requestKick(b.x, b.y, dx, dy, p); return; }
   }
 }
 function inputVec(p) {
@@ -1728,6 +1823,7 @@ function update(dt) {
     for (const p of G.players) p.moving = false;
   }
   updateBombs(dt);
+  updateThrown(dt);
   updateFlames(dt);
   updateFalling(dt);
   updateFlying(dt, true);
@@ -1765,7 +1861,7 @@ function update(dt) {
    Battle royale : carte 45 × 39, 30 joueurs, partie sans fin
    ========================================================= */
 const BR_COLS = 45, BR_ROWS = 39, BR_SIZE = 30, BR_MAX_HUMANS = 8, BR_SHIELD = 2.5;
-const BR_BAG = [0, 0, 0, 1, 1, 1, 2, 2, 3];
+const BR_BAG = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4];
 const BR_NAMES = ['Pétard', 'Fusée', 'Grisou', 'Bengale', 'Salpêtre', 'Étincelle', 'Poudrière', 'Tonnerre', 'Kaboum', 'Brasier', 'Pyro', 'Flammèche',
   'Boutefeu', 'Mortier', 'Dynamite', 'Allumette', 'Cracker', 'Tison', 'Cendre', 'Braisette', 'Comète', 'Feu-Follet', 'Boulet', 'Vulcain',
   'Charbon', 'Fumerolle', 'Bombinette', 'Torche', 'Pétoche', 'Fulmi', 'Volcan', 'Zébulon'];
@@ -1780,7 +1876,7 @@ function palFor(i) {
     helm: '#8b7a63', helmLight: '#c2b29a', helmDark: '#5a4c3b', ui: `hsl(${h},85%,66%)`,
   });
 }
-const boostsOf = p => (p.maxBombs - 1) + (p.range - 2) + p.speedLv + (p.kick ? 1 : 0);
+const boostsOf = p => (p.maxBombs - 1) + (p.range - 2) + p.speedLv + (p.kick ? 1 : 0) + (p.throw ? 1 : 0);
 function brBotName() {
   const used = new Set(G.players.map(p => p.nick));
   const free = BR_NAMES.filter(n => !used.has(n));
@@ -1883,7 +1979,7 @@ function startBr() {
 function brWorld() {
   G.seed = (Math.random() * 2147483647) | 0;
   genBrMap(G.seed);
-  G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.bombAt.fill(null);
+  G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
   for (const p of G.players) { p.kills = 0; brSpawn(p); }
   G.camSnap = true; groundDirty = true;
@@ -2030,7 +2126,7 @@ function brSeekEnd() {
     if (NET.peer !== peer) return;
     const humans = G.players.filter(p => !p.ai).length;
     if (G.mode !== 'br' || humans >= BR_MAX_HUMANS) { conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 300); }); return; }
-    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastSeen: performance.now(), slot: -1 };
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastThrow: 0, lastSeen: performance.now(), slot: -1 };
     NET.links.push(L);
     conn.on('open', () => { L.lastSeen = performance.now(); brAddHuman(L); });
     conn.on('data', d => onHostData(L, d));
@@ -2053,7 +2149,7 @@ function brAddHuman(L) {
   if (p.alive) scatterLoot(p);
   p.ai = null; p.remote = true; p.isBot = false; p.kills = 0;
   p.nick = L.nick || 'Joueur'; if (Number.isInteger(L.skin)) p.skin = L.skin; p.aid = L.aid || '';
-  L.slot = p.id; L.lastBomb = L.gin ? L.gin.b : 0; L.lastKick = L.gin && L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin ? L.gin.st : 0;
+  L.slot = p.id; L.lastBomb = L.gin ? L.gin.b : 0; L.lastKick = L.gin && L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin ? L.gin.st : 0; L.lastThrow = L.gin && L.gin.tw ? L.gin.tw[0] : 0;
   brSpawn(p);
   try { L.conn.send({ t: 'brhi', slot: p.id }); } catch (e) {}
   fx('joined', p.id);
@@ -2244,6 +2340,20 @@ function bootPath(c, x, y, s) {
 function drawIcon(c, type) {
   const cream = '#fff4d6', ink = 'rgba(40,20,8,.78)';
   c.lineJoin = 'round'; c.lineCap = 'round';
+  if (type === 4) {
+    // trajectoire en cloche (pointillés) qui part du gant vers la bombe
+    c.save(); c.setLineDash([2.2, 2.4]); c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(-6, 1); c.quadraticCurveTo(-1, -14, 6.5, -4.5); c.stroke(); c.restore();
+    c.fillStyle = '#25213a'; c.beginPath(); c.arc(7, -2, 4.4, 0, TAU); c.fill(); c.lineWidth = 1.2; c.strokeStyle = ink; c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(5.8, -3.3, 1.1, 0, TAU); c.fill();
+    c.strokeStyle = '#ffd66e'; c.lineWidth = 1.3; line(c, 9.6, -5.6, 11.2, -7.6);
+    // gant
+    c.beginPath(); c.moveTo(-11, 10.5); c.lineTo(-11.5, 4); c.quadraticCurveTo(-11.8, -1, -8.6, -1.6); c.lineTo(-8.4, -5.2); c.quadraticCurveTo(-6.8, -7, -5.4, -5.2);
+    c.lineTo(-5.2, -1.4); c.quadraticCurveTo(-3.6, -3, -2.2, -1.2); c.lineTo(-2.4, 1.6); c.quadraticCurveTo(-0.2, 1.4, 0.4, 3.4); c.quadraticCurveTo(0.6, 7, -2.6, 10.5); c.closePath();
+    c.fillStyle = cream; c.fill(); c.lineWidth = 1.5; c.strokeStyle = ink; c.stroke();
+    c.fillStyle = '#b02a6e'; rr(c, -11.6, 8.6, 9.4, 3.6, 1.5); c.fill(); c.lineWidth = 1.2; c.stroke();
+    return;
+  }
   if (type === 0) {
     c.fillStyle = '#25213a'; c.beginPath(); c.arc(2, 2.5, 7.5, 0, TAU); c.fill(); c.lineWidth = 1.4; c.strokeStyle = ink; c.stroke();
     c.fillStyle = 'rgba(255,255,255,.4)'; ell(c, -0.5, -0.5, 2.3, 1.5); c.fill();
@@ -2584,6 +2694,12 @@ function render() {
   }
 
   drawFlames(c);
+  for (const f of G.thrown) {
+    const [x, y, h] = thrownPos(f), gx = (x + 0.5) * T, gy = (y + 0.5) * T;
+    if (x < vx0 - 2 || x > vx1 + 2 || y < vy0 - 2 || y > vy1 + 2) continue;
+    c.fillStyle = `rgba(15,25,10,${(0.32 - Math.min(0.2, h * 0.12)).toFixed(3)})`; ell(c, gx, gy + 15, 11 - Math.min(5, h * 3), 3.8 - Math.min(1.5, h)); c.fill();
+    c.save(); c.translate(gx, gy - h * T); c.rotate((f.dx || f.dy) * f.t * 9); drawBomb(c, 0, 0, f.b, t); c.restore();
+  }
   drawParticles(c);
   for (const f of G.flying) {
     const q = Math.min(1, f.t / f.dur), tx = f.k % COLS, ty = (f.k / COLS) | 0;
@@ -2638,7 +2754,7 @@ const ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl =
 const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
-const STAT_TITLES = ['Bombes', 'Portée', 'Vitesse', 'Coup de pied'];
+const STAT_TITLES = ['Bombes', 'Portée', 'Vitesse', 'Coup de pied', 'Gant de lanceur'];
 
 function drawPortrait(cv, pal, skin) {
   const c = cv.getContext('2d'); const s = cv.width / 52;
@@ -2665,7 +2781,7 @@ function iconCanvas(type, px) {
 function buildStatics() {
   for (let i = 0; i < 4; i++) {
     const st = cards[i].querySelector('.stats'); st.innerHTML = '';
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < 5; j++) {
       const sp = document.createElement('span'); sp.className = 'st'; sp.title = STAT_TITLES[j];
       sp.appendChild(iconCanvas(j, 40));
       if (j < 3) { const b = document.createElement('b'); sp.appendChild(b); }
@@ -2706,6 +2822,7 @@ function updateHud() {
     setTxt(sts[1].lastChild, String(p.range), 'r' + i);
     setTxt(sts[2].lastChild, String(p.speedLv + 1), 's' + i);
     const kk = p.kick ? 1 : 0; if (hudCache['k' + i] !== kk) { hudCache['k' + i] = kk; sts[3].classList.toggle('off', !p.kick); }
+    const tw = p.throw ? 1 : 0; if (hudCache['w' + i] !== tw) { hudCache['w' + i] = tw; sts[4].classList.toggle('off', !p.throw); }
     const sc = G.mode === 'br' ? boostsOf(p) : G.scores[i]; if (hudCache['p' + i] !== sc) {
       hudCache['p' + i] = sc;
       if (G.mode === 'br') { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} bonus`; }
@@ -2845,7 +2962,7 @@ function pause() {
   syncCamBtn();
   $('#pause-kicker').textContent = 'Partie suspendue'; $('#pause-title').textContent = 'Pause';
   G.paused = true; pauseEl.hidden = false;
-  for (const p of G.players) p.dirStack.length = 0;
+  for (const p of G.players) { p.dirStack.length = 0; if (p.hold) p.hold.clear(); }
   try { $('#resume').focus({ preventScroll: true }); } catch (e) {}
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
@@ -3098,10 +3215,10 @@ window.addEventListener('keydown', e => {
   const p = G.players[NET.role || G.mode === 'br' ? localIdx() : settings.mode === 'duo' ? kb.set : 0]; if (!p || p.ai || p.remote) return;
   if (DIRS.has(kb.act)) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
   else if (kb.act === 'bomb') { if (G.phase === 'play') p.bombQueued = true; }
-  else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; }
+  else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; (p.hold || (p.hold = new Set())).add(code); }
 });
-window.addEventListener('keyup', e => { for (const p of G.players) removeFrom(p.dirStack, e.code); });
-window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad')); });
+window.addEventListener('keyup', e => { for (const p of G.players) { removeFrom(p.dirStack, e.code); if (p.hold) p.hold.delete(e.code); } });
+window.addEventListener('blur', () => { for (const p of G.players) { p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad')); if (p.hold) for (const c of [...p.hold]) if (c !== 'T' && !c.startsWith('pad')) p.hold.delete(c); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.role && inGame() && (G.phase === 'play' || G.phase === 'intro')) pause(); });
 
 /* ---------- Tactile ---------- */
@@ -3124,7 +3241,8 @@ pad.addEventListener('pointerdown', e => { e.preventDefault(); try { pad.setPoin
 pad.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') padMove(e); });
 pad.addEventListener('pointerup', () => padSet(null));
 pad.addEventListener('pointercancel', () => padSet(null));
-$('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) p.stopQueued = true; });
+$('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) { p.stopQueued = true; (p.hold || (p.hold = new Set())).add('T'); } });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('#tstop').addEventListener(ev, () => { for (const p of G.players) if (p.hold) p.hold.delete('T'); });
 tbomb.addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) p.bombQueued = true; });
 
 /* =========================================================
@@ -3287,7 +3405,7 @@ function hostGame(e, attempt = 0, pub = null) {
     const refuse = t => conn.on('open', () => { try { conn.send({ t }); } catch (err) {} setTimeout(() => { try { conn.close(); } catch (err) {} }, 300); });
     if (NET.started) { refuse('started'); return; }
     if (NET.links.length >= 3) { refuse('full'); return; }
-    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastSeen: performance.now(), slot: -1 };
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastThrow: 0, lastSeen: performance.now(), slot: -1 };
     NET.links.push(L);
     conn.on('open', () => { L.lastSeen = performance.now(); refreshHostLobby(); });
     conn.on('data', d => onHostData(L, d));
@@ -3356,7 +3474,7 @@ function startOnlineMatch() {
   list[0].aid = myAid();
   NET.links.forEach((L, i) => {
     L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; p.aid = L.aid || ''; if (Number.isInteger(L.skin)) p.skin = L.skin; list.push(p);
-    if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
+    if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; L.lastThrow = L.gin.tw ? L.gin.tw[0] : 0; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
   setPlayers(list); G.round = 1; G.winsNeeded = NET.pub ? 3 : settings.wins;
@@ -3366,7 +3484,7 @@ function startOnlineMatch() {
 }
 /* ---------- Invité ---------- */
 function guestInit(peer, code, pub) {
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -3519,6 +3637,7 @@ function readGuest(pr) {
     mi: num(pr.mi), rd: num(pr.rd), x: clamp(num(pr.x), 1, COLS - 2), y: clamp(num(pr.y), 1, ROWS - 2),
     f: num(pr.f) | 0, m: pr.m ? 1 : 0, b: num(pr.b) | 0, st: num(pr.st) | 0,
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
+    tw: Array.isArray(pr.tw) && pr.tw.length === 5 ? pr.tw.map(v => num(v) | 0) : null,
     nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
     aid: typeof pr.aid === 'string' && /^[a-z0-9]{12}$/.test(pr.aid) ? pr.aid : '', el: clamp(num(pr.el) | 0, 0, 9999),
     sk: clamp(num(pr.sk) | 0, 0, CHARS.length - 1), lf: num(pr.lf) | 0,
@@ -3532,8 +3651,9 @@ function applyGuestInput() {
       if (gi.b > L.lastBomb) { L.lastBomb = gi.b; placeBomb(p); }
       if (gi.k && gi.k[0] > L.lastKick) { L.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4]), p); }
       if (gi.st > L.lastStop) { L.lastStop = gi.st; stopKicked(p); }
+      if (gi.tw && gi.tw[0] > L.lastThrow) { L.lastThrow = gi.tw[0]; doThrow(gi.tw[1], gi.tw[2], Math.sign(gi.tw[3]), Math.sign(gi.tw[4]), p); }
     } else {
-      L.lastBomb = Math.max(L.lastBomb, gi.b); if (gi.k) L.lastKick = Math.max(L.lastKick, gi.k[0]); L.lastStop = Math.max(L.lastStop, gi.st);
+      L.lastBomb = Math.max(L.lastBomb, gi.b); if (gi.k) L.lastKick = Math.max(L.lastKick, gi.k[0]); L.lastStop = Math.max(L.lastStop, gi.st); if (gi.tw) L.lastThrow = Math.max(L.lastThrow, gi.tw[0]);
       p.moving = false;
     }
   }
@@ -3550,13 +3670,14 @@ function buildSnap() {
   const b = [];
   for (const o of G.bombs) { let m = 0; for (const id of o.passers) if (id < 31) m |= 1 << id; b.push(o.x, o.y, o.mdx, o.mdy, Math.round(o.prog * 100), Math.round(Math.max(0, o.timer) * 100), o.owner.id, m); }
   const fa = []; for (const o of G.falling) fa.push(o.k, Math.round(o.t * 100));
+  const tw = []; for (const o of G.thrown) tw.push(o.sx, o.sy, o.dx, o.dy, o.n, Math.round(o.t * 1000), o.b.owner.id, Math.round(Math.max(0, o.b.timer) * 100));
   const p = [];
-  for (const o of G.players) p.push(Math.round(o.x * 1000), Math.round(o.y * 1000), Math.max(0, FACES.indexOf(o.face)), o.alive ? 1 : 0, Math.round(Math.min(o.deathT, 2) * 100), o.maxBombs, o.range, o.speedLv, o.kick ? 1 : 0, o.moving ? 1 : 0);
+  for (const o of G.players) p.push(Math.round(o.x * 1000), Math.round(o.y * 1000), Math.max(0, FACES.indexOf(o.face)), o.alive ? 1 : 0, Math.round(Math.min(o.deathT, 2) * 100), o.maxBombs, o.range, o.speedLv, (o.kick ? 1 : 0) | (o.throw ? 2 : 0), o.moving ? 1 : 0);
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0),
-    seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(), kw,
+    seed: G.seed, g, f, bu, b, fa, tw, p, e: NET.events.slice(), kw,
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
 }
@@ -3600,7 +3721,7 @@ function decodeSnap(s) {
   const g = String(s.g || '');
   for (let k = 0; k < N; k++) {
     const ch = g.charCodeAt(k);
-    if (ch >= 97 && ch <= 100) { G.grid[k] = EMPTY; if (G.items[k] !== ch - 97) { G.items[k] = ch - 97; G.itemAge[k] = 0; } }
+    if (ch >= 97 && ch <= 101) { G.grid[k] = EMPTY; if (G.items[k] !== ch - 97) { G.items[k] = ch - 97; G.itemAge[k] = 0; } }
     else {
       const v = ch - 48, nv = v >= 0 && v <= 4 ? v : EMPTY;
       if (br && !first && nv === CRATE && G.grid[k] === EMPTY) G.grow[k] = 1;   // caisse qui repousse
@@ -3620,6 +3741,13 @@ function decodeSnap(s) {
     for (let j = 0; j < Math.min(n, 31); j++) if (m & (1 << j)) pass.add(j);
     G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[clamp(num(bs[i + 6]) | 0, 0, n - 1)], range: 2, passers: pass });
   }
+  const tws = Array.isArray(s.tw) ? s.tw : [];
+  G.thrown = [];
+  for (let i = 0; i + 8 <= tws.length; i += 8) {
+    const owner = G.players[clamp(num(tws[i + 6]) | 0, 0, n - 1)];
+    G.thrown.push({ sx: num(tws[i]) | 0, sy: num(tws[i + 1]) | 0, dx: Math.sign(num(tws[i + 2])), dy: Math.sign(num(tws[i + 3])), n: clamp(num(tws[i + 4]) | 0, 1, 200), t: num(tws[i + 5]) / 1000,
+      b: { owner, timer: num(tws[i + 7]) / 100, mdx: 0, mdy: 0, prog: 0, x: 0, y: 0, passers: new Set() } });
+  }
   const fa = Array.isArray(s.fa) ? s.fa : [];
   G.falling = [];
   for (let i = 0; i + 2 <= fa.length; i += 2) { const k = num(fa[i]) | 0; if (k >= 0 && k < N) G.falling.push({ k, t: Math.max(0.001, num(fa[i + 1]) / 100) }); }
@@ -3629,7 +3757,7 @@ function decodeSnap(s) {
     const x = clamp(num(ps[o]) / 1000, 0, COLS - 1), y = clamp(num(ps[o + 1]) / 1000, 0, ROWS - 1);
     p.alive = !!ps[o + 3]; p.deathT = num(ps[o + 4]) / 100;
     p.maxBombs = clamp(num(ps[o + 5]) | 0, 1, MAX_BOMBS); p.range = clamp(num(ps[o + 6]) | 0, 1, MAX_RANGE);
-    p.speedLv = clamp(num(ps[o + 7]) | 0, 0, MAX_SPEED_LV); p.kick = !!ps[o + 8];
+    p.speedLv = clamp(num(ps[o + 7]) | 0, 0, MAX_SPEED_LV); p.kick = !!(num(ps[o + 8]) & 1); p.throw = !!(num(ps[o + 8]) & 2);
     let respawned = false;
     if (br) {
       const lf = num(s.lf && s.lf[i]) | 0; respawned = lf !== p.life; p.life = lf;
@@ -3672,6 +3800,7 @@ function updateGuest(dt) {
     if (G.grow[k] > 0) G.grow[k] = Math.max(0, G.grow[k] - dt * 2);
   }
   for (const b of G.bombs) { b.timer = Math.max(0, b.timer - dt); if (b.mdx || b.mdy) b.prog = Math.min(0.99, b.prog + KICK_SPEED * dt); }
+  for (const f of G.thrown) f.t = Math.min(f.t + dt, throwTime(f.n));
   if (NET.pendKick) { NET.pendKick.prog = Math.min(0.99, NET.pendKick.prog + KICK_SPEED * dt); }
   rebuildBombAt();
   for (const o of G.falling) o.t = Math.max(0.001, o.t - dt);
@@ -3689,7 +3818,7 @@ function sendGuest() {
   try {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
-      f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
+      f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq, tw: NET.throwReq,
       nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0, sk: settings.skin, lf: me.life | 0,
     });
   } catch (e) {}
@@ -3752,7 +3881,7 @@ function padOwner(i, order) {
   return 0;
 }
 function releasePad(code, st) {
-  for (const p of G.players) removeFrom(p.dirStack, code);
+  for (const p of G.players) { removeFrom(p.dirStack, code); if (p.hold) p.hold.delete(code); }
   st.dir = null; padDir[code] = null; padVec[code] = null;
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
@@ -3845,6 +3974,8 @@ function pollPads() {
           if (G.mode === 'br' && hit(8) && !Object.values(pb).includes(8)) cycleCam();
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
+          if (!p.hold) p.hold = new Set();
+          if (btn(pb.stop)) p.hold.add(code); else p.hold.delete(code);
         }
       }
     }

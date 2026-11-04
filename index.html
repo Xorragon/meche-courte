@@ -113,7 +113,8 @@ section{padding:92px 0}
 @media (max-width:520px){.steps{grid-template-columns:1fr}}
 
 /* bonus */
-.bonus{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.bonus{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+@media (max-width:1100px){.bonus{grid-template-columns:repeat(3,1fr)}}
 .b{display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--line)}
 .b img{width:64px;height:64px}
 .b h3{font-size:22px;line-height:1.05}
@@ -265,13 +266,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div class="wrap">
       <div class="head">
         <h2>Ce que cachent les caisses</h2>
-        <p>Vingt-quatre bonus par arène, répartis en miroir des deux côtés. Tu les perds à la fin de la manche : chaque round repart de zéro.</p>
+        <p>Vingt-six bonus par arène, répartis en miroir des deux côtés. Tu les perds à la fin de la manche : chaque round repart de zéro.</p>
       </div>
       <div class="bonus">
         <article class="b"><img src="assets/bonus-0.png" alt="" width="64" height="64"><h3>Bombe en plus</h3><p>Une bombe de plus à poser en même temps.</p><span class="max">Jusqu'à 8 bombes</span></article>
         <article class="b"><img src="assets/bonus-1.png" alt="" width="64" height="64"><h3>Poudre vive</h3><p>Tes explosions portent une case plus loin.</p><span class="max">Portée 2 à 8</span></article>
         <article class="b"><img src="assets/bonus-2.png" alt="" width="64" height="64"><h3>Bottes de lièvre</h3><p>Tu cours plus vite dans les couloirs.</p><span class="max">6 niveaux de vitesse</span></article>
         <article class="b"><img src="assets/bonus-3.png" alt="" width="64" height="64"><h3>Coup de botte</h3><p>Fonce dans une bombe pour la faire glisser. Elle file jusqu'au prochain obstacle, sauf si tu l'arrêtes avant (E, ou B à la manette).</p><span class="max">Le plus rare</span></article>
+        <article class="b"><img src="assets/bonus-4.png" alt="" width="64" height="64"><h3>Gant de lanceur</h3><p>Garde E (ou B à la manette) enfoncé et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit par-dessus les obstacles et peut sortir d'un côté de la carte pour revenir par l'autre.</p><span class="max">Le plus rare aussi</span></article>
       </div>
     </div>
   </section>
