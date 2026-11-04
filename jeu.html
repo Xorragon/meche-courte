@@ -305,7 +305,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       </div>
       <div class="go">
         <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
-        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers tombent du ciel en spirale. À 3 ou 4, la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
+        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes. À 3 ou 4, la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       </div>
     </section>
     <section class="side">
@@ -415,7 +415,7 @@ const TAU = Math.PI * 2;
 const COLS = 15, ROWS = 13, T = 48, W = COLS * T, H = ROWS * T, N = COLS * ROWS;
 const EMPTY = 0, WALL = 1, PILLAR = 2, CRATE = 3, STONE = 4;
 const FUSE = 3.5, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 3.2; // bombe poussée : vitesse constante, plus lente que le perso de base
-const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5;
+const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5, SD_RINGS = 2, RAIN_EVERY = 7, RAIN_FALL = 0.9;
 const BASE_SPEED = 4, SPEED_STEP = 0.4, MAX_SPEED_LV = 5, MAX_BOMBS = 8, MAX_RANGE = 8;
 const SKIN = '#f2c79d';
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -517,7 +517,7 @@ const G = {
   flameT: new Float32Array(N), flameBits: new Uint8Array(N), flameOwner: new Int8Array(N),
   bombAt: new Array(N).fill(null),
   bombs: [], players: [], particles: [], falling: [], flying: [],
-  time: ROUND_TIME, sudden: false, sdOrder: [], sdIdx: 0, sdTimer: 0, suddenFlash: 0,
+  time: ROUND_TIME, sudden: false, sdOrder: [], sdIdx: 0, sdTimer: 0, suddenFlash: 0, rainT: 0,
   phaseT: 0, endTimer: 0, lastWinner: -2, scores: [0, 0], round: 1, winsNeeded: 3,
   seed: 1, t: 0, shake: 0, introBeep: false,
 };
@@ -601,6 +601,7 @@ const Sfx = {
         case 'draw': this.tone('triangle', 392, 330, 0.3, 0.22); this.tone('triangle', 330, 262, 0.4, 0.22, 0.25); break;
         case 'beep': this.tone('square', 660, 660, 0.08, 0.12); break;
         case 'go': this.tone('square', 990, 990, 0.16, 0.14); break;
+        case 'rain': this.tone('sine', 1400, 500, RAIN_FALL, 0.1); break;
         case 'thud': this.tone('sine', 95, 38, 0.3, 0.55); this.noise(0.18, 0.3, 900, 120); break;
         case 'sudden': this.tone('sawtooth', 220, 440, 0.45, 0.18); this.tone('sawtooth', 220, 440, 0.45, 0.18, 0.5); break;
         case 'match': [392, 523, 659, 784, 1047].forEach((f, i) => this.tone('triangle', f, f, 0.24, 0.25, i * 0.12)); break;
@@ -632,9 +633,9 @@ function genMap(seed) {
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
   const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3];
   for (let i = 0; i < bag.length && i < pairs.length; i++) { G.hidden[pairs[i][0]] = bag[i]; G.hidden[pairs[i][1]] = bag[i]; }
-  // ordre de chute de la mort subite : spirale de l'extérieur vers le centre
+  // ordre de chute de la mort subite : spirale sur les 2 rangées du bord seulement
   const order = []; let x0 = 1, y0 = 1, x1 = COLS - 2, y1 = ROWS - 2;
-  while (x0 <= x1 && y0 <= y1) {
+  for (let ring = 0; ring < SD_RINGS && x0 <= x1 && y0 <= y1; ring++) {
     for (let x = x0; x <= x1; x++) order.push(idx(x, y0));
     for (let y = y0 + 1; y <= y1; y++) order.push(idx(x1, y));
     if (y1 > y0) for (let x = x1 - 1; x >= x0; x--) order.push(idx(x, y1));
@@ -672,7 +673,7 @@ function newRound() {
   G.seed = (Math.random() * 2147483647) | 0;
   genMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.bombAt.fill(null);
-  G.time = ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0;
+  G.time = ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
   G.phase = 'intro'; G.phaseT = 1.7; G.endTimer = 0; G.lastWinner = -2; G.introBeep = false;
   for (const p of G.players) resetPlayer(p);
   groundDirty = true;
@@ -917,6 +918,19 @@ function updateFalling(dt) {
     if (f.t <= 0) { G.falling.splice(i, 1); land(f.k); }
   }
 }
+const RAIN_BAG = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3];
+function rainBonus() {
+  const cands = [];
+  for (let k = 0; k < N; k++) {
+    if (G.grid[k] !== EMPTY || G.items[k] >= 0 || G.bombAt[k] || G.flameT[k] > 0) continue;
+    const x = k % COLS, y = (k / COLS) | 0;
+    if (G.players.some(p => p.alive && Math.abs(p.x - x) < 1 && Math.abs(p.y - y) < 1)) continue;
+    if (G.flying.some(f => f.k === k)) continue;
+    cands.push(k);
+  }
+  if (!cands.length) return;
+  fx('rain', cands[(Math.random() * cands.length) | 0], RAIN_BAG[(Math.random() * RAIN_BAG.length) | 0]);
+}
 function land(k) {
   const x = k % COLS, y = (k / COLS) | 0;
   G.grid[k] = STONE; G.hidden[k] = -1; G.burn[k] = 0; G.items[k] = -1; G.flameT[k] = 0; G.flameBits[k] = 0;
@@ -956,6 +970,7 @@ function updateFlying(dt, apply) {
     const f = G.flying[i]; f.t += dt;
     if (f.t < f.dur) continue;
     G.flying.splice(i, 1);
+    if (f.drop) Sfx.play('drop');
     if (G.grid[f.k] === EMPTY && G.items[f.k] < 0 && (apply || NET.role === 'guest')) { G.items[f.k] = f.it; G.itemAge[f.k] = 0; }
     const x = (f.k % COLS + 0.5) * T, y = (((f.k / COLS) | 0) + 0.5) * T;
     for (let j = 0; j < 5; j++) { const a = Math.random() * TAU, sp = 30 + Math.random() * 50; addP({ kind: 'spark', x, y: y + 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, life: 0.35, max: 0.35, size: 1.8, color: ITEMS[f.it].c1 }); }
@@ -1001,6 +1016,11 @@ const FX = {
   halt(bx, by) {
     Sfx.play('halt');
     for (let i = 0; i < 5; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T + (Math.random() - 0.5) * 20, y: (by + 0.5) * T + 12, vx: (Math.random() - 0.5) * 60, vy: -10 - Math.random() * 20, life: 0.35, max: 0.35, size: 4, color: '220,210,180' });
+  },
+  rain(k, it) {
+    k = k | 0; it = it | 0; if (k < 0 || k >= N || !ITEMS[it]) return;
+    G.flying.push({ it, k, x0: k % COLS, y0: (k / COLS) | 0, t: 0, dur: RAIN_FALL, drop: true });
+    Sfx.play('rain');
   },
   toss(fx0, fy0, k, it) {
     k = k | 0; it = it | 0; if (k < 0 || k >= N || !ITEMS[it]) return;
@@ -1322,6 +1342,15 @@ function update(dt) {
         if (G.grid[k] === WALL || G.grid[k] === PILLAR || G.grid[k] === STONE) continue;
         G.falling.push({ k, t: FALL_TIME });
         G.sdTimer += SD_STEP;
+      }
+      // l'arène a fini de rétrécir : un bonus tombe du ciel toutes les 7 s
+      G.sdT += dt;
+      // démo du menu : les ordis peuvent esquiver sans fin, on passe à la manche suivante
+      if (G.mode === 'demo' && G.sdT > 45 && G.phase === 'play') { endRound(); return; }
+      if (G.sdIdx >= G.sdOrder.length && !G.falling.length) {
+        if (G.rainT === 0) G.rainT = 1.5;
+        G.rainT -= dt;
+        if (G.rainT <= 0) { G.rainT += RAIN_EVERY; rainBonus(); }
       }
     }
     if (NET.role === 'host') applyGuestInput();
@@ -1816,6 +1845,13 @@ function render() {
   drawParticles(c);
   for (const f of G.flying) {
     const q = Math.min(1, f.t / f.dur), tx = f.k % COLS, ty = (f.k / COLS) | 0;
+    if (f.drop) {
+      // bonus de la mort subite : tombe droit du ciel, son ombre grandit à l'arrivée
+      const gx = (tx + 0.5) * T, gy = (ty + 0.5) * T, h = (1 - q) * (1 - q) * 420;
+      c.fillStyle = `rgba(20,35,10,${0.1 + 0.25 * q})`; ell(c, gx, gy + 14, 4 + 7 * q, 1.5 + 2 * q); c.fill();
+      c.save(); c.globalAlpha = Math.min(1, q * 4); c.translate(gx, gy - h); c.rotate(Math.sin(q * 9) * 0.25); drawToken(c, f.it, 0, 0, 0.85 + 0.15 * q); c.restore();
+      continue;
+    }
     const gx = (f.x0 + (tx - f.x0) * q + 0.5) * T, gy = (f.y0 + (ty - f.y0) * q + 0.5) * T;
     const h = Math.sin(q * Math.PI) * (28 + 8 * Math.hypot(tx - f.x0, ty - f.y0));
     c.fillStyle = 'rgba(20,35,10,.25)'; ell(c, gx, gy + 14, 9, 3); c.fill();
@@ -1846,7 +1882,7 @@ function render() {
     if (G.lastWinner >= 0) drawBanner(c, `${PALS[G.lastWinner].name} gagne la manche`, sc, PALS[G.lastWinner].ui, a);
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   }
-  if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', 'Des rochers tombent en spirale', '#ff7a2f', Math.min(1, G.suddenFlash * 2));
+  if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', "L'arène rétrécit, puis des bonus tombent du ciel", '#ff7a2f', Math.min(1, G.suddenFlash * 2));
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
 
