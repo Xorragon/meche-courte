@@ -160,6 +160,12 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .nick-note{flex-basis:100%;font-size:13px;color:var(--muted);min-height:0}
 .nick-note:empty{display:none}
 .nick-note.bad{color:#ff8f8f}
+.end-pick-lb{margin:0 0 6px;font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(243,229,192,.7)}
+.charpick.mini{margin:0 auto 18px;width:min(520px,100%)}
+.charpick.mini canvas{width:46px;height:48px}
+.charpick.mini button{font-size:11.5px;border-radius:11px}
+@media (max-width:520px){.charpick.mini canvas{width:40px;height:42px}}
+@media (max-height:640px){.charpick.mini button span{display:none}.charpick.mini canvas{width:38px;height:40px}}
 .end-elo{margin:0 0 18px;font-weight:800;font-size:17px;color:var(--gold);min-height:1.2em}
 .ranksbox{max-width:680px;width:min(680px,100%)}
 .ranktable{border-collapse:collapse;margin:14px auto 6px;width:100%;font-variant-numeric:tabular-nums}
@@ -508,6 +514,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="score-line" id="end-score">3 – 1</p>
     <p class="rule" id="end-note" style="margin:-10px 0 8px"></p>
     <p class="end-elo" id="end-elo" role="status"></p>
+    <p class="end-pick-lb">Ton perso pour la revanche</p>
+    <div class="charpick mini" id="end-charpick" role="radiogroup" aria-label="Ton perso pour la revanche"></div>
     <div class="row">
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
@@ -2762,25 +2770,30 @@ function syncMute() {
 function toggleMute() { Sfx.muted = !Sfx.muted; Sfx.init(); syncMute(); }
 
 // Sélecteur de perso de l'accueil : aperçus animés (le perso choisi marche, les autres respirent)
+// Le même sélecteur existe aussi sur l'écran de fin (changer de perso avant la revanche, sans quitter le lobby)
 const charBtns = [];
 function buildCharPicker() {
-  const box = $('#charpick'); box.innerHTML = '';
+  charBtns.length = 0;
+  for (const [sel, root, pre] of [['#charpick', menuEl, 'ch-'], ['#end-charpick', endEl, 'endch-']]) {
+  const box = $(sel); box.innerHTML = '';
   CHARS.forEach((ch, i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.id = 'ch-' + ch.key;
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.id = pre + ch.key;
     const cv = document.createElement('canvas'); cv.width = 144; cv.height = 152;
     const lb = document.createElement('span'); lb.textContent = ch.name;
-    b.append(cv, lb); box.appendChild(b); charBtns[i] = { b, cv };
+    b.append(cv, lb); box.appendChild(b); charBtns.push({ b, cv, i, root });
     b.addEventListener('click', () => {
       settings.skin = i; saveSettings(); syncCharPicker();
       if (NET.role === 'host' && !NET.started) refreshHostLobby();
     });
   });
+  }
   syncCharPicker();
 }
-function syncCharPicker() { charBtns.forEach(({ b }, i) => { b.setAttribute('aria-checked', String(i === settings.skin)); b.setAttribute('aria-label', CHARS[i].name); }); }
+function syncCharPicker() { charBtns.forEach(({ b, i }) => { b.setAttribute('aria-checked', String(i === settings.skin)); b.setAttribute('aria-label', CHARS[i].name); }); }
 function drawCharPicker(t) {
-  if (menuEl.hidden) return;
-  charBtns.forEach(({ cv }, i) => {
+  if (menuEl.hidden && endEl.hidden) return;
+  charBtns.forEach(({ cv, i, root }) => {
+    if (root.hidden) return;
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
     const sel = i === settings.skin, k = cv.width / 52;
     c.setTransform(k, 0, 0, k, 0, 0);
