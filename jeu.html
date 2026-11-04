@@ -1197,10 +1197,14 @@ function pickup(p, k) {
 
 /* Effets visuels et sonores : joués ici, et rejoués chez l'invité en ligne */
 // Battle royale : les effets lointains (hors de l'écran) ne font ni bruit, ni particules, ni secousse
+// l'explosion est-elle à l'écran ? (sinon pas de secousse ni de vibration)
+const inView = (x, y) => G.mode !== 'br' || ((x + 0.5) * T >= G.cam.x && (x + 0.5) * T <= G.cam.x + W && (y + 0.5) * T >= G.cam.y && (y + 0.5) * T <= G.cam.y + H);
 const nearView = (x, y) => G.mode !== 'br' || (Math.abs((x + 0.5) * T - (G.cam.x + W / 2)) < W * 0.7 && Math.abs((y + 0.5) * T - (G.cam.y + H / 2)) < H * 0.7);
 const FX = {
   boom(cx, cy) {
-    if (!nearView(cx, cy)) return; explosionFx(cx, cy); if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); Sfx.play('boom'); rumble(0.15, 0.35, 90); },
+    if (!nearView(cx, cy)) return; explosionFx(cx, cy); Sfx.play('boom');
+    if (inView(cx, cy)) { if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); rumble(0.15, 0.35, 90); }
+  },
   crate(x, y) {
     if (!nearView(x, y)) return; crateDebris(x, y); },
   poof(x, y, it) {
@@ -1208,7 +1212,7 @@ const FX = {
   land(x, y) {
     if (!nearView(x, y)) return;
     for (let i = 0; i < 7; i++) addP({ kind: 'smoke', x: (x + 0.5) * T + (Math.random() - 0.5) * 36, y: (y + 0.5) * T + 14, vx: (Math.random() - 0.5) * 80, vy: -Math.random() * 30, life: 0.6, max: 0.6, size: 6, color: '150,130,110' });
-    if (!reduceMotion) G.shake = Math.min(10, G.shake + 2.5);
+    if (!reduceMotion && inView(x, y)) G.shake = Math.min(10, G.shake + 2.5);
     Sfx.play('thud');
   },
   kill(px, py) {
