@@ -992,6 +992,8 @@ function updateBombs(dt) {
     }
   }
   rebuildBombAt();
+  // une bombe (poussée ou non) qui se trouve dans une explosion encore active saute aussitôt
+  for (const b of G.bombs) { const [cx, cy] = bombCell(b); if (G.flameT[idx(cx, cy)] > 0) b.timer = Math.min(b.timer, 0); }
   for (let guard = 0; guard < 60; guard++) {
     const b = G.bombs.find(o => o.timer <= 0);
     if (!b) break;
