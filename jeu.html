@@ -534,18 +534,24 @@ function genMap(seed) {
 /* =========================================================
    Joueurs
    ========================================================= */
+// Chaque ordi a sa petite personnalité : ordre de préférence des directions et part de hasard,
+// pour que deux ordis sur la même case ne fassent pas exactement les mêmes choix.
+function shuffled(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [b[i], b[j]] = [b[j], b[i]]; } return b; }
+function newAI(lv, i) {
+  return { lv, path: [], cd: 0.25 + i * 0.1 + Math.random() * 0.1, sig: -1, stuck: 0, goal: -1, nb: shuffled(NB), noise: 0.6 + Math.random() * 1.2 };
+}
 function makePlayer(i, lv) {
   return {
     id: i, pal: PALS[i], x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
     alive: true, deathT: 0, phase: 0, moving: false, dirStack: [], bombQueued: false,
-    ai: lv ? { lv, path: [], cd: 0.25 + i * 0.1, sig: -1, stuck: 0 } : null,
+    ai: lv ? newAI(lv, i) : null,
   };
 }
 function resetPlayer(p) {
   const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
   p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.active = 0;
   p.alive = true; p.deathT = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
-  if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1; p.ai.sig = -1; p.ai.stuck = 0; }
+  if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1 + Math.random() * 0.1; p.ai.sig = -1; p.ai.stuck = 0; p.ai.goal = -1; p.ai.nb = shuffled(NB); }
 }
 const speedOf = p => BASE_SPEED + SPEED_STEP * p.speedLv;
 
@@ -976,24 +982,31 @@ function okAt(D, k, arrive, leave, m) {
   return (leave + m < s) || (arrive - m > D.E[k]);
 }
 function pathTo(prev, k) { const out = []; while (prev[k] !== -1) { out.push({ x: k % COLS, y: (k / COLS) | 0 }); k = prev[k]; } return out.reverse(); }
-function findEscape(sx, sy, t0, step, m, D, extraK, requireSafe) {
+function findEscape(sx, sy, t0, step, m, D, extraK, requireSafe, nbs, avoid) {
+  nbs = nbs || NB;
   const sk = idx(sx, sy), prev = new Int16Array(N).fill(-2), dist = new Uint8Array(N);
-  prev[sk] = -1; const q = [sk]; let qi = 0, fb = -1, fbS = -1;
+  prev[sk] = -1; const q = [sk]; let qi = 0, fb = -1, fbS = -1, taken = -1;
   while (qi < q.length) {
     const k = q[qi++];
+    if (taken >= 0 && dist[k] > dist[taken] + 2) return pathTo(prev, taken);
     if (k !== sk) {
-      if (D.S[k] === Infinity) return pathTo(prev, k);
+      if (D.S[k] === Infinity) {
+        // case sûre déjà visée par un autre ordi : on en cherche une autre pas trop loin
+        if (avoid && avoid.has(k)) { if (taken < 0) taken = k; }
+        else return pathTo(prev, k);
+      }
       if (D.S[k] > fbS) { fbS = D.S[k]; fb = k; }
     }
     const d = dist[k]; if (d >= 16) continue;
     const x = k % COLS, y = (k / COLS) | 0;
-    for (const [dx, dy] of NB) {
+    for (const [dx, dy] of nbs) {
       const nk = idx(x + dx, y + dy);
       if (prev[nk] !== -2 || !passableAI(nk, extraK)) continue;
       if (!okAt(D, nk, t0 + (d + 0.5) * step, t0 + (d + 1.5) * step, m)) continue;
       prev[nk] = k; dist[nk] = d + 1; q.push(nk);
     }
   }
+  if (taken >= 0) return pathTo(prev, taken);
   if (requireSafe || fb < 0) return null;
   return pathTo(prev, fb);
 }
@@ -1014,7 +1027,7 @@ function bombValue(p, x, y, D, eks, bset) {
   for (const ek of eks) if (cells.includes(ek)) v += 7 * p.ai.lv.aggro + 1;
   return v;
 }
-function chooseTarget(p, D, sx, sy, step, eks, bset) {
+function chooseTarget(p, D, sx, sy, step, eks, bset, avoid, occupied) {
   const lv = p.ai.lv, sk = idx(sx, sy), ek = eks.length ? eks[0] : -1;
   const prev = new Int16Array(N).fill(-2), dist = new Uint8Array(N);
   prev[sk] = -1; const q = [sk]; let qi = 0; const cands = [];
@@ -1027,10 +1040,12 @@ function chooseTarget(p, D, sx, sy, step, eks, bset) {
     if (canBomb && !G.bombAt[k]) { bv = bombValue(p, x, y, D, eks, bset); if (bv >= 2.5) s += bv; else bv = 0; }
     if (ek >= 0 && lv.chase > 0) s += Math.max(0, 6 - (Math.abs(x - ex) + Math.abs(y - ey))) * lv.chase * 0.7;
     s -= d * 0.85;
-    s += Math.random() * 0.25;
+    if (avoid.has(k)) s -= 4;        // un autre ordi y va déjà
+    if (occupied.has(k)) s -= 3;     // quelqu'un s'y trouve : inutile de s'empiler
+    s += Math.random() * (p.ai.noise || 0.25);
     cands.push({ k, s, bv });
     if (d >= 22) continue;
-    for (const [dx, dy] of NB) {
+    for (const [dx, dy] of (p.ai.nb || NB)) {
       const nk = idx(x + dx, y + dy);
       if (prev[nk] !== -2 || !passableAI(nk, -1) || D.S[nk] !== Infinity) continue;
       prev[nk] = k; dist[nk] = d + 1; q.push(nk);
@@ -1042,7 +1057,7 @@ function chooseTarget(p, D, sx, sy, step, eks, bset) {
     if (c.bv > 0) {
       const x = c.k % COLS, y = (c.k / COLS) | 0;
       const D2 = computeDanger({ x, y, r: p.range, t: FUSE });
-      if (!findEscape(x, y, 0, step, lv.margin + 0.1, D2, -1, true)) continue;
+      if (!findEscape(x, y, 0, step, lv.margin + 0.1, D2, -1, true, p.ai.nb)) continue;
     }
     return c.k === sk ? [] : pathTo(prev, c.k);
   }
@@ -1051,6 +1066,8 @@ function chooseTarget(p, D, sx, sy, step, eks, bset) {
 function setPath(p, path, sx, sy) {
   const off = Math.abs(p.x - sx) + Math.abs(p.y - sy);
   p.ai.path = path.slice();
+  const last = path.length ? path[path.length - 1] : { x: sx, y: sy };
+  p.ai.goal = idx(last.x, last.y);
   if (off > 0.001) {
     const n = path[0];
     const ahead = n && Math.sign(n.x - sx) === Math.sign(Math.round((p.x - sx) * 1000)) && Math.sign(n.y - sy) === Math.sign(Math.round((p.y - sy) * 1000));
@@ -1062,12 +1079,19 @@ function think(p) {
   const sx = Math.round(p.x), sy = Math.round(p.y), sk = idx(sx, sy);
   const step = 1 / speedOf(p), off = Math.abs(p.x - sx) + Math.abs(p.y - sy);
   const D = computeDanger(null);
+  // cases déjà visées par les autres ordis, et cases où se tiennent les autres artificiers
+  const avoid = new Set(), occupied = new Set();
+  for (const o of G.players) {
+    if (o === p || !o.alive) continue;
+    occupied.add(idx(Math.round(o.x), Math.round(o.y)));
+    if (o.ai && o.ai.goal >= 0) avoid.add(o.ai.goal);
+  }
   if (D.S[sk] !== Infinity) {
     // fuite : d'abord avec la marge de prudence, puis sans, puis au plus serré
     const t0 = off * step;
-    const path = findEscape(sx, sy, t0, step, lv.margin, D, -1, true)
-      || findEscape(sx, sy, t0, step, 0, D, -1, true)
-      || findEscape(sx, sy, t0, step, -0.08, D, -1, false);
+    const path = findEscape(sx, sy, t0, step, lv.margin, D, -1, true, ai.nb, avoid)
+      || findEscape(sx, sy, t0, step, 0, D, -1, true, ai.nb, avoid)
+      || findEscape(sx, sy, t0, step, -0.08, D, -1, false, ai.nb, avoid);
     if (path) setPath(p, path, sx, sy);
     return;
   }
@@ -1080,11 +1104,11 @@ function think(p) {
     const bv = bombValue(p, sx, sy, D, eks, bset);
     if (bv >= 2.5 && Math.random() < lv.bombRate) {
       const D2 = computeDanger({ x: sx, y: sy, r: p.range, t: FUSE });
-      const esc = findEscape(sx, sy, 0, step, lv.margin + 0.1, D2, -1, true);
+      const esc = findEscape(sx, sy, 0, step, lv.margin + 0.1, D2, -1, true, ai.nb, avoid);
       if (esc && esc.length) { p.x = sx; p.y = sy; placeBomb(p); setPath(p, esc, sx, sy); return; }
     }
   }
-  const path = chooseTarget(p, D, sx, sy, step, eks, bset);
+  const path = chooseTarget(p, D, sx, sy, step, eks, bset, avoid, occupied);
   setPath(p, path || [], sx, sy);
 }
 function aiSignature() {
@@ -2023,7 +2047,7 @@ function dropLink(L) {
     const p = G.players[L.slot];
     if (p && p.remote) {
       p.remote = false; p.moving = false; p.dirStack = [];
-      p.ai = { lv: AI_LV[clamp(settings.diff | 0, 0, 2)], path: [], cd: 0.2, sig: -1, stuck: 0 };
+      p.ai = newAI(AI_LV[clamp(settings.diff | 0, 0, 2)], p.id);
       fx('left', L.slot); setupHud();
     }
   } else refreshHostLobby();
