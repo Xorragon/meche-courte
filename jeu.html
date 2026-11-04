@@ -124,6 +124,15 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .cta:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
 .ghost{display:inline-flex;align-items:center;gap:10px;font:800 18px/1 var(--font-body);color:var(--parchment);background:transparent;border:2px solid rgba(243,229,192,.35);border-radius:14px;padding:14px 20px;cursor:pointer}
 .ghost:hover{border-color:var(--parchment)}
+.keysbox{max-width:620px}
+.keytable{border-collapse:collapse;margin:14px auto 6px;width:min(100%,520px)}
+.keytable th,.keytable td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(243,229,192,.12)}
+.keytable th{font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.keytable th.c1{color:var(--p1)} .keytable th.c2{color:var(--p2)}
+.keytable td:first-child{font-weight:700}
+.keybtn{min-width:110px;font:800 15px/1 var(--font-body);color:var(--parchment);background:rgba(0,0,0,.22);border:2px solid rgba(243,229,192,.28);border-bottom-width:4px;border-radius:9px;padding:8px 10px;cursor:pointer}
+.keybtn:hover{border-color:rgba(243,229,192,.6)}
+.keybtn.wait{border-color:var(--gold);color:var(--gold);animation:throb .5s ease-in-out infinite alternate}
 .ghost.tiny{font-size:15px;padding:9px 14px;border-radius:10px}
 .rumble-btn[aria-pressed="false"]{opacity:.7;border-style:dashed}
 kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border-radius:6px;background:rgba(0,0,0,.16);border:1px solid rgba(0,0,0,.22)}
@@ -294,12 +303,12 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <section class="side">
       <h2>Commandes</h2>
       <div class="ctrl">
-        <p><span class="who c1">Mèche</span> <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) pour bouger, <kbd>Espace</kbd> pour poser une bombe, <kbd>E</kbd> pour arrêter la bombe que tu as poussée</p>
-        <p><span class="who c2">Braise</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour bouger, <kbd>Entrée</kbd> pour poser une bombe, <kbd>Maj droite</kbd> pour l'arrêter</p>
+        <p id="keys-help-0"></p>
+        <p id="keys-help-1"></p>
         <p><span class="who c3">Manette</span> croix ou stick gauche pour bouger, <kbd>A</kbd> pour poser une bombe, <kbd>B</kbd> pour arrêter la bombe poussée, <kbd>Start</kbd> pour la pause</p>
         <p class="small">Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
         <p class="small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
-        <p><button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button></p>
+        <p class="row" style="justify-content:flex-start"><button class="ghost tiny" type="button" id="btn-keys">Changer les touches</button><button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button></p>
       </div>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
@@ -316,7 +325,25 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="ghost" id="quit" type="button">Quitter la partie</button>
     </div>
     <div class="row" style="margin-top:12px">
+      <button class="ghost tiny" type="button" id="btn-keys2">Changer les touches</button>
       <button class="ghost tiny rumble-btn" type="button" id="btn-rumble2" aria-pressed="true">Vibrations de la manette : activées</button>
+    </div>
+  </div>
+</div>
+
+<div id="keys" class="overlay" hidden>
+  <div class="box keysbox">
+    <p class="kicker">Réglages</p>
+    <h2>Tes touches</h2>
+    <p class="rule" id="keys-status" role="status">Clique sur une touche du tableau, puis appuie sur la nouvelle touche. Échap pour annuler.</p>
+    <table class="keytable">
+      <thead><tr><th scope="col">Action</th><th scope="col" class="c1">Mèche</th><th scope="col" class="c2">Braise</th></tr></thead>
+      <tbody id="keys-body"></tbody>
+    </table>
+    <p class="rule small">Seul ou en ligne, les deux colonnes pilotent ton perso. À deux sur un clavier, la colonne Mèche est au 1er joueur, la colonne Braise au 2e. Échap reste la touche de pause.</p>
+    <div class="row" style="margin-top:14px">
+      <button class="ghost tiny" type="button" id="keys-reset">Rétablir les touches par défaut</button>
+      <button class="cta" type="button" id="keys-close">Terminé</button>
     </div>
   </div>
 </div>
@@ -412,9 +439,54 @@ const idx = (x, y) => y * COLS + x;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true };
+const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true, keys: null, keyLabels: {} };
 try { const s = JSON.parse(localStorage.getItem('meche-courte') || 'null'); if (s) Object.assign(settings, s); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} }
+
+/* ---------- Touches personnalisables ---------- */
+const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter la bombe poussée']];
+const DIRS = new Set(['up', 'down', 'left', 'right']);
+const DEFAULT_KEYS = [
+  { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', bomb: 'Space', stop: 'KeyE' },
+  { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', bomb: 'Enter', stop: 'ShiftRight' },
+];
+function validKeys(k) {
+  return Array.isArray(k) && k.length === 2 && k.every(set => set && ACTIONS.every(([a]) => typeof set[a] === 'string' && set[a].length < 40));
+}
+if (!validKeys(settings.keys)) settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS));
+if (!settings.keyLabels || typeof settings.keyLabels !== 'object') settings.keyLabels = {};
+let keyMap = {};
+function rebuildKeyMap() {
+  keyMap = {};
+  settings.keys.forEach((set, si) => { for (const [a] of ACTIONS) if (set[a]) keyMap[set[a]] = { set: si, act: a }; });
+  // alias historiques du pavé numérique quand ils ne sont pas pris
+  if (!keyMap.NumpadEnter && settings.keys[1].bomb === 'Enter') keyMap.NumpadEnter = { set: 1, act: 'bomb' };
+  if (!keyMap.Numpad0 && settings.keys[1].stop === 'ShiftRight') keyMap.Numpad0 = { set: 1, act: 'stop' };
+}
+rebuildKeyMap();
+const keyDir = code => { const k = keyMap[code]; return k && DIRS.has(k.act) ? k.act : null; };
+let kbLayout = null;
+try { if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(m => { kbLayout = m; renderKeyHelp(); }).catch(() => {}); } catch (e) {}
+const KEY_NAMES = {
+  Space: 'Espace', Enter: 'Entrée', NumpadEnter: 'Entrée (pavé)', ShiftLeft: 'Maj gauche', ShiftRight: 'Maj droite',
+  ControlLeft: 'Ctrl gauche', ControlRight: 'Ctrl droit', AltLeft: 'Alt', AltRight: 'Alt Gr', MetaLeft: 'Cmd/Win', MetaRight: 'Cmd/Win droit',
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Tab: 'Tab', Backspace: 'Retour arrière', CapsLock: 'Verr. maj',
+  Insert: 'Inser', Delete: 'Suppr', Home: 'Début', End: 'Fin', PageUp: 'Page préc.', PageDown: 'Page suiv.', ContextMenu: 'Menu',
+};
+const AZERTY = { KeyQ: 'A', KeyA: 'Q', KeyW: 'Z', KeyZ: 'W', KeyM: ',', Semicolon: 'M' };
+function keyLabel(code) {
+  if (!code) return '—';
+  if (KEY_NAMES[code]) return KEY_NAMES[code];
+  if (kbLayout && kbLayout.get(code)) return kbLayout.get(code).toUpperCase();
+  if (settings.keyLabels[code]) return settings.keyLabels[code];
+  // navigateur sans carte du clavier (Firefox, Safari) : on suppose un AZERTY pour un navigateur en français
+  if (/^fr/i.test(navigator.language || '') && AZERTY[code]) return AZERTY[code];
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad/.test(code)) return 'Pavé ' + code.slice(6);
+  if (/^F\d+$/.test(code)) return code;
+  return code;
+}
 
 /* =========================================================
    État du jeu
@@ -1174,7 +1246,7 @@ function updateHuman(p, dt) {
   const dist = speedOf(p) * dt, st = p.dirStack;
   p.moving = false;
   for (let i = st.length - 1; i >= 0; i--) {
-    const d = st[i] === 'T' ? touchDir : st[i][0] === 'G' ? padDir[st[i]] : DIR_OF[st[i]];
+    const d = st[i] === 'T' ? touchDir : st[i].startsWith('pad') ? padDir[st[i]] : keyDir(st[i]);
     if (!d) continue;
     if (i === st.length - 1) p.face = d;
     const [ax, dir] = DIRV[d];
@@ -1876,14 +1948,11 @@ $('#btn-pause').addEventListener('click', () => { if (G.paused) resume(); else p
 muteBtn.addEventListener('click', toggleMute);
 
 /* ---------- Clavier ---------- */
-function ownerOf(code) {
-  if (NET.role) return localIdx();
-  if (code.startsWith('Key') || code === 'Space') return 0;
-  return settings.mode === 'duo' ? 1 : 0;
-}
 function removeFrom(a, v) { const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); }
 window.addEventListener('keydown', e => {
   const code = e.code;
+  if (capture) { e.preventDefault(); e.stopPropagation(); finishCapture(e); return; }
+  if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') toMenu(); return; }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(menuEl.hidden === false && code === 'Space')) e.preventDefault();
   if (!onlineEl.hidden) { if (code === 'Escape') toMenu(); return; }
@@ -1894,17 +1963,22 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (!pauseEl.hidden) { if (code === 'Escape' || code === 'KeyP') resume(); return; }
-  if (code === 'Escape' || code === 'KeyP') { pause(); return; }
-  if (code === 'KeyM') { toggleMute(); return; }
-  if (G.mode !== 'match') return;
-  if (e.repeat) return;
-  const p = G.players[ownerOf(code)]; if (!p || p.ai || p.remote) return;
-  if (DIR_OF[code]) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
-  else if (code === 'Space' || code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (G.phase === 'play') p.bombQueued = true; }
-  else if (code === 'KeyE' || code === 'ShiftRight' || code === 'Numpad0') { e.preventDefault(); if (G.phase === 'play') p.stopQueued = true; }
+  if (code === 'Escape') { pause(); return; }
+  const kb = keyMap[code];
+  if (!kb) {
+    if (code === 'KeyP') pause();
+    else if (code === 'KeyM') toggleMute();
+    return;
+  }
+  e.preventDefault();
+  if (G.mode !== 'match' || e.repeat) return;
+  const p = G.players[NET.role ? localIdx() : settings.mode === 'duo' ? kb.set : 0]; if (!p || p.ai || p.remote) return;
+  if (DIRS.has(kb.act)) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
+  else if (kb.act === 'bomb') { if (G.phase === 'play') p.bombQueued = true; }
+  else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; }
 });
 window.addEventListener('keyup', e => { for (const p of G.players) removeFrom(p.dirStack, e.code); });
-window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c[0] === 'G'); });
+window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad')); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.role && G.mode === 'match' && (G.phase === 'play' || G.phase === 'intro')) pause(); });
 
 /* ---------- Tactile ---------- */
@@ -2360,7 +2434,7 @@ function pollPads() {
   for (const gp of list) if (gp && gp.connected) order.push(gp.index);
   for (const gp of list) {
     if (!gp || !gp.connected) continue;
-    const code = 'G' + gp.index;
+    const code = 'pad' + gp.index;
     const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [] });
     const btn = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
     const hit = k => btn(k) && !st.prev[k];
@@ -2372,7 +2446,8 @@ function pollPads() {
     }
     const confirm = hit(0) || hit(9), back = hit(1);
     // menus et fenêtres
-    if (!onlineEl.hidden) { releasePad(code, st); if (back) toMenu(); }
+    if (!keysEl.hidden) { releasePad(code, st); if (back) closeKeys(); }
+    else if (!onlineEl.hidden) { releasePad(code, st); if (back) toMenu(); }
     else if (!menuEl.hidden) { releasePad(code, st); if (confirm) onPlay(); }
     else if (!endEl.hidden) { releasePad(code, st); if (confirm && !$('#again').hidden) onAgain(); else if (back) toMenu(); }
     else if (!pauseEl.hidden) { releasePad(code, st); if (confirm || back) resume(); }
@@ -2410,7 +2485,71 @@ function toggleRumble() {
   else try { for (const gp of navigator.getGamepads ? navigator.getGamepads() : []) { const va = gp && gp.vibrationActuator; if (va && va.reset) va.reset().catch(() => {}); } } catch (e) {}
 }
 document.querySelectorAll('.rumble-btn').forEach(b => b.addEventListener('click', toggleRumble));
-window.addEventListener('gamepaddisconnected', e => { const code = 'G' + e.gamepad.index; if (padSt[code]) releasePad(code, padSt[code]); delete padSt[code]; padStatus(); });
+
+/* ---------- Écran « Tes touches » ---------- */
+const keysEl = $('#keys');
+let capture = null, keysFrom = null;
+const kbd = code => `<kbd>${keyLabel(code).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))}</kbd>`;
+function renderKeyHelp() {
+  const names = [['c1', 'Mèche'], ['c2', 'Braise']];
+  settings.keys.forEach((k, i) => {
+    const el = document.getElementById('keys-help-' + i); if (!el) return;
+    el.innerHTML = `<span class="who ${names[i][0]}">${names[i][1]}</span> ${kbd(k.up)} ${kbd(k.left)} ${kbd(k.down)} ${kbd(k.right)} pour bouger, ${kbd(k.bomb)} pour poser une bombe, ${kbd(k.stop)} pour arrêter la bombe poussée`;
+  });
+  const body = $('#keys-body'); if (!body) return;
+  body.innerHTML = '';
+  for (const [a, label] of ACTIONS) {
+    const tr = document.createElement('tr'), th = document.createElement('td'); th.textContent = label; tr.appendChild(th);
+    for (let si = 0; si < 2; si++) {
+      const td = document.createElement('td'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'keybtn'; b.id = `kb-${si}-${a}`;
+      const waiting = capture && capture.set === si && capture.act === a;
+      b.textContent = waiting ? 'Appuie…' : keyLabel(settings.keys[si][a]);
+      if (waiting) b.classList.add('wait');
+      b.setAttribute('aria-label', `${label}, ${si ? 'Braise' : 'Mèche'} : ${keyLabel(settings.keys[si][a])}. Changer`);
+      b.addEventListener('click', () => { capture = { set: si, act: a }; $('#keys-status').textContent = `Appuie sur la touche pour « ${label} » (${si ? 'Braise' : 'Mèche'}). Échap pour annuler.`; renderKeyHelp(); });
+      td.appendChild(b); tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  }
+}
+function finishCapture(e) {
+  const c = capture; capture = null;
+  const st = $('#keys-status');
+  if (e.code === 'Escape' || !e.code) { st.textContent = 'Changement annulé.'; renderKeyHelp(); return; }
+  const old = settings.keys[c.set][c.act];
+  // la touche était déjà prise ailleurs : on échange
+  let swapped = null;
+  settings.keys.forEach((set, si) => { for (const [a, l] of ACTIONS) if (set[a] === e.code && !(si === c.set && a === c.act)) { set[a] = old; swapped = `${l} (${si ? 'Braise' : 'Mèche'})`; } });
+  settings.keys[c.set][c.act] = e.code;
+  if (e.key && e.key.length === 1 && e.key !== ' ') settings.keyLabels[e.code] = e.key.toUpperCase();
+  rebuildKeyMap(); saveSettings();
+  for (const p of G.players) p.dirStack = p.dirStack.filter(x => x === 'T' || x.startsWith('pad'));
+  st.textContent = `C'est noté : ${keyLabel(e.code)}.` + (swapped ? ` Elle servait déjà pour « ${swapped} », qui prend ton ancienne touche (${keyLabel(old)}).` : '');
+  renderKeyHelp();
+  try { document.getElementById(`kb-${c.set}-${c.act}`).focus({ preventScroll: true }); } catch (err) {}
+}
+function openKeys(from) {
+  keysFrom = from; capture = null;
+  if (from === 'pause') pauseEl.hidden = true;
+  keysEl.hidden = false; $('#keys-status').textContent = 'Clique sur une touche du tableau, puis appuie sur la nouvelle touche. Échap pour annuler.';
+  renderKeyHelp();
+  try { $('#keys-close').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeKeys() {
+  capture = null; keysEl.hidden = true;
+  if (keysFrom === 'pause' && G.mode === 'match') { pauseEl.hidden = false; try { $('#resume').focus({ preventScroll: true }); } catch (e) {} }
+  else try { $('#btn-keys').focus({ preventScroll: true }); } catch (e) {}
+}
+$('#btn-keys').addEventListener('click', () => openKeys('menu'));
+$('#btn-keys2').addEventListener('click', () => openKeys('pause'));
+$('#keys-close').addEventListener('click', closeKeys);
+$('#keys-reset').addEventListener('click', () => {
+  settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); settings.keyLabels = {}; capture = null;
+  rebuildKeyMap(); saveSettings(); renderKeyHelp();
+  $('#keys-status').textContent = 'Touches par défaut rétablies.';
+});
+window.addEventListener('gamepaddisconnected', e => { const code = 'pad' + e.gamepad.index; if (padSt[code]) releasePad(code, padSt[code]); delete padSt[code]; padStatus(); });
 
 /* ---------- Taille ---------- */
 function resize() {
@@ -2439,7 +2578,7 @@ function boot(data) {
   data = data || {};
   if (data.settings) Object.assign(settings, data.settings);
   if (typeof data.muted === 'boolean') Sfx.muted = data.muted;
-  buildStatics(); syncMenu(); syncMute(); syncRumble();
+  buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp();
   resize(); toMenu();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (pc.length === 4 || q.has('en-ligne')) { settings.mode = 'online'; syncMenu(); openOnline(pc.length === 4 ? pc : ''); }
