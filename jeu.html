@@ -1767,14 +1767,36 @@ function brWorld() {
   G.camSnap = true; groundDirty = true;
   setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
 }
-// Caméra : suit ton perso, sans sortir de la carte
+// Caméra douce : une zone morte au centre (le perso bouge un peu sans que l'écran bouge),
+// puis un amorti « ressort critique » (vitesse continue : pas d'à-coups d'accélération).
+const CAM_DEAD_X = 1.6 * T, CAM_DEAD_Y = 1.1 * T, CAM_SMOOTH = 0.32;
+function smoothDamp(cur, target, v, key, st, dt) {
+  const om = 2 / st, x = om * dt, ex = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const change = cur - target, temp = (v[key] + om * change) * dt;
+  v[key] = (v[key] - om * temp) * ex;
+  let out = target + (change + temp) * ex;
+  if ((target - cur > 0) === (out > target)) { out = target; v[key] = 0; }   // pas de dépassement
+  return out;
+}
 function updateCamera(dt) {
   if (!BIG_MAP()) { G.cam.x = 0; G.cam.y = 0; return; }
   const me = G.players[localIdx()]; if (!me) return;
-  const tx = clamp((me.x + 0.5) * T - W / 2, 0, COLS * T - W), ty = clamp((me.y + 0.5) * T - H / 2, 0, ROWS * T - H);
-  if (G.camSnap || Math.abs(tx - G.cam.x) > W || Math.abs(ty - G.cam.y) > H) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; return; }
-  const k = Math.min(1, dt * 9);
-  G.cam.x += (tx - G.cam.x) * k; G.cam.y += (ty - G.cam.y) * k;
+  const px = (me.x + 0.5) * T, py = (me.y + 0.5) * T;
+  const F = G.camF || (G.camF = { x: px, y: py }), V = G.camV || (G.camV = { x: 0, y: 0 });
+  if (G.camSnap) { F.x = px; F.y = py; }
+  // zone morte : le point visé ne bouge que si le perso en sort
+  if (px - F.x > CAM_DEAD_X) F.x = px - CAM_DEAD_X; else if (F.x - px > CAM_DEAD_X) F.x = px + CAM_DEAD_X;
+  if (py - F.y > CAM_DEAD_Y) F.y = py - CAM_DEAD_Y; else if (F.y - py > CAM_DEAD_Y) F.y = py + CAM_DEAD_Y;
+  const tx = clamp(F.x - W / 2, 0, COLS * T - W), ty = clamp(F.y - H / 2, 0, ROWS * T - H);
+  if (G.camSnap || Math.abs(tx - G.cam.x) > W * 1.5 || Math.abs(ty - G.cam.y) > H * 1.5) {
+    G.cam.x = tx; G.cam.y = ty; V.x = 0; V.y = 0; G.camSnap = false; return;
+  }
+  G.cam.x = smoothDamp(G.cam.x, tx, V, 'x', CAM_SMOOTH, dt);
+  G.cam.y = smoothDamp(G.cam.y, ty, V, 'y', CAM_SMOOTH, dt);
+  // le perso ne doit jamais sortir de l'écran, même s'il va très vite
+  const mx = 2 * T, my = 2 * T;
+  G.cam.x = clamp(G.cam.x, clamp(px + mx - W, 0, COLS * T - W), clamp(px - mx, 0, COLS * T - W));
+  G.cam.y = clamp(G.cam.y, clamp(py + my - H, 0, ROWS * T - H), clamp(py - my, 0, ROWS * T - H));
 }
 // Par-dessus l'arène : « Soufflé ! » quand tu es mort
 function drawBrOverlay(c, t) {
@@ -2367,7 +2389,7 @@ function render() {
   c.fillStyle = '#0d1510'; c.fillRect(0, 0, canvas.width, canvas.height);
   let sx = 0, sy = 0;
   if (G.shake > 0.05) { sx = (Math.random() * 2 - 1) * G.shake * 0.5; sy = (Math.random() * 2 - 1) * G.shake * 0.5; }
-  const camX = big ? Math.round(G.cam.x * K) / K : 0, camY = big ? Math.round(G.cam.y * K) / K : 0;
+  const camX = big ? Math.round(G.cam.x * K * 2) / (K * 2) : 0, camY = big ? Math.round(G.cam.y * K * 2) / (K * 2) : 0;
   c.setTransform(K, 0, 0, K, (sx - camX) * K, (sy - camY) * K);
   if (big) {
     for (let gy = Math.floor(camY / GH) * GH; gy < camY + H; gy += GH) for (let gx = Math.floor(camX / GW) * GW; gx < camX + W; gx += GW) c.drawImage(groundSpr.c, gx, gy, GW, GH);
