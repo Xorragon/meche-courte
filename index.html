@@ -90,9 +90,11 @@ section{padding:92px 0}
 .divider{height:6px;width:min(1160px,100% - 40px);margin:0 auto;border-radius:3px;background:repeating-linear-gradient(90deg,#a06e37 0 7px,#6b4521 7px 11px);opacity:.55}
 
 /* modes */
-.modes{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.modes{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid var(--line)}
 .mode{padding:28px 28px 8px 0;display:flex;flex-direction:column;gap:12px}
 .mode + .mode{padding-left:28px;border-left:1px solid var(--line)}
+.mode:nth-child(2n+1){padding-left:0;border-left:0}
+.mode:nth-child(n+3){border-top:1px solid var(--line)}
 .mode h3{font-size:30px}
 .mode p{color:#e3d6b2;font-size:17px}
 .mode .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
@@ -208,8 +210,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <section id="modes">
     <div class="wrap">
       <div class="head">
-        <h2>Trois façons d'allumer la mèche</h2>
-        <p>Sur l'écran d'accueil du jeu, choisis ton perso : l'Artificier, Astro le petit robot de l'espace, Fennec le renard bombardier ou le Mage. Les ordis prennent les autres. Le menu du jeu tient ensuite en trois boutons : jouer en solo, chercher une partie en ligne, ou créer un lobby pour tes potes. Les réglages (ordis, niveau, manches) viennent ensuite, au moment de lancer. En duel, tu choisis 1, 3 ou 5 manches gagnantes ; à 3 ou 4 artificiers, la partie se joue en 3 manches aux points.</p>
+        <h2>Quatre façons d'allumer la mèche</h2>
+        <p>Sur l'écran d'accueil du jeu, choisis ton perso : l'Artificier, Astro le petit robot de l'espace, Fennec le renard bombardier ou le Mage. Les ordis prennent les autres. Le menu du jeu tient ensuite en quatre boutons : jouer en solo, le battle royale, chercher une partie en ligne, ou créer un lobby pour tes potes. Les réglages (ordis, niveau, manches) viennent ensuite, au moment de lancer. En duel, tu choisis 1, 3 ou 5 manches gagnantes ; à 3 ou 4 artificiers, la partie se joue en 3 manches aux points.</p>
       </div>
       <div class="modes">
         <article class="mode">
@@ -229,6 +231,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
           <p>Ton lobby a un code de 4 lettres : jusqu'à 3 potes te rejoignent depuis chez eux. Tu règles les ordis, leur niveau et les manches, puis tu lances.</p>
           <div class="chips"><span class="chip">Jusqu'à 3 potes</span><span class="chip">Code de lobby</span><span class="chip">+ ordis</span></div>
           <a href="jeu.html">Créer un lobby →</a>
+        </article>
+        <article class="mode">
+          <h3>Battle royale</h3>
+          <p>30 artificiers sur une carte neuf fois plus grande, qui défile sous tes pieds. La partie ne s'arrête jamais : si tu meurs, tu reviens sans tes bonus. Le classement suit les 10 joueurs les plus chargés en bonus, et chaque vrai joueur qui arrive remplace un ordi.</p>
+          <div class="chips"><span class="chip">30 artificiers</span><span class="chip">Mini-carte</span><span class="chip">Sans fin</span></div>
+          <a href="jeu.html">Entrer dans l'arène →</a>
         </article>
       </div>
     </div>

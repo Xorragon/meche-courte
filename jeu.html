@@ -84,6 +84,22 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 .ibtn svg{width:15px;height:15px}
 
 /* ---------- Arène ---------- */
+#br-ui{position:absolute;inset:6px;pointer-events:none;border-radius:12px;overflow:hidden}
+#br-ui[hidden]{display:none}
+.br-board{position:absolute;top:8px;right:8px;width:178px;padding:7px 9px 6px;border-radius:10px;background:rgba(10,16,10,.62);color:var(--parchment);font-size:13px;line-height:1.25}
+.br-title{margin:0 0 4px;font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+#br-list{list-style:none;margin:0;padding:0}
+#br-list li{display:flex;gap:6px;align-items:baseline;padding:1px 0}
+#br-list li .r{width:1.4em;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#br-list li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--pc);font-weight:700}
+#br-list li b{font-variant-numeric:tabular-nums}
+#br-list li.me{background:rgba(255,207,90,.16);border-radius:5px}
+#br-list li.sep{margin-top:4px;border-top:1px dashed rgba(243,229,192,.3)}
+.br-meta{margin:4px 0 0;font-size:11px;color:var(--muted)}
+#br-mini{position:absolute;right:8px;bottom:8px;width:160px;border-radius:8px;border:2px solid rgba(243,229,192,.35);box-shadow:0 6px 18px rgba(0,0,0,.45);opacity:.92}
+.br-toast{position:absolute;left:50%;top:10px;transform:translate(-50%,-8px);margin:0;padding:6px 12px;border-radius:999px;background:rgba(10,16,10,.7);color:var(--parchment);font-weight:700;font-size:14px;opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap}
+.br-toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:560px){.br-board{width:116px;font-size:10px;padding:4px 6px;top:4px;right:4px}.br-title{font-size:9px}#br-list li:nth-child(n+6):not(.me){display:none}.br-meta{display:none}#br-mini{width:84px;right:4px;bottom:4px}}
 #stage{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
 #frame{position:relative;border-radius:16px;padding:6px;background:linear-gradient(#61412a,#3a2616);box-shadow:inset 0 2px 0 rgba(255,220,170,.22),0 0 0 2px #1a0f08,0 22px 50px rgba(0,0,0,.55)}
 #game{display:block;border-radius:10px;touch-action:none}
@@ -163,14 +179,16 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .charpick canvas{width:72px;height:76px}
 @media (max-width:420px){.charpick canvas{width:58px;height:62px}}
 .net-players .ch{font-weight:800;font-size:12px;color:var(--parchment);opacity:.8}
-.mbtns{display:grid;gap:12px;width:min(460px,100%)}
+.mbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(580px,100%)}
+@media (max-width:640px){.mbtns{grid-template-columns:1fr}}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
-.mbtn b{font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
+.mbtn b{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1}
 .mbtn span{color:var(--muted);font-size:15px;font-weight:700}
 .mbtn:hover{border-color:var(--parchment);transform:translateY(-1px)}
 .mbtn.main{background:var(--ember);border-color:var(--ember);color:#2b1206;box-shadow:0 6px 0 #a3410f,0 16px 34px rgba(255,122,47,.22)}
 .mbtn.main span{color:rgba(43,18,6,.75)}
 .mbtn.main:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
+.mbtn.br{border-color:rgba(255,207,90,.55);background:linear-gradient(135deg,rgba(255,122,47,.18),rgba(12,18,12,.55))}
 .mbtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .mlinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .setup{width:min(560px,100%)}
@@ -307,7 +325,17 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       </div>
     </div>
   </header>
-  <main id="stage"><div id="frame"><canvas id="game" aria-label="Arène de jeu"></canvas></div></main>
+  <main id="stage"><div id="frame"><canvas id="game" aria-label="Arène de jeu"></canvas>
+    <div id="br-ui" hidden>
+      <div class="br-board" aria-label="Classement : les 10 joueurs qui ont le plus de bonus">
+        <p class="br-title">Le plus de bonus</p>
+        <ol id="br-list"></ol>
+        <p class="br-meta" id="br-meta"></p>
+      </div>
+      <canvas id="br-mini" aria-label="Mini-carte"></canvas>
+      <p class="br-toast" id="br-toast" role="status"></p>
+    </div>
+  </div></main>
   <div id="touch" aria-hidden="true">
     <div id="pad"><span class="ar up"></span><span class="ar down"></span><span class="ar left"></span><span class="ar right"></span></div>
     <div class="tright">
@@ -332,6 +360,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
+      <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
       <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
       <button class="mbtn" id="btn-create" type="button"><b>Créer un lobby</b><span>Invite tes potes avec un code</span></button>
     </div>
@@ -416,6 +445,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
+      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Le classement montre les 10 joueurs qui ont le plus de bonus. Chaque vrai joueur qui arrive prend la place d'un ordi.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -547,7 +577,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
    Constantes
    ========================================================= */
 const TAU = Math.PI * 2;
-const COLS = 15, ROWS = 13, T = 48, W = COLS * T, H = ROWS * T, N = COLS * ROWS;
+// W × H : la fenêtre de jeu (15 × 13 cases). La carte peut être plus grande (battle royale) : la caméra suit alors le joueur.
+const T = 48, VCOLS = 15, VROWS = 13, W = VCOLS * T, H = VROWS * T;
+let COLS = VCOLS, ROWS = VROWS, N = COLS * ROWS;
 const EMPTY = 0, WALL = 1, PILLAR = 2, CRATE = 3, STONE = 4;
 const FUSE = 3.5, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 3.2; // bombe poussée : vitesse constante, plus lente que le perso de base
 const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5, SD_RINGS = 2, RAIN_EVERY = 7, RAIN_FALL = 0.9;
@@ -669,12 +701,22 @@ const G = {
   grid: new Uint8Array(N), hidden: new Int8Array(N), burn: new Float32Array(N),
   items: new Int8Array(N).fill(-1), itemAge: new Float32Array(N),
   flameT: new Float32Array(N), flameBits: new Uint8Array(N), flameOwner: new Int8Array(N),
-  bombAt: new Array(N).fill(null),
+  bombAt: new Array(N).fill(null), grow: new Float32Array(N),
   bombs: [], players: [], particles: [], falling: [], flying: [],
   time: ROUND_TIME, sudden: false, sdOrder: [], sdIdx: 0, sdTimer: 0, suddenFlash: 0, rainT: 0,
   phaseT: 0, endTimer: 0, lastWinner: -2, scores: [0, 0], round: 1, winsNeeded: 3,
   seed: 1, t: 0, shake: 0, introBeep: false,
 };
+G.cam = { x: 0, y: 0 };
+function setMapSize(c, r) {
+  if (c === COLS && r === ROWS) return;
+  COLS = c; ROWS = r; N = c * r;
+  G.grid = new Uint8Array(N); G.hidden = new Int8Array(N); G.burn = new Float32Array(N);
+  G.items = new Int8Array(N).fill(-1); G.itemAge = new Float32Array(N);
+  G.flameT = new Float32Array(N); G.flameBits = new Uint8Array(N); G.flameOwner = new Int8Array(N);
+  G.bombAt = new Array(N).fill(null); G.grow = new Float32Array(N);
+  groundDirty = true;
+}
 let touchDir = null;
 const FACES = ['down', 'up', 'left', 'right'];
 const PH = ['intro', 'play', 'roundEnd', 'matchEnd'];
@@ -685,6 +727,7 @@ const NET = {
   bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
+const inGame = () => G.mode === 'match' || G.mode === 'br';
 // À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
 const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
 // Les ordis (et les joueurs sans choix) prennent des persos différents de ceux déjà pris, si possible
@@ -699,7 +742,7 @@ function setPlayers(list) {
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
 }
 const joinFr = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1] : a.join('');
-const nameOf = i => (G.players[i] && G.players[i].nick) || (PALS[i] ? PALS[i].name : '?');
+const nameOf = i => (G.players[i] && G.players[i].nick) || palFor(i).name;
 const ordinal = n => n === 1 ? '1er' : `${n}e`;
 // classement final : points, puis nombre de manches gagnées, puis place dans la dernière manche
 function rankMatch() {
@@ -747,7 +790,7 @@ const Sfx = {
     s.connect(f); f.connect(g); g.connect(this.out); s.start(t, Math.random() * 0.4); s.stop(t + dur + 0.03);
   },
   play(n) {
-    if (this.muted || !this.ac || G.mode !== 'match') return;
+    if (this.muted || !this.ac || G.mode === 'demo') return;
     try {
       switch (n) {
         case 'drop': this.tone('sine', 320, 110, 0.13, 0.35); break;
@@ -818,7 +861,7 @@ function newAI(lv, i) {
 }
 function makePlayer(i, lv, nick) {
   return {
-    id: i, pal: PALS[i], nick: nick || PALS[i].name, x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
+    id: i, pal: palFor(i), nick: nick || palFor(i).name, kills: 0, shield: 0, life: 0, x: 1, y: 1, face: 'down', speedLv: 0, maxBombs: 1, range: 2, kick: false, active: 0,
     alive: true, deathT: 0, phase: 0, moving: false, dirStack: [], bombQueued: false,
     ai: lv ? newAI(lv, i) : null,
   };
@@ -832,6 +875,7 @@ function resetPlayer(p) {
 const speedOf = p => BASE_SPEED + SPEED_STEP * p.speedLv;
 
 function newRound() {
+  setMapSize(VCOLS, VROWS);
   G.seed = (Math.random() * 2147483647) | 0;
   genMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.bombAt.fill(null);
@@ -1004,7 +1048,7 @@ function placeBomb(p) {
   for (const o of G.players) if (o.alive && Math.abs(o.x - cx) < 0.98 && Math.abs(o.y - cy) < 0.98) b.passers.add(o.id);
   G.bombs.push(b); p.active++;
   rebuildBombAt();
-  fx('drop');
+  fx('drop', cx, cy);
   return true;
 }
 function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; }
@@ -1074,6 +1118,7 @@ function updateFlames(dt) {
       }
     }
     if (G.items[k] >= 0) G.itemAge[k] += dt;
+    if (G.grow[k] > 0) G.grow[k] = Math.max(0, G.grow[k] - dt * 2);
   }
 }
 function updateFalling(dt) {
@@ -1104,7 +1149,8 @@ function land(k) {
   fx('land', x, y);
 }
 function kill(p, by) {
-  if (!p.alive) return;
+  if (!p.alive || p.shield > 0) return;
+  if (by >= 0 && by !== p.id && G.players[by]) G.players[by].kills = (G.players[by].kills | 0) + 1;
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
@@ -1150,34 +1196,43 @@ function pickup(p, k) {
 }
 
 /* Effets visuels et sonores : joués ici, et rejoués chez l'invité en ligne */
+// Battle royale : les effets lointains (hors de l'écran) ne font ni bruit, ni particules, ni secousse
+const nearView = (x, y) => G.mode !== 'br' || (Math.abs((x + 0.5) * T - (G.cam.x + W / 2)) < W * 0.7 && Math.abs((y + 0.5) * T - (G.cam.y + H / 2)) < H * 0.7);
 const FX = {
-  boom(cx, cy) { explosionFx(cx, cy); if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); Sfx.play('boom'); rumble(0.15, 0.35, 90); },
-  crate(x, y) { crateDebris(x, y); },
-  poof(x, y, it) { if (ITEMS[it]) itemPoof(x, y, it); },
+  boom(cx, cy) {
+    if (!nearView(cx, cy)) return; explosionFx(cx, cy); if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); Sfx.play('boom'); rumble(0.15, 0.35, 90); },
+  crate(x, y) {
+    if (!nearView(x, y)) return; crateDebris(x, y); },
+  poof(x, y, it) {
+    if (!nearView(x, y)) return; if (ITEMS[it]) itemPoof(x, y, it); },
   land(x, y) {
+    if (!nearView(x, y)) return;
     for (let i = 0; i < 7; i++) addP({ kind: 'smoke', x: (x + 0.5) * T + (Math.random() - 0.5) * 36, y: (y + 0.5) * T + 14, vx: (Math.random() - 0.5) * 80, vy: -Math.random() * 30, life: 0.6, max: 0.6, size: 6, color: '150,130,110' });
     if (!reduceMotion) G.shake = Math.min(10, G.shake + 2.5);
     Sfx.play('thud');
   },
   kill(px, py) {
+    if (!nearView(px, py)) return;
     const x = (px + 0.5) * T, y = (py + 0.5) * T - 6;
     for (let i = 0; i < 12; i++) addP({ kind: 'smoke', x, y, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 80, life: 0.9, max: 0.9, size: 7, color: '60,55,55' });
     for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, s = 80 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, size: 2.4, color: '#ffd166' }); }
     Sfx.play('death');
   },
   pickup(k, it) {
-    if (!ITEMS[it]) return;
+    if (!ITEMS[it] || !nearView(k % COLS, (k / COLS) | 0)) return;
     const x = (k % COLS + 0.5) * T, y = (((k / COLS) | 0) + 0.5) * T;
     for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, s = 60 + Math.random() * 90; addP({ kind: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 30, life: 0.5, max: 0.5, size: 2.2, color: ITEMS[it].c1 }); }
     addP({ kind: 'text', x, y: y - 22, vx: 0, vy: -38, life: 0.9, max: 0.9, size: 15, color: ITEMS[it].c1, text: ITEMS[it].short });
     Sfx.play('item');
   },
   kick(bx, by, dx, dy) {
+    if (!nearView(bx, by)) return;
     Sfx.play('kick');
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
-  drop() { Sfx.play('drop'); },
+  drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
   halt(bx, by) {
+    if (!nearView(bx, by)) return;
     Sfx.play('halt');
     for (let i = 0; i < 5; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T + (Math.random() - 0.5) * 20, y: (by + 0.5) * T + 12, vx: (Math.random() - 0.5) * 60, vy: -10 - Math.random() * 20, life: 0.35, max: 0.35, size: 4, color: '220,210,180' });
   },
@@ -1192,16 +1247,17 @@ const FX = {
     G.flying.push({ it, k, x0: fx0, y0: fy0, t: 0, dur: 0.35 + 0.07 * d });
   },
   left(slot) {
-    const pal = PALS[slot]; if (!pal) return;
+    const pal = palFor(slot); if (G.mode === 'br') { brToast(`${nameOf(slot)} a quitté le battle royale`); return; }
     addP({ kind: 'text', x: W / 2, y: 70, vx: 0, vy: 0, life: 3.5, max: 3.5, size: 18, color: pal.ui, text: `${nameOf(slot)} a quitté la partie : un ordi prend sa place` });
   },
   snd(n) { Sfx.play(n); },
+  joined(slot) { if (G.mode === 'br') brToast(`${nameOf(slot)} rejoint la partie`); },
 };
 function fx(n, a, b, c, d) {
   FX[n](a, b, c, d);
   if (NET.role === 'host') {
     NET.events.push([++NET.fxSeq, n, a ?? 0, b ?? 0, c ?? 0, d ?? 0]);
-    if (NET.events.length > 14) NET.events.shift();
+    if (NET.events.length > (G.mode === 'br' ? 80 : 14)) NET.events.shift();
   }
 }
 
@@ -1253,7 +1309,12 @@ function blast(x, y, r, bset) {
 function computeDanger(extra) {
   const S = new Float32Array(N).fill(Infinity), E = new Float32Array(N).fill(-Infinity);
   const bl = [];
-  for (const b of G.bombs) { const [x, y] = bombCell(b); bl.push({ k: idx(x, y), x, y, r: b.range, t: Math.max(0, b.timer) }); }
+  const F = G.mode === 'br' ? G.aiFocus : null;
+  for (const b of G.bombs) {
+    const [x, y] = bombCell(b);
+    if (F && Math.max(Math.abs(x - F.x), Math.abs(y - F.y)) > 16) continue;   // bombe trop loin pour compter
+    bl.push({ k: idx(x, y), x, y, r: b.range, t: Math.max(0, b.timer) });
+  }
   if (extra) bl.push({ k: idx(extra.x, extra.y), x: extra.x, y: extra.y, r: extra.r, t: extra.t });
   const bset = new Map(); bl.forEach((b, i) => bset.set(b.k, i));
   const cells = bl.map(b => blast(b.x, b.y, b.r, bset));
@@ -1293,7 +1354,7 @@ function okAt(D, k, arrive, leave, m) {
 function pathTo(prev, k) { const out = []; while (prev[k] !== -1) { out.push({ x: k % COLS, y: (k / COLS) | 0 }); k = prev[k]; } return out.reverse(); }
 function findEscape(sx, sy, t0, step, m, D, extraK, requireSafe, nbs, avoid) {
   nbs = nbs || NB;
-  const sk = idx(sx, sy), prev = new Int16Array(N).fill(-2), dist = new Uint8Array(N);
+  const sk = idx(sx, sy), prev = new Int32Array(N).fill(-2), dist = new Uint16Array(N);
   prev[sk] = -1; const q = [sk]; let qi = 0, fb = -1, fbS = -1, taken = -1;
   while (qi < q.length) {
     const k = q[qi++];
@@ -1338,7 +1399,7 @@ function bombValue(p, x, y, D, eks, bset) {
 }
 function chooseTarget(p, D, sx, sy, step, eks, bset, avoid, occupied) {
   const lv = p.ai.lv, sk = idx(sx, sy), ek = eks.length ? eks[0] : -1;
-  const prev = new Int16Array(N).fill(-2), dist = new Uint8Array(N);
+  const prev = new Int32Array(N).fill(-2), dist = new Uint16Array(N);
   prev[sk] = -1; const q = [sk]; let qi = 0; const cands = [];
   const canBomb = p.active < p.maxBombs;
   const ex = ek >= 0 ? ek % COLS : -99, ey = ek >= 0 ? (ek / COLS) | 0 : -99;
@@ -1384,6 +1445,10 @@ function setPath(p, path, sx, sy) {
   }
 }
 function think(p) {
+  G.aiFocus = p;
+  try { thinkInner(p); } finally { G.aiFocus = null; }
+}
+function thinkInner(p) {
   const ai = p.ai, lv = ai.lv;
   const sx = Math.round(p.x), sy = Math.round(p.y), sk = idx(sx, sy);
   const step = 1 / speedOf(p), off = Math.abs(p.x - sx) + Math.abs(p.y - sy);
@@ -1405,9 +1470,10 @@ function think(p) {
     return;
   }
   // adversaires vivants, le plus proche en premier
-  const eks = G.players.filter(o => o !== p && o.alive)
-    .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))
-    .map(o => idx(Math.round(o.x), Math.round(o.y)));
+  let eks = G.players.filter(o => o !== p && o.alive && !(o.shield > 0))
+    .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)));
+  if (G.mode === 'br') eks = eks.filter(o => Math.abs(o.x - p.x) + Math.abs(o.y - p.y) <= 14).slice(0, 5);
+  eks = eks.map(o => idx(Math.round(o.x), Math.round(o.y)));
   const bset = currentBombSet();
   if (off < 0.03 && p.active < p.maxBombs && !G.bombAt[sk]) {
     const bv = bombValue(p, sx, sy, D, eks, bset);
@@ -1420,16 +1486,25 @@ function think(p) {
   const path = chooseTarget(p, D, sx, sy, step, eks, bset, avoid, occupied);
   setPath(p, path || [], sx, sy);
 }
-function aiSignature() {
+function aiSignature(p) {
+  if (G.mode === 'br') {
+    // grande carte : seules les bombes proches comptent (sinon tous les ordis recalculeraient sans arrêt)
+    let s = 0;
+    for (const b of G.bombs) if (Math.abs(b.x - p.x) + Math.abs(b.y - p.y) <= 12) s += 977 + b.x * 3 + b.y * 5 + (b.mdx || b.mdy ? 11 : 0);
+    return s;
+  }
+  if (aiSigCache.tick === G.tick) return aiSigCache.v;
   let s = G.bombs.length * 977 + G.falling.length * 31 + (G.sudden ? G.sdIdx * 7 : 0);
   for (const b of G.bombs) s += b.x * 3 + b.y * 5 + (b.mdx || b.mdy ? 11 : 0);
   for (let k = 0; k < N; k++) if (G.items[k] >= 0) s += k * 13;
+  aiSigCache.tick = G.tick; aiSigCache.v = s;
   return s;
 }
+const aiSigCache = { tick: -1, v: 0 };
 function updateAI(p, dt) {
   const ai = p.ai;
   ai.cd -= dt;
-  const sig = aiSignature();
+  const sig = aiSignature(p);
   if (sig !== ai.sig) { ai.sig = sig; ai.cd = Math.min(ai.cd, ai.lv.react); }
   if (ai.cd <= 0) { think(p); ai.cd = ai.lv.think + Math.random() * 0.08; }
   let dist = speedOf(p) * dt;
@@ -1493,7 +1568,11 @@ function update(dt) {
     return;
   }
   rebuildBombAt();
-  if (G.phase === 'play') {
+  if (G.phase === 'play' && G.mode === 'br') {
+    brTick(dt);
+    if (NET.role === 'host') applyGuestInput();
+    for (const p of G.players) { if (!p.alive) continue; if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
+  } else if (G.phase === 'play') {
     G.time -= dt;
     if (G.time <= 0) {
       G.time = 0;
@@ -1534,9 +1613,14 @@ function update(dt) {
         if (G.flameT[k] > 0) { kill(p, G.flameOwner[k]); continue; }
         if (G.items[k] >= 0 && G.itemAge[k] > 0.05) pickup(p, k);
       }
-    } else p.deathT += dt;
+      if (p.shield > 0) p.shield = Math.max(0, p.shield - dt);
+    } else {
+      p.deathT += dt;
+      // battle royale : retour en jeu, sans bonus, avec un court bouclier
+      if (G.mode === 'br' && p.deathT >= (p.ai ? 2.5 : 3)) brSpawn(p);
+    }
   }
-  if (G.phase === 'play') {
+  if (G.phase === 'play' && G.mode !== 'br') {
     const alive = G.players.filter(p => p.alive);
     // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
     const humansGone = G.mode === 'match' && G.players.length > 2 && G.players.some(p => !p.ai) && !alive.some(p => !p.ai);
@@ -1550,6 +1634,271 @@ function update(dt) {
     if (G.phaseT <= 0) afterRound();
   }
   smoothRemote(dt);
+}
+/* =========================================================
+   Battle royale : carte 45 × 39, 30 joueurs, partie sans fin
+   ========================================================= */
+const BR_COLS = 45, BR_ROWS = 39, BR_SIZE = 30, BR_MAX_HUMANS = 8, BR_SHIELD = 2.5;
+const BR_BAG = [0, 0, 0, 1, 1, 1, 2, 2, 3];
+const BR_NAMES = ['Pétard', 'Fusée', 'Grisou', 'Bengale', 'Salpêtre', 'Étincelle', 'Poudrière', 'Tonnerre', 'Kaboum', 'Brasier', 'Pyro', 'Flammèche',
+  'Boutefeu', 'Mortier', 'Dynamite', 'Allumette', 'Cracker', 'Tison', 'Cendre', 'Braisette', 'Comète', 'Feu-Follet', 'Boulet', 'Vulcain',
+  'Charbon', 'Fumerolle', 'Bombinette', 'Torche', 'Pétoche', 'Fulmi', 'Volcan', 'Zébulon'];
+// Couleur de chaque joueur : les 4 places classiques, puis des teintes réparties sur le cercle
+const palCache = {};
+function palFor(i) {
+  if (PALS[i]) return PALS[i];
+  if (palCache[i]) return palCache[i];
+  const h = Math.round((i * 137.508) % 360);
+  return (palCache[i] = {
+    name: 'Joueur ' + (i + 1), coat: `hsl(${h},52%,42%)`, coatDark: `hsl(${h},52%,30%)`, scarf: `hsl(${(h + 45) % 360},85%,62%)`, scarfDark: `hsl(${(h + 45) % 360},70%,47%)`,
+    helm: '#8b7a63', helmLight: '#c2b29a', helmDark: '#5a4c3b', ui: `hsl(${h},85%,66%)`,
+  });
+}
+const boostsOf = p => (p.maxBombs - 1) + (p.range - 2) + p.speedLv + (p.kick ? 1 : 0);
+function brBotName() {
+  const used = new Set(G.players.map(p => p.nick));
+  const free = BR_NAMES.filter(n => !used.has(n));
+  return free.length ? free[(Math.random() * free.length) | 0] : 'Ordi ' + ((Math.random() * 90 + 10) | 0);
+}
+function brBotLevel() { const r = Math.random(); return AI_LV[r < 0.35 ? 0 : r < 0.8 ? 1 : 2]; }
+// Carte : piliers en damier, 8 clairières dégagées pour se battre, caisses moins serrées (42 %), une sur cinq cache un bonus
+function genBrMap(seed) {
+  const r = mulberry(seed), g = G.grid;
+  G.hidden.fill(-1); G.burn.fill(0); G.items.fill(-1); G.itemAge.fill(0); G.flameT.fill(0); G.flameBits.fill(0); G.grow.fill(0);
+  const plazas = [];
+  for (let i = 0; i < 8; i++) plazas.push([3 + ((r() * (COLS - 6)) | 0), 3 + ((r() * (ROWS - 6)) | 0), 2 + ((r() * 2) | 0)]);
+  const inPlaza = (x, y) => plazas.some(([px, py, pr]) => Math.abs(x - px) <= pr && Math.abs(y - py) <= pr);
+  let crates = 0;
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const k = idx(x, y);
+    if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) g[k] = WALL;
+    else if (x % 2 === 0 && y % 2 === 0 && !inPlaza(x, y)) g[k] = PILLAR;
+    else if (!inPlaza(x, y) && r() < 0.42) { g[k] = CRATE; crates++; if (r() < 0.2) G.hidden[k] = BR_BAG[(r() * BR_BAG.length) | 0]; }
+    else g[k] = EMPTY;
+  }
+  G.brCrates = crates; G.sdOrder = []; G.brMini = null;
+}
+// Case d'apparition : libre, avec de la place autour, loin des autres joueurs et des bombes
+function brSpawnCell(exclude) {
+  let best = -1, bestS = -Infinity;
+  for (let tries = 0; tries < 220; tries++) {
+    const x = 1 + ((Math.random() * (COLS - 2)) | 0), y = 1 + ((Math.random() * (ROWS - 2)) | 0), k = idx(x, y);
+    if (G.grid[k] !== EMPTY || G.bombAt[k] || G.items[k] >= 0 || G.flameT[k] > 0) continue;
+    let danger = false;
+    for (const b of G.bombs) if ((b.x === x && Math.abs(b.y - y) <= b.range + 1) || (b.y === y && Math.abs(b.x - x) <= b.range + 1)) { danger = true; break; }
+    if (danger) continue;
+    // place libre autour (pour poser une bombe et s'abriter)
+    const seen = new Set([k]), q = [[x, y, 0]]; let room = 0;
+    while (q.length) {
+      const [cx, cy, d] = q.shift(); room++;
+      if (d >= 3 || room > 12) continue;
+      for (const [dx, dy] of NB) { const nk = idx(cx + dx, cy + dy); if (!seen.has(nk) && G.grid[nk] === EMPTY && !G.bombAt[nk]) { seen.add(nk); q.push([cx + dx, cy + dy, d + 1]); } }
+    }
+    if (room < 5) continue;
+    let near = 20;
+    for (const o of G.players) if (o.alive && o !== exclude) near = Math.min(near, Math.max(Math.abs(o.x - x), Math.abs(o.y - y)));
+    const sc = Math.min(near, 9) * 2 + room * 0.3 + Math.random();
+    if (sc > bestS) { bestS = sc; best = k; }
+  }
+  if (best < 0) {
+    // rien de bien : on dégage une case au hasard et ses voisines
+    for (let tries = 0; tries < 400 && best < 0; tries++) {
+      const x = 1 + ((Math.random() * (COLS - 2)) | 0), y = 1 + ((Math.random() * (ROWS - 2)) | 0), k = idx(x, y);
+      if (G.grid[k] !== EMPTY && G.grid[k] !== CRATE) continue;
+      for (const [dx, dy] of [[0, 0], ...NB]) { const nk = idx(x + dx, y + dy); if (G.grid[nk] === CRATE) { G.grid[nk] = EMPTY; G.hidden[nk] = -1; } }
+      best = k;
+    }
+  }
+  return best;
+}
+function brSpawn(p) {
+  resetPlayer(p);
+  const k = brSpawnCell(p);
+  p.x = k % COLS; p.y = (k / COLS) | 0; p.rx = p.x; p.ry = p.y; p.face = 'down';
+  p.shield = BR_SHIELD; p.life = (p.life | 0) + 1; p.deathT = 0;
+  if (p.ai) p.ai.cd = 0.2 + Math.random() * 0.4;
+  p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad') || keyMap[c]);
+  if (p.id === localIdx()) G.camSnap = true;
+}
+// Les caisses repoussent peu à peu là où il n'y en a plus, loin des joueurs ; certaines cachent un bonus
+function brTick(dt) {
+  G.brT = (G.brT || 0) + dt;
+  for (let k = 0; k < N; k++) if (G.grow[k] > 0) G.grow[k] = Math.max(0, G.grow[k] - dt * 2);
+  G.brRegrow = (G.brRegrow || 0) - dt;
+  if (G.brRegrow > 0) return;
+  G.brRegrow = 0.4;
+  let crates = 0; for (let k = 0; k < N; k++) if (G.grid[k] === CRATE) crates++;
+  if (crates >= G.brCrates * 0.92) return;
+  for (let tries = 0, made = 0; tries < 80 && made < 8; tries++) {
+    const x = 1 + ((Math.random() * (COLS - 2)) | 0), y = 1 + ((Math.random() * (ROWS - 2)) | 0), k = idx(x, y);
+    if (G.grid[k] !== EMPTY || G.items[k] >= 0 || G.bombAt[k] || G.flameT[k] > 0) continue;
+    if (G.players.some(o => o.alive && Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) < 3)) continue;
+    if (G.flying.some(f => f.k === k)) continue;
+    let around = 0;
+    for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) if (xx > 0 && yy > 0 && xx < COLS - 1 && yy < ROWS - 1 && G.grid[idx(xx, yy)] === CRATE) around++;
+    if (around > 6) continue;   // il y en a encore dans le coin
+    G.grid[k] = CRATE; G.grow[k] = 1; G.hidden[k] = Math.random() < 0.18 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : -1;
+    made++;
+  }
+}
+function startBr() {
+  Sfx.init();
+  setMapSize(BR_COLS, BR_ROWS);
+  G.mode = 'br'; G.paused = false;
+  const list = [makePlayer(0, null, settings.name)];
+  list[0].skin = settings.skin;
+  G.players = list;
+  for (let i = 1; i < BR_SIZE; i++) list.push(makePlayer(i, brBotLevel(), brBotName()));
+  setPlayers(list); G.pointsMode = false;
+  brWorld();
+  menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; onlineEl.hidden = true;
+  blurActive(); saveSettings();
+}
+function brWorld() {
+  G.seed = (Math.random() * 2147483647) | 0;
+  genBrMap(G.seed);
+  G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.bombAt.fill(null);
+  G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
+  for (const p of G.players) { p.kills = 0; brSpawn(p); }
+  G.camSnap = true; groundDirty = true;
+  setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
+}
+// Caméra : suit ton perso, sans sortir de la carte
+function updateCamera(dt) {
+  if (!BIG_MAP()) { G.cam.x = 0; G.cam.y = 0; return; }
+  const me = G.players[localIdx()]; if (!me) return;
+  const tx = clamp((me.x + 0.5) * T - W / 2, 0, COLS * T - W), ty = clamp((me.y + 0.5) * T - H / 2, 0, ROWS * T - H);
+  if (G.camSnap || Math.abs(tx - G.cam.x) > W || Math.abs(ty - G.cam.y) > H) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; return; }
+  const k = Math.min(1, dt * 9);
+  G.cam.x += (tx - G.cam.x) * k; G.cam.y += (ty - G.cam.y) * k;
+}
+// Par-dessus l'arène : « Soufflé ! » quand tu es mort
+function drawBrOverlay(c, t) {
+  const me = G.players[localIdx()]; if (!me || me.alive) return;
+  const left = Math.max(1, Math.ceil(3 - me.deathT)), by = me.killedBy;
+  const who = by === me.id ? 'Ta propre bombe' : by >= 0 && G.players[by] ? `Soufflé par ${nameOf(by)}` : 'Soufflé';
+  drawBanner(c, 'Soufflé !', `${who} · retour dans ${left} s, sans bonus`, '#ff7a2f', Math.min(1, me.deathT * 3));
+}
+// Classement (10 premiers au nombre de bonus) et mini-carte, rafraîchis quelques fois par seconde
+let brHudT = 0, brMiniT = 0;
+function brRanking() {
+  return G.players.slice().sort((a, b) => boostsOf(b) - boostsOf(a) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+}
+function brHudTick(now, force) {
+  if (G.mode !== 'br') return;
+  if (force || now - brHudT > 250) {
+    brHudT = now;
+    const rk = brRanking(), me = G.players[localIdx()], list = $('#br-list');
+    const top = rk.slice(0, 10);
+    let html = '';
+    top.forEach((p, i) => {
+      html += `<li class="${p === me ? 'me' : ''}" style="--pc:${p.pal.ui}"><span class="r">${i + 1}</span><span class="n">${esc(nameOf(p.id))}</span><b>${boostsOf(p)}</b></li>`;
+    });
+    if (me && !top.includes(me)) html += `<li class="me sep" style="--pc:${me.pal.ui}"><span class="r">${rk.indexOf(me) + 1}</span><span class="n">${esc(nameOf(me.id))}</span><b>${boostsOf(me)}</b></li>`;
+    if (list.dataset.h !== html) { list.innerHTML = html; list.dataset.h = html; }
+    const humans = G.players.filter(p => !p.ai && !p.isBot).length;
+    $('#br-meta').textContent = `${G.players.length} artificiers · ${humans} joueur${humans > 1 ? 's' : ''}`;
+  }
+  if (force || now - brMiniT > 200) { brMiniT = now; drawBrMini(); }
+}
+function drawBrMini() {
+  const cv = $('#br-mini'), dpr = Math.min(window.devicePixelRatio || 1, 2), S = 4;
+  const w = COLS * S, h = ROWS * S;
+  if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!G.brMini) {
+    // couche fixe : murs et piliers
+    const st = document.createElement('canvas'); st.width = w; st.height = h; const sc = st.getContext('2d');
+    sc.fillStyle = '#3f6e33'; sc.fillRect(0, 0, w, h);
+    for (let k = 0; k < N; k++) { const g = G.grid[k]; if (g === WALL || g === PILLAR) { sc.fillStyle = g === WALL ? '#2b3a2a' : '#71806e'; sc.fillRect((k % COLS) * S, ((k / COLS) | 0) * S, S, S); } }
+    G.brMini = st;
+  }
+  c.clearRect(0, 0, w, h); c.drawImage(G.brMini, 0, 0);
+  c.fillStyle = 'rgba(176,122,62,.75)';
+  for (let k = 0; k < N; k++) if (G.grid[k] === CRATE) c.fillRect((k % COLS) * S + 0.5, ((k / COLS) | 0) * S + 0.5, S - 1, S - 1);
+  const me = G.players[localIdx()];
+  for (const p of G.players) {
+    if (!p.alive || p === me) continue;
+    c.fillStyle = p.pal.ui; c.beginPath(); c.arc((p.x + 0.5) * S, (p.y + 0.5) * S, (!p.ai && !p.isBot) ? 2.6 : 1.9, 0, TAU); c.fill();
+  }
+  c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 1;
+  c.strokeRect(G.cam.x / T * S + 0.5, G.cam.y / T * S + 0.5, W / T * S - 1, H / T * S - 1);
+  if (me && me.alive) {
+    c.fillStyle = '#fff'; c.strokeStyle = '#1a0f08'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc((me.x + 0.5) * S, (me.y + 0.5) * S, 3.4, 0, TAU); c.fill(); c.stroke();
+  }
+}
+// « Battle royale » : on cherche une partie déjà lancée (créneaux br-0 à br-3) ; sinon on lance la sienne et on l'ouvre aux autres
+function openBr() {
+  if (NET.role) return;
+  if (!peerReady()) { startBr(); brToast('Hors ligne : personne ne peut te rejoindre'); return; }
+  showOnline('br'); setNetView(true, '', '');
+  $('#net-status').textContent = "Recherche d'un battle royale en cours…"; $('#net-wait-text').textContent = '';
+  let peer;
+  try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { startBr(); return; }
+  Object.assign(NET, { role: 'seek', peer, pub: true, link: null, seek: { i: -1, free: -1, conn: null, timer: 0, attempt: 0, kind: 'br', idf: brId, slots: BR_SLOTS } });
+  peer.on('open', () => { if (NET.peer === peer && NET.role === 'seek') seekNext(); });
+  peer.on('error', err => {
+    if (NET.peer !== peer) return;
+    if (NET.role === 'seek' && !(err && err.type === 'peer-unavailable')) { dropPeer(); NET.role = null; NET.seek = null; startBr(); brToast('Connexion impossible : partie hors ligne'); return; }
+    guestPeerError(peer, err);
+  });
+  try { $('#net-back').focus({ preventScroll: true }); } catch (e) {}
+}
+// Personne à rejoindre : on lance le battle royale et on ouvre le créneau libre
+function brSeekEnd() {
+  const S = NET.seek, slot = S.free;
+  dropPeer(); NET.role = null; NET.seek = null;
+  startBr();
+  if (slot < 0) { brToast('Tous les battle royale sont pleins : partie hors ligne'); return; }
+  let peer;
+  try { peer = new window.Peer(brId(slot), peerOptions()); } catch (err) { return; }
+  Object.assign(NET, { role: 'host', peer, links: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0 });
+  NET.mi++;
+  peer.on('connection', conn => {
+    if (NET.peer !== peer) return;
+    const humans = G.players.filter(p => !p.ai).length;
+    if (G.mode !== 'br' || humans >= BR_MAX_HUMANS) { conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 300); }); return; }
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastSeen: performance.now(), slot: -1 };
+    NET.links.push(L);
+    conn.on('open', () => { L.lastSeen = performance.now(); brAddHuman(L); });
+    conn.on('data', d => onHostData(L, d));
+    conn.on('close', () => dropLink(L));
+    conn.on('error', () => dropLink(L));
+  });
+  peer.on('disconnected', () => { if (NET.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch (err) {} } });
+  peer.on('error', err => {
+    if (NET.peer !== peer) return;
+    if (err && err.type === 'unavailable-id' && !NET.links.length) { dropPeer(); Object.assign(NET, { role: null, br: false, started: false }); brToast('Partie hors ligne : réessaie le battle royale plus tard pour retrouver du monde'); }
+  });
+}
+// Un vrai joueur arrive : il prend la place d'un ordi (de préférence mort, ou celui qui a le moins de bonus)
+function brAddHuman(L) {
+  if (L.slot >= 0) return;
+  const bots = G.players.filter(p => p.ai);
+  if (!bots.length) { try { L.conn.send({ t: 'full' }); } catch (e) {} return; }
+  bots.sort((a, b) => (a.alive - b.alive) || boostsOf(a) - boostsOf(b));
+  const p = bots[0];
+  if (p.alive) scatterLoot(p);
+  p.ai = null; p.remote = true; p.isBot = false; p.kills = 0;
+  p.nick = L.nick || 'Joueur'; if (Number.isInteger(L.skin)) p.skin = L.skin; p.aid = L.aid || '';
+  L.slot = p.id; L.lastBomb = L.gin ? L.gin.b : 0; L.lastKick = L.gin && L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin ? L.gin.st : 0;
+  brSpawn(p);
+  try { L.conn.send({ t: 'brhi', slot: p.id }); } catch (e) {}
+  fx('joined', p.id);
+}
+function adoptBr(conn, i, d) {
+  clearTimeout(NET.seek.timer);
+  guestInit(NET.peer, 'br-' + i, true);
+  NET.me = clamp(num(d.slot) | 0, 1, 31);
+  attachGuestConn(conn);
+  $('#net-status').textContent = 'Battle royale trouvé, on te place dans la partie…';
+  guestOpened(conn);
+}
+let brToastT = 0;
+function brToast(msg) {
+  const el = $('#br-toast'); el.textContent = msg; el.classList.add('on');
+  clearTimeout(brToastT); brToastT = setTimeout(() => el.classList.remove('on'), 3200);
 }
 function endRound() {
   const alive = G.players.filter(p => p.alive);
@@ -1607,15 +1956,15 @@ function drawSpark(c, x, y) {
 }
 
 /* ---------- Décor ---------- */
-function drawGround(c, seed) {
-  const r = mulberry(seed ^ 0x5bd1e995);
-  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { c.fillStyle = ((x + y) & 1) ? '#86bd5c' : '#7db554'; c.fillRect(x * T, y * T, T, T); }
+function drawGround(c, seed, gc = COLS, gr = ROWS, spawns = true) {
+  const r = mulberry(seed ^ 0x5bd1e995), W = gc * T, H = gr * T;
+  for (let y = 0; y < gr; y++) for (let x = 0; x < gc; x++) { c.fillStyle = ((x + y) & 1) ? '#86bd5c' : '#7db554'; c.fillRect(x * T, y * T, T, T); }
   for (let i = 0; i < 16; i++) {
     const x = r() * W, y = r() * H, rad = 40 + r() * 90, g = c.createRadialGradient(x, y, 0, x, y, rad);
     const light = r() < 0.5; g.addColorStop(0, light ? 'rgba(200,230,120,.13)' : 'rgba(40,80,30,.13)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  for (const [sx, sy] of SPAWNS) {
+  if (spawns) for (const [sx, sy] of SPAWNS) {
     const x = (sx + 0.5) * T, y = (sy + 0.5) * T, g = c.createRadialGradient(x, y, 4, x, y, 58);
     g.addColorStop(0, 'rgba(150,105,60,.55)'); g.addColorStop(0.6, 'rgba(150,105,60,.25)'); g.addColorStop(1, 'rgba(150,105,60,0)');
     c.fillStyle = g; c.fillRect(x - 60, y - 60, 120, 120);
@@ -1914,9 +2263,11 @@ const FLAME_LAYERS = [[1, 'rgba(255,92,24,.95)'], [0.66, '#ffb020'], [0.34, '#ff
 function drawFlames(c) {
   for (const [lw, col] of FLAME_LAYERS) {
     c.fillStyle = col;
+    const V = G.view;
     for (let k = 0; k < N; k++) {
       const ft = G.flameT[k]; if (ft <= 0) continue;
       const bits = G.flameBits[k]; if (!bits) continue;
+      if (V) { const fx_ = k % COLS, fy_ = (k / COLS) | 0; if (fx_ < V.x0 || fx_ > V.x1 || fy_ < V.y0 || fy_ > V.y1) continue; }
       const f = ft / FLAME_DUR, age = 1 - f;
       const s = age < 0.12 ? age / 0.12 : (f < 0.4 ? f / 0.4 : 1);
       const x = (k % COLS + 0.5) * T, y = (((k / COLS) | 0) + 0.5) * T;
@@ -2002,15 +2353,25 @@ function buildSprites() {
 }
 function drawSpr(s, x, y) { ctx.drawImage(s.c, x + s.ox, y + s.oy, s.w, s.h); }
 
+// Grande carte : le sol est un motif de 16 × 14 cases (nombre pair : le damier reste continu) répété
+const BIG_MAP = () => COLS > VCOLS || ROWS > VROWS;
 function render() {
-  if (groundDirty || !groundSpr) { groundSpr = makeSprite(W, H, 0, 0, c => drawGround(c, G.seed)); groundDirty = false; }
+  const big = BIG_MAP(), GW = big ? 16 * T : W, GH = big ? 14 * T : H;
+  if (groundDirty || !groundSpr) { groundSpr = makeSprite(GW, GH, 0, 0, c => big ? drawGround(c, G.seed, 16, 14, false) : drawGround(c, G.seed)); groundDirty = false; }
   const c = ctx, t = G.t;
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.fillStyle = '#0d1510'; c.fillRect(0, 0, canvas.width, canvas.height);
   let sx = 0, sy = 0;
   if (G.shake > 0.05) { sx = (Math.random() * 2 - 1) * G.shake * 0.5; sy = (Math.random() * 2 - 1) * G.shake * 0.5; }
-  c.setTransform(K, 0, 0, K, sx * K, sy * K);
-  c.drawImage(groundSpr.c, 0, 0, W, H);
+  const camX = big ? Math.round(G.cam.x * K) / K : 0, camY = big ? Math.round(G.cam.y * K) / K : 0;
+  c.setTransform(K, 0, 0, K, (sx - camX) * K, (sy - camY) * K);
+  if (big) {
+    for (let gy = Math.floor(camY / GH) * GH; gy < camY + H; gy += GH) for (let gx = Math.floor(camX / GW) * GW; gx < camX + W; gx += GW) c.drawImage(groundSpr.c, gx, gy, GW, GH);
+  } else c.drawImage(groundSpr.c, 0, 0, W, H);
+  // cases visibles (+ une marge pour les blocs hauts et les persos)
+  const vx0 = Math.max(0, Math.floor(camX / T) - 1), vx1 = Math.min(COLS - 1, Math.ceil((camX + W) / T) + 1);
+  const vy0 = Math.max(0, Math.floor(camY / T) - 1), vy1 = Math.min(ROWS - 1, Math.ceil((camY + H) / T) + 2);
+  G.view = { x0: vx0, x1: vx1, y0: vy0, y1: vy1 };
 
   for (const f of G.falling) {
     const p = 1 - f.t / FALL_TIME, x = (f.k % COLS + 0.5) * T, y = (((f.k / COLS) | 0) + 0.5) * T;
@@ -2021,8 +2382,8 @@ function render() {
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
   for (const p of G.players) { if (p.alive || p.deathT < 1) heroRows[clamp(Math.round(p.y), 0, ROWS - 1)].push(p); }
 
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
+  for (let y = vy0; y <= vy1; y++) {
+    for (let x = vx0; x <= vx1; x++) {
       const k = idx(x, y), g = G.grid[k], px = x * T, py = y * T;
       if (g === WALL) drawSpr(sprites.wall[(x * 7 + y * 3) % 3], px, py);
       else if (g === PILLAR) drawSpr(sprites.pillar[(x + y * 5) % 3], px, py);
@@ -2032,15 +2393,21 @@ function render() {
         if (G.burn[k] > 0) {
           const q = 1 - G.burn[k] / FLAME_DUR;
           c.save(); c.globalAlpha = 1 - q; c.translate(px + 24 + (Math.random() - 0.5) * 3 * (1 - q), py + 40); c.scale(1 - q * 0.25, 1 - q * 0.45); drawSpr(spr, -24, -40); c.restore();
+        } else if (G.grow[k] > 0) {
+          // caisse qui repousse (battle royale)
+          const q = 1 - G.grow[k];
+          c.save(); c.globalAlpha = Math.min(1, q * 1.5); c.translate(px + 24, py + 40); c.scale(0.4 + 0.6 * q, 0.4 + 0.6 * q); drawSpr(spr, -24, -40); c.restore();
         } else drawSpr(spr, px, py);
       } else if (G.items[k] >= 0) drawFieldItem(c, k, t);
     }
-    for (const [bx, by, b] of bombRows[y]) drawBomb(c, (bx + 0.5) * T, (by + 0.5) * T, b, t);
+    for (const [bx, by, b] of bombRows[y]) if (bx >= vx0 - 1 && bx <= vx1 + 1) drawBomb(c, (bx + 0.5) * T, (by + 0.5) * T, b, t);
     for (const p of heroRows[y]) {
+      if (p.x < vx0 - 1 || p.x > vx1 + 1) continue;
       const o = {};
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
       const face = (!p.alive || o.hop) ? 'down' : p.face;
+      if (p.alive && p.shield > 0 && Math.sin(t * 22) > 0) { c.save(); c.globalAlpha = 0.45; drawChar(c, ((p.rx ?? p.x) + 0.5) * T, ((p.ry ?? p.y) + 0.5) * T, p.skin, p.pal, face, p.phase, p.moving, t, o); c.restore(); continue; }
       drawChar(c, ((p.rx ?? p.x) + 0.5) * T, ((p.ry ?? p.y) + 0.5) * T, p.skin, p.pal, face, p.phase, p.moving, t, o);
     }
   }
@@ -2066,7 +2433,9 @@ function render() {
     const p = 1 - f.t / FALL_TIME, x = (f.k % COLS) * T, y = ((f.k / COLS) | 0) * T;
     c.save(); c.globalAlpha = Math.min(1, p * 3); drawSpr(sprites.stone[0], x, y - (1 - p) * (1 - p) * 300); c.restore();
   }
+  c.setTransform(K, 0, 0, K, 0, 0);
   c.drawImage(sprites.vignette.c, 0, 0, W, H);
+  if (G.mode === 'br') drawBrOverlay(c, t);
 
   // bandeaux
   if (G.phase === 'intro') {
@@ -2140,34 +2509,45 @@ function buildStatics() {
   });
   const tb = $('#tbomb canvas'), c = tb.getContext('2d'); c.scale(112 / 48, 112 / 48); drawBomb(c, 24, 24, null, 0);
 }
+const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[localIdx()] : null) : G.players[i];
 function setupHud() {
-  $('#hud').classList.toggle('many', G.players.length > 2);
+  $('#hud').classList.toggle('many', G.mode !== 'br' && G.players.length > 2);
+  if (G.mode !== 'br') $('#br-ui').hidden = true;
   for (let i = 0; i < 4; i++) {
-    const p = G.players[i], card = cards[i];
+    const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
-    card.querySelector('.nm').textContent = nameOf(i); card.querySelector('.nm').title = nameOf(i);
-    card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
+    card.querySelector('.ptag').textContent = G.mode === 'br' ? 'Toi' : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
-    if (G.pointsMode) { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
+    if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
   }
   hudCache = {};
 }
 function setTxt(el, v, key) { if (hudCache[key] !== v) { hudCache[key] = v; el.textContent = v; } }
 function updateHud() {
-  for (let i = 0; i < G.players.length && i < 4; i++) {
-    const p = G.players[i]; if (!p) continue;
+  for (let i = 0; i < 4; i++) {
+    const p = hudPlayer(i); if (!p) continue;
     const sts = cards[i].querySelectorAll('.st');
     setTxt(sts[0].lastChild, String(p.maxBombs), 'b' + i);
     setTxt(sts[1].lastChild, String(p.range), 'r' + i);
     setTxt(sts[2].lastChild, String(p.speedLv + 1), 's' + i);
     const kk = p.kick ? 1 : 0; if (hudCache['k' + i] !== kk) { hudCache['k' + i] = kk; sts[3].classList.toggle('off', !p.kick); }
-    const sc = G.scores[i]; if (hudCache['p' + i] !== sc) {
+    const sc = G.mode === 'br' ? boostsOf(p) : G.scores[i]; if (hudCache['p' + i] !== sc) {
       hudCache['p' + i] = sc;
-      if (G.pointsMode) { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} pt${sc > 1 ? 's' : ''}`; }
+      if (G.mode === 'br') { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} bonus`; }
+      else if (G.pointsMode) { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} pt${sc > 1 ? 's' : ''}`; }
       else cards[i].querySelectorAll('.pip').forEach((el, j) => el.classList.toggle('on', j < sc));
     }
+  }
+  if (G.mode === 'br') {
+    // ta place au classement des bonus
+    const me = G.players[localIdx()];
+    setTxt(timeEl, me ? `${ordinal(brRanking().indexOf(me) + 1)}` : '', 'time');
+    setTxt(roundEl, 'Battle royale', 'round');
+    if (hudCache.sud) { hudCache.sud = false; timeEl.classList.remove('sudden'); }
+    return;
   }
   const tl = Math.ceil(G.time), m = Math.floor(tl / 60), s = tl % 60;
   setTxt(timeEl, `${m}:${String(s).padStart(2, '0')}`, 'time');
@@ -2259,7 +2639,7 @@ function startMatch() {
 function toMenu() {
   leaveOnline();
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
-  G.mode = 'demo'; G.paused = false;
+  G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
   G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud(); syncMenu();
@@ -2277,7 +2657,7 @@ function closeSolo() { soloEl.hidden = true; menuEl.hidden = false; try { $('#bt
 function openHelp() { renderKeyHelp(); menuEl.hidden = true; helpEl.hidden = false; try { $('#help-close').focus({ preventScroll: true }); } catch (e) {} }
 function closeHelp() { helpEl.hidden = true; menuEl.hidden = false; try { $('#btn-help').focus({ preventScroll: true }); } catch (e) {} }
 function pause() {
-  if (G.mode !== 'match' || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
+  if (!inGame() || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
   if (NET.role) {
     $('#pause-kicker').textContent = 'Partie en ligne'; $('#pause-title').textContent = 'La partie continue';
     pauseEl.hidden = false; G.players[localIdx()].dirStack.length = 0;
@@ -2335,6 +2715,7 @@ function onAgain() { if (NET.role === 'host') startOnlineMatch(); else if (!NET.
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
+$('#btn-br').addEventListener('click', () => openBr());
 function bindNick(inp, key, def) {
   const commit = () => {
     settings[key] = cleanNick(inp.value, def()); inp.value = settings[key]; saveSettings(); renderNetPlayersIfHost();
@@ -2533,15 +2914,15 @@ window.addEventListener('keydown', e => {
     return;
   }
   e.preventDefault();
-  if (G.mode !== 'match' || e.repeat) return;
-  const p = G.players[NET.role ? localIdx() : settings.mode === 'duo' ? kb.set : 0]; if (!p || p.ai || p.remote) return;
+  if (!inGame() || e.repeat) return;
+  const p = G.players[NET.role || G.mode === 'br' ? localIdx() : settings.mode === 'duo' ? kb.set : 0]; if (!p || p.ai || p.remote) return;
   if (DIRS.has(kb.act)) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
   else if (kb.act === 'bomb') { if (G.phase === 'play') p.bombQueued = true; }
   else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; }
 });
 window.addEventListener('keyup', e => { for (const p of G.players) removeFrom(p.dirStack, e.code); });
 window.addEventListener('blur', () => { for (const p of G.players) p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad')); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.role && G.mode === 'match' && (G.phase === 'play' || G.phase === 'intro')) pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.role && inGame() && (G.phase === 'play' || G.phase === 'intro')) pause(); });
 
 /* ---------- Tactile ---------- */
 const pad = $('#pad'), tbomb = $('#tbomb');
@@ -2561,8 +2942,8 @@ pad.addEventListener('pointerdown', e => { e.preventDefault(); try { pad.setPoin
 pad.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') padMove(e); });
 pad.addEventListener('pointerup', () => padSet(null));
 pad.addEventListener('pointercancel', () => padSet(null));
-$('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && G.mode === 'match' && G.phase === 'play' && !G.paused) p.stopQueued = true; });
-tbomb.addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && G.mode === 'match' && G.phase === 'play' && !G.paused) p.bombQueued = true; });
+$('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) p.stopQueued = true; });
+tbomb.addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) p.bombQueued = true; });
 
 /* =========================================================
    Jeu en ligne : l'hôte fait tourner la partie, l'invité envoie ses
@@ -2590,9 +2971,11 @@ const NET_VIEWS = {
   join: ['Jouer en ligne', 'Rejoindre un lobby'],
   create: ['Jouer en ligne', 'Ton lobby'],
   search: ['Jouer en ligne', 'Partie publique'],
+  br: ['30 artificiers', 'Battle royale'],
 };
 const PUB_SLOTS = 8, PUB_WAIT = 15000, PUB_FULL_WAIT = 3000;
 const pubId = i => PEER_PREFIX + 'pub-' + i;
+const BR_SLOTS = 4, brId = i => PEER_PREFIX + 'br-' + i;
 const LV_NAMES = ['Distrait', 'Rusé', 'Redoutable'];
 function showOnline(view) {
   NET.view = view;
@@ -2747,7 +3130,7 @@ function onHostData(L, d) {
   L.lastSeen = performance.now();
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
-    if (L.gin && L.gin.sk !== L.skin) { L.skin = L.gin.sk; if (!NET.started) refreshHostLobby(); }
+    if (L.gin && L.gin.sk !== L.skin) { L.skin = L.gin.sk; if (!NET.started) refreshHostLobby(); else if (G.mode === 'br' && G.players[L.slot] && G.players[L.slot].remote) G.players[L.slot].skin = L.skin; }
     if (L.gin && (L.gin.aid !== L.aid || L.gin.el !== L.elo)) {
       L.aid = L.gin.aid; L.elo = L.gin.el;
       const p = G.players[L.slot]; if (NET.started && p && p.remote) p.aid = L.aid;
@@ -2755,7 +3138,7 @@ function onHostData(L, d) {
     }
     if (L.gin && L.gin.nk && L.gin.nk !== L.nick) {
       L.nick = L.gin.nk; L.pid = L.gin.pid;
-      const p = G.players[L.slot]; if (NET.started && p && p.remote) { p.nick = L.nick; setupHud(); }
+      const p = G.players[L.slot]; if (NET.started && p && p.remote) { p.nick = L.nick; if (G.mode !== 'br') setupHud(); }
       else if (!NET.started) refreshHostLobby();
     }
   }
@@ -2770,8 +3153,10 @@ function dropLink(L) {
     const p = G.players[L.slot];
     if (p && p.remote) {
       p.remote = false; p.moving = false; p.dirStack = [];
-      p.ai = newAI(AI_LV[clamp(settings.diff | 0, 0, 2)], p.id);
-      fx('left', L.slot); setupHud();
+      p.ai = newAI(G.mode === 'br' ? brBotLevel() : AI_LV[clamp(settings.diff | 0, 0, 2)], p.id);
+      fx('left', L.slot);
+      if (G.mode === 'br') { p.nick = brBotName(); p.aid = ''; resetPlayer(p); p.alive = false; p.deathT = 2; }
+      setupHud();
     }
   } else refreshHostLobby();
 }
@@ -2822,7 +3207,7 @@ function guestPeerError(peer, err) {
   if (NET.peer !== peer) return;
   if (NET.role === 'seek') {
     const S = NET.seek, m = String((err && err.message) || '');
-    if (err && err.type === 'peer-unavailable') { if (S && (!m || m.includes(pubId(S.i)))) seekDone(true); return; }
+    if (err && err.type === 'peer-unavailable') { if (S && (!m || m.includes(S.idf(S.i)))) seekDone(true); return; }
     failOnline(peerErrorText(err)); return;
   }
   if (NET.gotSnap || (NET.link && NET.link.open)) return;
@@ -2855,7 +3240,7 @@ function searchGame(attempt = 0) {
   $('#net-wait-text').textContent = '';
   let peer;
   try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'seek', peer, pub: true, link: null, seek: { i: -1, free: -1, conn: null, timer: 0, attempt } });
+  Object.assign(NET, { role: 'seek', peer, pub: true, link: null, seek: { i: -1, free: -1, conn: null, timer: 0, attempt, kind: 'pub', idf: pubId, slots: PUB_SLOTS } });
   peer.on('open', () => { if (NET.peer === peer && NET.role === 'seek') seekNext(); });
   peer.on('error', err => guestPeerError(peer, err));
   try { $('#net-back').focus({ preventScroll: true }); } catch (e) {}
@@ -2863,13 +3248,14 @@ function searchGame(attempt = 0) {
 function seekNext() {
   const S = NET.seek; if (!S) return;
   S.i++;
-  if (S.i >= PUB_SLOTS) { hostPublic(); return; }
-  const i = S.i, conn = NET.peer.connect(pubId(i), { serialization: 'json' });
+  if (S.i >= S.slots) { if (S.kind === 'br') brSeekEnd(); else hostPublic(); return; }
+  const i = S.i, conn = NET.peer.connect(S.idf(i), { serialization: 'json' });
   S.conn = conn;
   S.timer = setTimeout(() => { if (NET.seek === S && S.conn === conn) seekDone(false); }, 6000);
   conn.on('data', d => {
     if (NET.seek !== S || S.conn !== conn || !d) return;
-    if (d.t === 'lobby') adoptPublic(conn, i, d);
+    if (d.t === 'lobby' && S.kind === 'pub') adoptPublic(conn, i, d);
+    else if (d.t === 'brhi' && S.kind === 'br') adoptBr(conn, i, d);
     else if (d.t === 'full' || d.t === 'started') seekDone(false);
   });
   conn.on('close', () => { if (NET.seek === S && S.conn === conn) seekDone(false); });
@@ -2920,7 +3306,7 @@ function onGuestData(d) {
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
     }
   } else if (d.t === 's') {
-    const me = num(d.me) | 0; if (me >= 1 && me <= 3) NET.me = me;
+    const me = num(d.me) | 0; if (me >= 1 && me <= 31) NET.me = me;
     applySnap(d.s);
   }
   else if (d.t === 'full') backToLobby('Cette partie est déjà complète (4 artificiers au maximum).');
@@ -2932,7 +3318,7 @@ function leaveOnline() {
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0 });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, br: false });
 }
 function opponentLeft(msg) {
   leaveOnline();
@@ -2953,13 +3339,13 @@ function readGuest(pr) {
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
     nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
     aid: typeof pr.aid === 'string' && /^[a-z0-9]{12}$/.test(pr.aid) ? pr.aid : '', el: clamp(num(pr.el) | 0, 0, 9999),
-    sk: clamp(num(pr.sk) | 0, 0, CHARS.length - 1),
+    sk: clamp(num(pr.sk) | 0, 0, CHARS.length - 1), lf: num(pr.lf) | 0,
   };
 }
 function applyGuestInput() {
   for (const L of NET.links) {
     const gi = L.gin, p = G.players[L.slot]; if (!gi || !p || !p.remote) continue;
-    if (p.alive && gi.mi === NET.mi && gi.rd === G.round) {
+    if (p.alive && gi.mi === NET.mi && gi.rd === G.round && (G.mode !== 'br' || gi.lf === p.life)) {
       p.x = gi.x; p.y = gi.y; p.face = FACES[gi.f] || 'down'; p.moving = !!gi.m;
       if (gi.b > L.lastBomb) { L.lastBomb = gi.b; placeBomb(p); }
       if (gi.k && gi.k[0] > L.lastKick) { L.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4]), p); }
@@ -2973,13 +3359,14 @@ function applyGuestInput() {
 const b36 = (n, w) => { let s = Math.max(0, n | 0).toString(36); while (s.length < w) s = '0' + s; return s; };
 function buildSnap() {
   let g = '', f = '', bu = '';
+  const kw = N > 1296 ? 3 : 2;   // largeur des numéros de case en base 36
   for (let k = 0; k < N; k++) {
     g += G.items[k] >= 0 && G.grid[k] === EMPTY ? String.fromCharCode(97 + G.items[k]) : String(G.grid[k]);
-    if (G.flameT[k] > 0) f += b36(k, 2) + b36(G.flameBits[k], 1) + b36(Math.min(35, Math.round(G.flameT[k] * 60)), 1);
-    if (G.burn[k] > 0) bu += b36(k, 2) + b36(Math.min(35, Math.round(G.burn[k] * 60)), 1);
+    if (G.flameT[k] > 0) f += b36(k, kw) + b36(G.flameBits[k], 1) + b36(Math.min(35, Math.round(G.flameT[k] * 60)), 1);
+    if (G.burn[k] > 0) bu += b36(k, kw) + b36(Math.min(35, Math.round(G.burn[k] * 60)), 1);
   }
   const b = [];
-  for (const o of G.bombs) { let m = 0; for (const id of o.passers) m |= 1 << id; b.push(o.x, o.y, o.mdx, o.mdy, Math.round(o.prog * 100), Math.round(Math.max(0, o.timer) * 100), o.owner.id, m); }
+  for (const o of G.bombs) { let m = 0; for (const id of o.passers) if (id < 31) m |= 1 << id; b.push(o.x, o.y, o.mdx, o.mdy, Math.round(o.prog * 100), Math.round(Math.max(0, o.timer) * 100), o.owner.id, m); }
   const fa = []; for (const o of G.falling) fa.push(o.k, Math.round(o.t * 100));
   const p = [];
   for (const o of G.players) p.push(Math.round(o.x * 1000), Math.round(o.y * 1000), Math.max(0, FACES.indexOf(o.face)), o.alive ? 1 : 0, Math.round(Math.min(o.deathT, 2) * 100), o.maxBombs, o.range, o.speedLv, o.kick ? 1 : 0, o.moving ? 1 : 0);
@@ -2987,7 +3374,8 @@ function buildSnap() {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0),
-    seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
+    seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(), kw,
+    ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
 }
 function applySnap(s) {
@@ -2996,7 +3384,14 @@ function applySnap(s) {
 }
 function decodeSnap(s) {
   const first = !NET.gotSnap, newMatch = s.mi !== NET.mi, newRound = newMatch || s.rd !== G.round, prevPhase = G.phase;
-  const n = clamp(num(s.n) | 0 || 2, 2, 4), kinds = String(s.k || '').slice(0, 4);
+  const br = !!s.br;
+  if (br) {
+    // battle royale : grande carte, jusqu'à 30 joueurs
+    const c = clamp(num(s.cols) | 0, 15, 99), r = clamp(num(s.rows) | 0, 13, 99);
+    if (c !== COLS || r !== ROWS) { setMapSize(c, r); G.brMini = null; }
+    if (G.mode !== 'br') { G.mode = 'br'; G.camSnap = true; $('#br-ui').hidden = false; }
+  } else if (BIG_MAP()) setMapSize(VCOLS, VROWS);
+  const n = clamp(num(s.n) | 0 || 2, 2, br ? 32 : 4), kinds = String(s.k || '').slice(0, n), kw = num(s.kw) === 3 ? 3 : 2;
   NET.lastQ = s.q; NET.mi = s.mi;
   let hudDirty = first || newMatch || kinds !== NET.kinds;
   if (first || newMatch || G.players.length !== n || (G.players[NET.me] && G.players[NET.me].remote)) {
@@ -3008,7 +3403,7 @@ function decodeSnap(s) {
     p.isBot = kinds[i] === 'b';
     const aid = Array.isArray(s.ids) && typeof s.ids[i] === 'string' && /^[a-z0-9]{12}$/.test(s.ids[i]) ? s.ids[i] : '';
     p.aid = aid;
-    const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', PALS[i].name);
+    const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', palFor(i).name);
     if (p.nick !== nk) { p.nick = nk; hudDirty = true; }
     const sk = Array.isArray(s.sk) ? clamp(num(s.sk[i]) | 0, 0, CHARS.length - 1) : 0;
     if (p.skin !== sk) { p.skin = sk; hudDirty = true; }
@@ -3019,24 +3414,28 @@ function decodeSnap(s) {
   G.places = Array.isArray(s.pl) && s.pl.length === G.players.length ? s.pl.map(v => clamp(num(v) | 0, 1, 4)) : [];
   G.firsts = G.players.map((_, i) => num(s.fs && s.fs[i]) | 0);
   G.gains = G.players.map((_, i) => num(s.gn && s.gn[i]) | 0);
-  if (num(s.seed) !== G.seed) { G.seed = num(s.seed) | 0; groundDirty = true; }
+  if (num(s.seed) !== G.seed) { G.seed = num(s.seed) | 0; groundDirty = true; G.brMini = null; }
   const g = String(s.g || '');
   for (let k = 0; k < N; k++) {
     const ch = g.charCodeAt(k);
     if (ch >= 97 && ch <= 100) { G.grid[k] = EMPTY; if (G.items[k] !== ch - 97) { G.items[k] = ch - 97; G.itemAge[k] = 0; } }
-    else { const v = ch - 48; G.grid[k] = v >= 0 && v <= 4 ? v : EMPTY; G.items[k] = -1; }
+    else {
+      const v = ch - 48, nv = v >= 0 && v <= 4 ? v : EMPTY;
+      if (br && !first && nv === CRATE && G.grid[k] === EMPTY) G.grow[k] = 1;   // caisse qui repousse
+      G.grid[k] = nv; G.items[k] = -1;
+    }
   }
   G.flameT.fill(0); G.flameBits.fill(0);
   const f = String(s.f || '');
-  for (let i = 0; i + 4 <= f.length; i += 4) { const k = parseInt(f.substr(i, 2), 36); if (k >= 0 && k < N) { G.flameBits[k] = parseInt(f[i + 2], 36) || 0; G.flameT[k] = (parseInt(f[i + 3], 36) || 0) / 60; } }
+  for (let i = 0; i + kw + 2 <= f.length; i += kw + 2) { const k = parseInt(f.substr(i, kw), 36); if (k >= 0 && k < N) { G.flameBits[k] = parseInt(f[i + kw], 36) || 0; G.flameT[k] = (parseInt(f[i + kw + 1], 36) || 0) / 60; } }
   G.burn.fill(0);
   const bu = String(s.bu || '');
-  for (let i = 0; i + 3 <= bu.length; i += 3) { const k = parseInt(bu.substr(i, 2), 36); if (k >= 0 && k < N) G.burn[k] = Math.max(0.001, (parseInt(bu[i + 2], 36) || 0) / 60); }
+  for (let i = 0; i + kw + 1 <= bu.length; i += kw + 1) { const k = parseInt(bu.substr(i, kw), 36); if (k >= 0 && k < N) G.burn[k] = Math.max(0.001, (parseInt(bu[i + kw], 36) || 0) / 60); }
   const bs = Array.isArray(s.b) ? s.b : [];
   G.bombs = [];
   for (let i = 0; i + 8 <= bs.length; i += 8) {
     const pass = new Set(), m = num(bs[i + 7]);
-    for (let j = 0; j < 4; j++) if (m & (1 << j)) pass.add(j);
+    for (let j = 0; j < Math.min(n, 31); j++) if (m & (1 << j)) pass.add(j);
     G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[clamp(num(bs[i + 6]) | 0, 0, n - 1)], range: 2, passers: pass });
   }
   const fa = Array.isArray(s.fa) ? s.fa : [];
@@ -3049,11 +3448,19 @@ function decodeSnap(s) {
     p.alive = !!ps[o + 3]; p.deathT = num(ps[o + 4]) / 100;
     p.maxBombs = clamp(num(ps[o + 5]) | 0, 1, MAX_BOMBS); p.range = clamp(num(ps[o + 6]) | 0, 1, MAX_RANGE);
     p.speedLv = clamp(num(ps[o + 7]) | 0, 0, MAX_SPEED_LV); p.kick = !!ps[o + 8];
+    let respawned = false;
+    if (br) {
+      const lf = num(s.lf && s.lf[i]) | 0; respawned = lf !== p.life; p.life = lf;
+      p.shield = s.sh && s.sh[i] ? 1 : 0; p.kills = num(s.kl && s.kl[i]) | 0; p.killedBy = s.kb ? num(s.kb[i]) | 0 : -1;
+    }
     if (i === localIdx()) {
-      if (first || newRound || G.phase !== 'play' || !p.alive || Math.abs(p.x - x) + Math.abs(p.y - y) > 2.5) { p.x = x; p.y = y; if (G.phase !== 'play') p.face = FACES[ps[o + 2]] || p.face; }
+      if (first || newRound || respawned || G.phase !== 'play' || !p.alive || Math.abs(p.x - x) + Math.abs(p.y - y) > 2.5) {
+        p.x = x; p.y = y; if (G.phase !== 'play') p.face = FACES[ps[o + 2]] || p.face;
+        if (respawned) G.camSnap = true;
+      }
     } else {
       p.x = x; p.y = y; p.face = FACES[ps[o + 2]] || 'down'; p.moving = !!ps[o + 9];
-      if (first || newRound || p.rx === undefined) { p.rx = x; p.ry = y; }
+      if (first || newRound || respawned || p.rx === undefined) { p.rx = x; p.ry = y; }
     }
   }
   const ev = Array.isArray(s.e) ? s.e : [];
@@ -3067,7 +3474,7 @@ function decodeSnap(s) {
   if (hudDirty) setupHud();
   rebuildBombAt();
   predictKick();
-  if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); }
+  if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); if (br) { G.camSnap = true; brHudTick(0, true); } }
   if (newMatch && !first) { endEl.hidden = true; }
   if (typeof s.md === 'string' && /^[a-z0-9]{10,24}$/.test(s.md)) NET.mid = s.md;
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
@@ -3080,6 +3487,7 @@ function updateGuest(dt) {
     if (G.flameT[k] > 0) { G.flameT[k] -= dt; if (G.flameT[k] <= 0) { G.flameT[k] = 0; G.flameBits[k] = 0; } }
     if (G.burn[k] > 0) G.burn[k] = Math.max(0.001, G.burn[k] - dt);
     if (G.items[k] >= 0) G.itemAge[k] += dt;
+    if (G.grow[k] > 0) G.grow[k] = Math.max(0, G.grow[k] - dt * 2);
   }
   for (const b of G.bombs) { b.timer = Math.max(0, b.timer - dt); if (b.mdx || b.mdy) b.prog = Math.min(0.99, b.prog + KICK_SPEED * dt); }
   if (NET.pendKick) { NET.pendKick.prog = Math.min(0.99, NET.pendKick.prog + KICK_SPEED * dt); }
@@ -3100,7 +3508,7 @@ function sendGuest() {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
       f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
-      nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0, sk: settings.skin,
+      nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0, sk: settings.skin, lf: me.life | 0,
     });
   } catch (e) {}
 }
@@ -3108,7 +3516,7 @@ function netTick() {
   const now = performance.now();
   if (NET.role === 'host') {
     if (NET.started) {
-      if (now - NET.sendT > 50) {
+      if (now - NET.sendT > (G.mode === 'br' ? 66 : 50)) {
         NET.sendT = now;
         const s = buildSnap();
         for (const L of NET.links) if (L.conn.open && L.slot >= 0) { try { L.conn.send({ t: 's', s, me: L.slot }); } catch (e) {} }
@@ -3146,7 +3554,7 @@ document.getElementById('net-invite').addEventListener('click', () => {
 const padDir = {}, padSt = {};
 const PAD_DEAD = 0.45;
 function rumble(strong, weak, ms, force) {
-  if (!settings.rumble || (G.mode !== 'match' && !force) || !navigator.getGamepads) return;
+  if (!settings.rumble || (!inGame() && !force) || !navigator.getGamepads) return;
   try {
     for (const gp of navigator.getGamepads()) {
       const va = gp && gp.vibrationActuator;
@@ -3156,8 +3564,8 @@ function rumble(strong, weak, ms, force) {
 }
 // Quel perso pilote la manette n° i ? Seul ou en ligne : le tien. À deux : 1 manette = Braise, 2 manettes = Mèche puis Braise.
 function padOwner(i, order) {
-  if (G.mode !== 'match') return -1;
-  if (NET.role) return localIdx();
+  if (!inGame()) return -1;
+  if (NET.role || G.mode === 'br') return localIdx();
   if (settings.mode === 'duo') { if (order.length === 1) return 1; const r = order.indexOf(i); return r === 0 ? 0 : r === 1 ? 1 : -1; }
   return 0;
 }
@@ -3239,7 +3647,7 @@ function pollPads() {
         else navMove(root, 'down');
       } else if (hit(1)) navBack(root);
       else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); }
-    } else if (G.mode === 'match') {
+    } else if (inGame()) {
       if (hit(pb.pause)) { pause(); releasePad(code, st); document.body.classList.add('pad-nav'); }
       else {
         const owner = padOwner(gp.index, order), p = G.players[owner];
@@ -3350,7 +3758,7 @@ function openKeys(from) {
 }
 function closeKeys() {
   capture = null; keysEl.hidden = true;
-  if (keysFrom === 'pause' && G.mode === 'match') { pauseEl.hidden = false; try { $('#resume').focus({ preventScroll: true }); } catch (e) {} }
+  if (keysFrom === 'pause' && inGame()) { pauseEl.hidden = false; try { $('#resume').focus({ preventScroll: true }); } catch (e) {} }
   else if (keysFrom === 'help') { helpEl.hidden = false; try { $('#help-keys').focus({ preventScroll: true }); } catch (e) {} }
   else { menuEl.hidden = false; try { $('#btn-keys').focus({ preventScroll: true }); } catch (e) {} }
 }
@@ -3385,7 +3793,7 @@ else window.addEventListener('resize', resize);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  pollPads(); update(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000);
+  pollPads(); update(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (G.mode === 'br') brHudTick(now);
   requestAnimationFrame(loop);
 }
 function boot(data) {
@@ -3407,7 +3815,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { G, settings, update, render, drawToken, drawHero, PALS, NET };
+window.__mc = { G, settings, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
