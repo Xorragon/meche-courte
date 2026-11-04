@@ -102,7 +102,7 @@ body.touch #touch{display:flex}
 
 /* ---------- Surimpressions ---------- */
 .overlay{position:fixed;inset:0;z-index:10;display:flex;padding:28px 18px;overflow:auto;background:rgba(8,14,10,.74);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-.overlay[hidden],.seg[hidden]{display:none}
+.overlay[hidden],.seg[hidden],button[hidden],.net-code[hidden]{display:none!important}
 .menu{width:min(1000px,100%);margin:auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px 56px;align-items:start}
 @media (max-width:780px){.menu{grid-template-columns:1fr;gap:28px}}
 .kicker{margin:0 0 8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;font-size:13px;color:var(--gold)}
@@ -127,6 +127,26 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .cta:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
 .ghost{display:inline-flex;align-items:center;gap:10px;font:800 18px/1 var(--font-body);color:var(--parchment);background:transparent;border:2px solid rgba(243,229,192,.35);border-radius:14px;padding:14px 20px;cursor:pointer}
 .ghost:hover{border-color:var(--parchment)}
+.home{width:min(1000px,100%);margin:auto;display:flex;flex-direction:column;align-items:flex-start}
+.fusebox{width:min(460px,100%)}
+.mbtns{display:grid;gap:12px;width:min(460px,100%)}
+.mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
+.mbtn b{font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
+.mbtn span{color:var(--muted);font-size:15px;font-weight:700}
+.mbtn:hover{border-color:var(--parchment);transform:translateY(-1px)}
+.mbtn.main{background:var(--ember);border-color:var(--ember);color:#2b1206;box-shadow:0 6px 0 #a3410f,0 16px 34px rgba(255,122,47,.22)}
+.mbtn.main span{color:rgba(43,18,6,.75)}
+.mbtn.main:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
+.mbtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.mlinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.setup{width:min(560px,100%)}
+.setup .opts{width:100%;text-align:left;margin-top:18px}
+.h2big{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,7vw,60px);line-height:.95;margin:0 0 16px}
+#help .rule{margin-bottom:12px;max-width:52ch}
+#help .side{padding-top:6px}
+#help h2:not(.h2big){margin-top:18px}
+#net-host-ctrl.setup{align-items:stretch}
+#net-host-ctrl .cta{align-self:center}
 .keysbox{max-width:620px}
 .keytable{border-collapse:collapse;margin:14px auto 6px;width:min(100%,640px)}
 .keytable th,.keytable td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(243,229,192,.12)}
@@ -261,52 +281,80 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 </div>
 
 <div id="menu" class="overlay">
+  <div class="home">
+    <a class="home-link" href="index.html">← Le site du jeu</a>
+    <p class="kicker">Jusqu'à 4 artificiers</p>
+    <h1 class="title">Mèche<br><span>Courte</span></h1>
+    <div class="fusebox"><div class="fuse" aria-hidden="true"></div></div>
+    <div class="mbtns">
+      <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
+      <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
+      <button class="mbtn" id="btn-create" type="button"><b>Créer un lobby</b><span>Invite tes potes avec un code</span></button>
+    </div>
+    <div class="mlinks">
+      <button class="ghost tiny" type="button" id="btn-join">Rejoindre avec un code</button>
+      <button class="ghost tiny" type="button" id="btn-keys">Touches et manette</button>
+      <button class="ghost tiny" type="button" id="btn-help">Comment jouer</button>
+    </div>
+  </div>
+</div>
+
+<div id="solo" class="overlay" hidden>
+  <div class="box setup">
+    <p class="kicker">Partie locale</p>
+    <h2>Jouer en solo</h2>
+    <div class="opts">
+      <div class="opt">
+        <span class="opt-label" id="lbl-mode">Joueurs sur ce clavier</span>
+        <div class="seg" data-key="mode" role="group" aria-labelledby="lbl-mode">
+          <button type="button" id="m-cpu" data-v="cpu">Seul</button>
+          <button type="button" id="m-duo" data-v="duo">À deux</button>
+        </div>
+      </div>
+      <div class="opt" id="opt-bots">
+        <span class="opt-label" id="lbl-bots">Ordis dans l'arène</span>
+        <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots">
+          <button type="button" id="b-0" data-v="0">0</button>
+          <button type="button" id="b-1" data-v="1">1</button>
+          <button type="button" id="b-2" data-v="2">2</button>
+          <button type="button" id="b-3" data-v="3">3</button>
+        </div>
+      </div>
+      <div class="opt opt-diff">
+        <span class="opt-label" id="lbl-diff">Niveau des ordis</span>
+        <div class="seg" data-key="diff" role="group" aria-labelledby="lbl-diff">
+          <button type="button" id="d-0" data-v="0">Distrait</button>
+          <button type="button" id="d-1" data-v="1">Rusé</button>
+          <button type="button" id="d-2" data-v="2">Redoutable</button>
+        </div>
+      </div>
+      <div class="opt opt-wins">
+        <span class="opt-label wins-lbl" id="lbl-wins">Manches pour gagner</span>
+        <div class="seg" data-key="wins" role="group" aria-labelledby="lbl-wins">
+          <button type="button" id="w-1" data-v="1">1</button>
+          <button type="button" id="w-3" data-v="3">3</button>
+          <button type="button" id="w-5" data-v="5">5</button>
+        </div>
+        <p class="opt-note wins-note"></p>
+      </div>
+    </div>
+    <div class="row" style="margin-top:26px">
+      <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
+      <button class="ghost" id="solo-back" type="button">Retour <kbd>Échap</kbd></button>
+    </div>
+  </div>
+</div>
+
+<div id="help" class="overlay" hidden>
   <div class="menu">
     <section>
-      <a class="home-link" href="index.html">← Le site du jeu</a>
-      <p class="kicker">Jusqu'à 4 artificiers</p>
-      <h1 class="title">Mèche<br><span>Courte</span></h1>
-      <div class="fuse" aria-hidden="true"></div>
-      <div class="opts">
-        <div class="opt">
-          <span class="opt-label" id="lbl-mode">Mode</span>
-          <div class="seg" data-key="mode" role="group" aria-labelledby="lbl-mode">
-            <button type="button" id="m-cpu" data-v="cpu">Seul</button>
-            <button type="button" id="m-duo" data-v="duo">À deux sur un clavier</button>
-            <button type="button" id="m-online" data-v="online">En ligne avec des potes</button>
-          </div>
-        </div>
-        <div class="opt" id="opt-bots">
-          <span class="opt-label" id="lbl-bots">Ordis dans l'arène</span>
-          <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots">
-            <button type="button" id="b-0" data-v="0">0</button>
-            <button type="button" id="b-1" data-v="1">1</button>
-            <button type="button" id="b-2" data-v="2">2</button>
-            <button type="button" id="b-3" data-v="3">3</button>
-          </div>
-        </div>
-        <div class="opt" id="opt-diff">
-          <span class="opt-label" id="lbl-diff">Niveau des ordis</span>
-          <div class="seg" data-key="diff" role="group" aria-labelledby="lbl-diff">
-            <button type="button" id="d-0" data-v="0">Distrait</button>
-            <button type="button" id="d-1" data-v="1">Rusé</button>
-            <button type="button" id="d-2" data-v="2">Redoutable</button>
-          </div>
-        </div>
-        <div class="opt">
-          <span class="opt-label" id="lbl-wins">Manches pour gagner</span>
-          <div class="seg" data-key="wins" role="group" aria-labelledby="lbl-wins">
-            <button type="button" id="w-1" data-v="1">1</button>
-            <button type="button" id="w-3" data-v="3">3</button>
-            <button type="button" id="w-5" data-v="5">5</button>
-          </div>
-          <p class="opt-note" id="wins-note"></p>
-        </div>
-      </div>
-      <div class="go">
-        <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
-        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes. À 3 ou 4, la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
-      </div>
+      <p class="kicker">Comment jouer</p>
+      <h2 class="h2big">Les règles</h2>
+      <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
+      <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
+      <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
+      <h2>Bonus cachés dans les caisses</h2>
+      <ul class="items" id="legend"></ul>
     </section>
     <section class="side">
       <h2>Commandes</h2>
@@ -315,11 +363,11 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <p id="keys-help-1"></p>
         <p id="pad-help"></p>
         <p class="small">La manette navigue aussi dans les menus (croix ou stick, <kbd>A</kbd> pour valider, <kbd>B</kbd> pour revenir). Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
-        <p class="small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
-        <p class="row" style="justify-content:flex-start"><button class="ghost tiny" type="button" id="btn-keys">Changer les touches</button><button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button></p>
       </div>
-      <h2>Bonus cachés dans les caisses</h2>
-      <ul class="items" id="legend"></ul>
+      <div class="row" style="justify-content:flex-start">
+        <button class="ghost tiny" type="button" id="help-keys">Changer les touches</button>
+        <button class="cta" type="button" id="help-close">Retour <kbd>Échap</kbd></button>
+      </div>
     </section>
   </div>
 </div>
@@ -342,14 +390,16 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 <div id="keys" class="overlay" hidden>
   <div class="box keysbox">
     <p class="kicker">Réglages</p>
-    <h2>Tes touches</h2>
+    <h2>Touches et manette</h2>
     <p class="rule" id="keys-status" role="status"></p>
     <table class="keytable">
       <thead><tr><th scope="col">Action</th><th scope="col" class="c1">Mèche</th><th scope="col" class="c2">Braise</th><th scope="col" class="c3">Manette</th></tr></thead>
       <tbody id="keys-body"></tbody>
     </table>
     <p class="rule small">Seul ou en ligne, les colonnes Mèche et Braise pilotent toutes les deux ton perso. À deux sur un clavier, la colonne Mèche est au 1er joueur, la colonne Braise au 2e. La colonne Manette vaut pour toutes les manettes ; le stick gauche fait toujours bouger. Échap reste la touche de pause au clavier.</p>
+    <p class="rule small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
     <div class="row" style="margin-top:14px">
+      <button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button>
       <button class="ghost tiny" type="button" id="keys-reset">Tout rétablir par défaut</button>
       <button class="cta" type="button" id="keys-close">Terminé</button>
     </div>
@@ -371,14 +421,13 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 
 <div id="online" class="overlay" hidden>
   <div class="box online">
-    <p class="kicker">Jouer en ligne</p>
-    <h2>Partie entre potes</h2>
+    <p class="kicker" id="net-kicker">Jouer en ligne</p>
+    <h2 id="net-title">Rejoindre un lobby</h2>
     <p class="rule" id="net-status" role="status"></p>
+    <div class="row" style="margin-top:14px"><button class="cta" id="net-retry" type="button" hidden>Réessayer</button></div>
     <div id="net-home" style="display:flex;flex-direction:column;align-items:center">
-      <div class="row" style="margin-top:18px"><button class="cta" id="net-host" type="button">Créer une partie</button></div>
-      <h3>Ou rejoindre celle de ton pote</h3>
       <form class="join" id="net-join" autocomplete="off">
-        <label class="opt-label" for="net-code-in">Code de la partie</label>
+        <label class="opt-label" for="net-code-in">Code du lobby</label>
         <div class="row"><input id="net-code-in" name="code" maxlength="4" inputmode="text" spellcheck="false" placeholder="ABCD" aria-describedby="net-status"><button class="cta" id="net-join-btn" type="submit">Rejoindre</button></div>
       </form>
     </div>
@@ -386,14 +435,36 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="net-code" id="net-code">····</p>
       <p class="rule" id="net-wait-text"></p>
       <ul class="net-players" id="net-players" aria-label="Joueurs dans la partie"></ul>
+      <p class="rule small" id="net-cfg"></p>
       <div class="row" style="margin-top:14px"><button class="ghost" id="net-invite" type="button" hidden>Copier le lien d'invitation</button></div>
-      <div id="net-host-ctrl" hidden>
-        <span class="opt-label" id="lbl-bots2">Ordis en plus</span>
-        <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots2">
-          <button type="button" id="nb-0" data-v="0">0</button>
-          <button type="button" id="nb-1" data-v="1">1</button>
-          <button type="button" id="nb-2" data-v="2">2</button>
-          <button type="button" id="nb-3" data-v="3">3</button>
+      <div id="net-host-ctrl" class="setup" hidden>
+        <div class="opts">
+          <div class="opt">
+            <span class="opt-label" id="lbl-bots2">Ordis en plus</span>
+            <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots2">
+              <button type="button" id="nb-0" data-v="0">0</button>
+              <button type="button" id="nb-1" data-v="1">1</button>
+              <button type="button" id="nb-2" data-v="2">2</button>
+              <button type="button" id="nb-3" data-v="3">3</button>
+            </div>
+          </div>
+          <div class="opt opt-diff">
+            <span class="opt-label" id="lbl-diff2">Niveau des ordis</span>
+            <div class="seg" data-key="diff" role="group" aria-labelledby="lbl-diff2">
+              <button type="button" id="nd-0" data-v="0">Distrait</button>
+              <button type="button" id="nd-1" data-v="1">Rusé</button>
+              <button type="button" id="nd-2" data-v="2">Redoutable</button>
+            </div>
+          </div>
+          <div class="opt opt-wins">
+            <span class="opt-label wins-lbl" id="lbl-wins2">Manches pour gagner</span>
+            <div class="seg" data-key="wins" role="group" aria-labelledby="lbl-wins2">
+              <button type="button" id="nw-1" data-v="1">1</button>
+              <button type="button" id="nw-3" data-v="3">3</button>
+              <button type="button" id="nw-5" data-v="5">5</button>
+            </div>
+            <p class="opt-note wins-note"></p>
+          </div>
         </div>
         <button class="cta" id="net-start" type="button">Lancer la partie</button>
       </div>
@@ -1890,7 +1961,7 @@ function render() {
    Interface (HTML)
    ========================================================= */
 const $ = s => document.querySelector(s);
-const menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online');
+const menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
 const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
@@ -1974,12 +2045,15 @@ function syncMenu() {
     b.disabled = v < lo || v > Math.max(lo, hi);
     b.setAttribute('aria-pressed', v === eb ? 'true' : 'false');
   });
-  $('#opt-diff').classList.toggle('disabled', eb === 0 && settings.mode !== 'online');
-  const total = settings.mode === 'online' ? 0 : humansLocal() + eb, many = total >= 3;
-  $('.seg[data-key="wins"]').hidden = many;
-  $('#lbl-wins').textContent = many ? 'Manches' : 'Manches pour gagner';
-  $('#wins-note').textContent = many ? `À ${total} artificiers : 3 manches, classement aux points. 1er 5 pts, 2e 3, 3e 1, 4e 0 ; les ex aequo se partagent les points.`
-    : settings.mode === 'online' ? 'Vaut pour un duel. À 3 ou 4 : 3 manches, classement aux points.' : 'À 3 ou 4 artificiers, on joue 3 manches aux points.';
+  document.querySelectorAll('.opt-diff').forEach(o => o.classList.toggle('disabled', eb === 0 && settings.mode !== 'online'));
+  // nombre d'artificiers : écran solo (clavier + ordis) ou lobby (hôte + potes + ordis)
+  const online = settings.mode === 'online', total = online ? 1 + NET.links.length + eb : humansLocal() + eb, many = total >= 3;
+  document.querySelectorAll('.opt-wins').forEach(o => {
+    o.querySelector('.seg').hidden = many;
+    o.querySelector('.wins-lbl').textContent = many ? 'Manches' : 'Manches pour gagner';
+    o.querySelector('.wins-note').textContent = many ? `À ${total} artificiers : 3 manches, classement aux points. 1er 5 pts, 2e 3, 3e 1, 4e 0 ; les ex aequo se partagent les points.`
+      : online ? "Vaut pour un duel. Dès 3 artificiers, on joue 3 manches aux points." : 'Dès 3 artificiers, on joue 3 manches aux points.';
+  });
 }
 document.querySelectorAll('.seg').forEach(seg => {
   seg.addEventListener('click', e => {
@@ -1987,7 +2061,7 @@ document.querySelectorAll('.seg').forEach(seg => {
     if (b.disabled) return;
     const key = seg.dataset.key; settings[key] = key === 'mode' ? b.dataset.v : Number(b.dataset.v);
     syncMenu(); saveSettings();
-    if (key === 'bots') refreshHostLobby();
+    refreshHostLobby();
   });
 });
 const SPK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3.5v11L5 10H2z" fill="currentColor"/>';
@@ -2009,7 +2083,7 @@ function startMatch() {
   for (let i = 0, nb = effBots(); i < nb; i++) list.push(makePlayer(list.length, lv));
   setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
   newRound(); setupHud();
-  menuEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
+  menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
   blurActive(); saveSettings();
 }
 function toMenu() {
@@ -2019,9 +2093,18 @@ function toMenu() {
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
   G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud(); syncMenu();
-  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true;
+  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true;
+  try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {}
+}
+// Écrans du menu : solo (réglages de la partie locale) et « Comment jouer »
+function openSolo() {
+  if (settings.mode === 'online') settings.mode = 'cpu';
+  syncMenu(); menuEl.hidden = true; soloEl.hidden = false;
   try { playBtn.focus({ preventScroll: true }); } catch (e) {}
 }
+function closeSolo() { soloEl.hidden = true; menuEl.hidden = false; try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {} }
+function openHelp() { renderKeyHelp(); menuEl.hidden = true; helpEl.hidden = false; try { $('#help-close').focus({ preventScroll: true }); } catch (e) {} }
+function closeHelp() { helpEl.hidden = true; menuEl.hidden = false; try { $('#btn-help').focus({ preventScroll: true }); } catch (e) {} }
 function pause() {
   if (G.mode !== 'match' || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
   if (NET.role) {
@@ -2075,11 +2158,18 @@ function showEndPoints() {
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
-function onPlay() { if (settings.mode === 'online') openOnline(); else startMatch(); }
+function onPlay() { if (settings.mode === 'online') settings.mode = 'cpu'; startMatch(); }
 function onAgain() { if (NET.role === 'host') startOnlineMatch(); else if (!NET.role) startMatch(); }
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
-$('#net-host').addEventListener('click', hostGame);
+$('#btn-solo').addEventListener('click', openSolo);
+$('#solo-back').addEventListener('click', closeSolo);
+$('#btn-help').addEventListener('click', openHelp);
+$('#help-close').addEventListener('click', closeHelp);
+$('#btn-create').addEventListener('click', createLobby);
+$('#btn-search').addEventListener('click', () => searchGame());
+$('#btn-join').addEventListener('click', () => openJoin(''));
+$('#net-retry').addEventListener('click', () => { if (NET.view === 'search') searchGame(); else if (NET.view === 'create') createLobby(); });
 $('#net-start').addEventListener('click', startOnlineMatch);
 $('#net-back').addEventListener('click', toMenu);
 $('#tomenu').addEventListener('click', toMenu);
@@ -2095,9 +2185,20 @@ window.addEventListener('keydown', e => {
   if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') toMenu(); return; }
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(menuEl.hidden === false && code === 'Space')) e.preventDefault();
+  const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
   if (!onlineEl.hidden) { if (code === 'Escape') toMenu(); return; }
-  if (!menuEl.hidden) { if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); onPlay(); } return; }
+  if (!helpEl.hidden) { if (code === 'Escape') closeHelp(); return; }
+  if (!soloEl.hidden) {
+    if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); onPlay(); }
+    else if (code === 'Escape') closeSolo();
+    return;
+  }
+  if (!menuEl.hidden) {
+    const f = document.activeElement;
+    if ((code === 'Enter' || code === 'NumpadEnter') && !(f && menuEl.contains(f) && f.tagName !== 'BODY')) { e.preventDefault(); openSolo(); }
+    return;
+  }
   if (!endEl.hidden) {
     if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (!$('#again').hidden) onAgain(); }
     else if (code === 'Escape') toMenu();
@@ -2164,30 +2265,54 @@ function peerOptions() {
   return o;
 }
 const peerReady = () => typeof window.Peer === 'function';
+// Écran en ligne : 3 vues (rejoindre avec un code, ton lobby, partie publique)
+const NET_VIEWS = {
+  join: ['Jouer en ligne', 'Rejoindre un lobby'],
+  create: ['Jouer en ligne', 'Ton lobby'],
+  search: ['Jouer en ligne', 'Partie publique'],
+};
+const PUB_SLOTS = 8, PUB_WAIT = 15000, PUB_FULL_WAIT = 3000;
+const pubId = i => PEER_PREFIX + 'pub-' + i;
+const LV_NAMES = ['Distrait', 'Rusé', 'Redoutable'];
+function showOnline(view) {
+  NET.view = view;
+  const [k, t] = NET_VIEWS[view]; $('#net-kicker').textContent = k; $('#net-title').textContent = t;
+  menuEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; onlineEl.hidden = false;
+}
 function setNetView(wait, code, text) {
-  $('#net-home').style.display = wait ? 'none' : 'flex';
+  const v = NET.view || 'join';
+  $('#net-home').style.display = !wait && v === 'join' ? 'flex' : 'none';
+  $('#net-retry').hidden = wait || v === 'join';
+  $('#net-retry').textContent = v === 'search' ? 'Chercher à nouveau' : 'Réessayer';
   $('#net-wait').hidden = !wait;
-  $('#net-invite').hidden = !(wait && NET.role === 'host');
-  $('#net-host-ctrl').hidden = !(wait && NET.role === 'host');
-  if (!wait) $('#net-players').innerHTML = '';
-  if (wait) { $('#net-code').textContent = code.toUpperCase(); $('#net-wait-text').textContent = text; }
+  const priv = NET.role === 'host' && !NET.pub;
+  $('#net-invite').hidden = !(wait && priv);
+  $('#net-host-ctrl').hidden = !(wait && priv);
+  $('#net-code').hidden = !!NET.pub;
+  if (!wait) { $('#net-players').innerHTML = ''; $('#net-cfg').textContent = ''; }
+  if (wait) { $('#net-code').textContent = String(code || '').toUpperCase(); $('#net-wait-text').textContent = text; }
 }
 function renderLobby(msg) {
   const ok = peerReady();
-  $('#net-status').textContent = msg || (ok ? "Crée une partie et donne le code à ton pote, ou entre le sien." : "Le module de jeu en ligne n'a pas pu se charger. Vérifie ta connexion internet, puis recharge la page.");
-  $('#net-host').disabled = !ok; $('#net-join-btn').disabled = !ok;
+  $('#net-status').textContent = msg || (ok ? "Entre le code que ton pote t'a donné." : "Le module de jeu en ligne n'a pas pu se charger. Vérifie ta connexion internet, puis recharge la page.");
+  $('#net-join-btn').disabled = !ok; $('#net-retry').disabled = !ok;
 }
-function openOnline(prefill) {
-  onlineEl.hidden = false;
-  if (!NET.role) { setNetView(false); renderLobby(); }
-  const inp = $('#net-code-in');
-  if (prefill) { inp.value = prefill.toUpperCase(); try { $('#net-join-btn').focus({ preventScroll: true }); } catch (e) {} }
-  else { try { $('#net-host').focus({ preventScroll: true }); } catch (e) {} }
+function openJoin(prefill) {
+  if (NET.role) return;
+  showOnline('join'); setNetView(false); renderLobby();
+  const inp = $('#net-code-in'); inp.value = prefill ? prefill.toUpperCase() : '';
+  try { (prefill ? $('#net-join-btn') : inp).focus({ preventScroll: true }); } catch (e) {}
+}
+function createLobby() {
+  if (NET.role) return;
+  settings.mode = 'online'; syncMenu();
+  showOnline('create'); setNetView(false); renderLobby(peerReady() ? 'Création du lobby…' : '');
+  if (peerReady()) hostGame();
 }
 function makeCode() { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[(Math.random() * a.length) | 0]; return s; }
 function peerErrorText(err) {
   const t = err && err.type;
-  if (t === 'peer-unavailable') return "Aucune partie ne porte ce code. Vérifie-le avec ton pote : il doit avoir créé la partie et garder la page ouverte.";
+  if (t === 'peer-unavailable') return "Aucun lobby ne porte ce code. Vérifie-le avec ton pote : il doit avoir créé le lobby et garder la page ouverte.";
   if (t === 'browser-incompatible') return "Ce navigateur ne gère pas le jeu en ligne. Essaie avec Chrome, Firefox, Edge ou Safari à jour.";
   if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return "Impossible de joindre le serveur de mise en relation. Vérifie ta connexion internet et réessaie.";
   if (t === 'webrtc') return "La connexion directe avec ton pote a échoué. Un réseau d'entreprise ou d'école peut la bloquer : essayez depuis un autre réseau.";
@@ -2204,14 +2329,16 @@ function dropPeer() {
 }
 function failOnline(msg) {
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0 });
+  if (NET.seek) clearTimeout(NET.seek.timer);
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0 });
   setNetView(false); renderLobby(msg); syncMenu();
+  try { (NET.view === 'join' ? $('#net-code-in') : $('#net-retry')).focus({ preventScroll: true }); } catch (e) {}
 }
 /* ---------- Salon (hôte) : jusqu'à 3 potes + des ordis, 4 artificiers au total ---------- */
 function lobbyList() {
   const out = [{ k: 'h' }];
   NET.links.forEach(() => out.push({ k: 'h' }));
-  for (let i = 0, nb = effBots(); i < nb; i++) out.push({ k: 'b' });
+  for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b' });
   return out;
 }
 function renderNetPlayers(list, you) {
@@ -2225,27 +2352,46 @@ function renderNetPlayers(list, you) {
     li.append(b, sp); ul.appendChild(li);
   });
 }
+function lobbyMsg(you) {
+  const cd = NET.pub && NET.cdEnd ? Math.max(0, Math.ceil((NET.cdEnd - performance.now()) / 1000)) : -1;
+  return { t: 'lobby', list: lobbyList(), you, pub: NET.pub ? 1 : 0, cd, cfg: { diff: settings.diff | 0, wins: settings.wins | 0 } };
+}
+// Texte des réglages du lobby, vu par les potes
+function cfgText(m) {
+  const list = Array.isArray(m.list) ? m.list : [], n = list.length, bots = list.filter(x => x && x.k === 'b').length;
+  if (m.pub) return 'Partie publique : sans ordis. En duel, 3 manches gagnantes ; à 3 ou 4, 3 manches aux points.';
+  const c = m.cfg || {}, w = clamp(num(c.wins) | 0, 1, 9);
+  const rounds = n >= 3 ? '3 manches aux points' : `${w} manche${w > 1 ? 's' : ''} gagnante${w > 1 ? 's' : ''}`;
+  return (bots ? `Ordis : ${LV_NAMES[clamp(num(c.diff) | 0, 0, 2)]}. ` : '') + `Partie en ${rounds}.`;
+}
+function pubWaitText(humans, cd) {
+  if (cd >= 0) return `${humans} joueurs dans la partie. Elle démarre dans ${cd} s…`;
+  return "En attente d'autres joueurs… La partie démarre dès qu'un 2e joueur arrive (15 s plus tard, ou tout de suite à 4).";
+}
 function refreshHostLobby() {
   if (NET.role !== 'host' || NET.started) return;
   syncMenu();
-  const list = lobbyList(), n = NET.links.length;
-  renderNetPlayers(list, 0);
-  $('#net-start').disabled = list.length < 2;
-  $('#net-wait-text').textContent = n
-    ? `${n} pote${n > 1 ? 's' : ''} dans la partie. Ajoute des ordis si tu veux, puis lance quand tout le monde est là.`
-    : "Donne ce code à tes potes (ou envoie le lien d'invitation) : ils choisissent « En ligne avec des potes », entrent le code et cliquent sur Rejoindre. Jusqu'à 3 potes.";
-  NET.links.forEach((L, i) => { if (L.conn.open) { try { L.conn.send({ t: 'lobby', list, you: i + 1 }); } catch (e) {} } });
+  const m = lobbyMsg(0), n = NET.links.length;
+  renderNetPlayers(m.list, 0);
+  $('#net-start').disabled = m.list.length < 2;
+  if (NET.pub) { $('#net-wait-text').textContent = pubWaitText(1 + n, m.cd); $('#net-cfg').textContent = cfgText(m); if (n) $('#net-status').textContent = 'Des joueurs t\'ont rejoint.'; }
+  else {
+    $('#net-cfg').textContent = '';
+    $('#net-wait-text').textContent = n
+      ? `${n} pote${n > 1 ? 's' : ''} dans le lobby. Règle la partie, puis lance quand tout le monde est là.`
+      : "Donne ce code à tes potes (ou envoie le lien d'invitation) : ils cliquent sur « Rejoindre avec un code » et l'entrent. Jusqu'à 3 potes.";
+  }
+  NET.links.forEach((L, i) => { if (L.conn.open) { try { L.conn.send(lobbyMsg(i + 1)); } catch (e) {} } });
 }
-function hostGame(e, attempt = 0) {
+function hostGame(e, attempt = 0, pub = null) {
   if (NET.role || !peerReady()) return;
-  const code = makeCode();
-  renderLobby('Création de la partie…'); $('#net-host').disabled = true; $('#net-join-btn').disabled = true;
+  const code = pub ? 'pub-' + pub.slot : makeCode();
   let peer;
-  try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0 });
+  try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
+  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
-    $('#net-status').textContent = 'Partie créée.';
+    $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Lobby créé.';
     setNetView(true, code, ''); refreshHostLobby();
   });
   peer.on('connection', conn => {
@@ -2264,7 +2410,11 @@ function hostGame(e, attempt = 0) {
   peer.on('disconnected', () => { if (NET.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch (err) {} } });
   peer.on('error', err => {
     if (NET.peer !== peer) return;
-    if (err && err.type === 'unavailable-id' && attempt < 3) { dropPeer(); NET.role = null; hostGame(null, attempt + 1); return; }
+    if (err && err.type === 'unavailable-id') {
+      // code déjà pris ; en partie publique, quelqu'un vient d'ouvrir ce créneau : on cherche de nouveau
+      if (pub) { dropPeer(); NET.role = null; NET.pub = false; if (pub.attempt < 3) searchGame(pub.attempt + 1); else failOnline("La recherche n'a pas abouti. Réessaie dans un moment."); return; }
+      if (attempt < 3) { dropPeer(); NET.role = null; hostGame(null, attempt + 1); return; }
+    }
     if (NET.links.length || NET.started) return; // les parties passent par les connexions directes
     failOnline(peerErrorText(err));
   });
@@ -2292,7 +2442,9 @@ function dropLink(L) {
 function startOnlineMatch() {
   if (NET.role !== 'host') return;
   const humans = 1 + NET.links.length;
-  const bots = clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
+  if (humans < 2 && NET.pub) return;
+  NET.cdEnd = 0;
+  const bots = NET.pub ? 0 : clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
   Sfx.init(); NET.mi++; NET.started = true;
   G.mode = 'match'; G.paused = false;
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null)];
@@ -2301,42 +2453,115 @@ function startOnlineMatch() {
     if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
-  setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
+  setPlayers(list); G.round = 1; G.winsNeeded = NET.pub ? 3 : settings.wins;
   newRound(); setupHud();
   menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
   blurActive();
 }
 /* ---------- Invité ---------- */
-function joinGame(raw) {
-  if (NET.role || !peerReady()) return;
-  const code = String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (code.length !== 4) { renderLobby('Le code de la partie fait 4 caractères.'); try { $('#net-code-in').focus(); } catch (e) {} return; }
-  let peer;
-  try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, mi: -1, lastSeen: 0, me: 1, kinds: '' });
+function guestInit(peer, code, pub) {
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
   resetPlayer(G.players[0]); resetPlayer(G.players[1]);
-  setNetView(true, code, 'Connexion à la partie…');
+}
+function guestOpened(conn) {
+  if (NET.link !== conn) return;
+  NET.lastSeen = performance.now();
+  $('#net-wait-text').textContent = NET.pub ? 'Partie trouvée !' : "Connecté ! En attente que l'hôte lance la partie…";
+  if (!NET.pub) { $('#net-title').textContent = 'Lobby de ton pote'; $('#net-status').textContent = 'Tu es dans le lobby.'; }
+  sendGuest();
+}
+function attachGuestConn(conn) {
+  NET.link = conn;
+  conn.on('data', onGuestData);
+  conn.on('close', () => { if (NET.link !== conn) return; if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby(NET.pub ? "La partie publique s'est fermée avant de commencer." : "Le lobby s'est fermé avant le début de la partie."); });
+  conn.on('error', () => { if (NET.link === conn && !NET.gotSnap) backToLobby(peerErrorText({ type: 'webrtc' })); });
+}
+function guestPeerError(peer, err) {
+  if (NET.peer !== peer) return;
+  if (NET.role === 'seek') {
+    const S = NET.seek, m = String((err && err.message) || '');
+    if (err && err.type === 'peer-unavailable') { if (S && (!m || m.includes(pubId(S.i)))) seekDone(true); return; }
+    failOnline(peerErrorText(err)); return;
+  }
+  if (NET.gotSnap || (NET.link && NET.link.open)) return;
+  backToLobby(peerErrorText(err));
+}
+function joinGame(raw) {
+  if (NET.role || !peerReady()) return;
+  const code = String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (code.length !== 4) { renderLobby('Le code du lobby fait 4 caractères.'); try { $('#net-code-in').focus(); } catch (e) {} return; }
+  let peer;
+  try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
+  guestInit(peer, code, false);
+  setNetView(true, code, 'Connexion au lobby…');
+  $('#net-status').textContent = '';
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     const conn = peer.connect(PEER_PREFIX + code, { serialization: 'json' });
-    NET.link = conn;
-    conn.on('open', () => { if (NET.link !== conn) return; NET.lastSeen = performance.now(); $('#net-wait-text').textContent = "Connecté ! En attente que l'hôte lance la partie…"; sendGuest(); });
-    conn.on('data', onGuestData);
-    conn.on('close', () => { if (NET.link !== conn) return; if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby("La partie s'est fermée avant de commencer."); });
-    conn.on('error', () => { if (NET.link === conn && !NET.gotSnap) backToLobby(peerErrorText({ type: 'webrtc' })); });
+    attachGuestConn(conn);
+    conn.on('open', () => guestOpened(conn));
   });
-  peer.on('error', err => {
-    if (NET.peer !== peer) return;
-    if (NET.gotSnap || (NET.link && NET.link.open)) return;
-    backToLobby(peerErrorText(err));
+  peer.on('error', err => guestPeerError(peer, err));
+  setTimeout(() => { if (NET.peer === peer && NET.role === 'guest' && !(NET.link && NET.link.open)) backToLobby(peerErrorText({ type: 'peer-unavailable' })); }, 15000);
+}
+/* ---------- Partie publique : on essaie les créneaux pub-0 à pub-7, sinon on en ouvre un ---------- */
+function searchGame(attempt = 0) {
+  if (NET.role) return;
+  showOnline('search');
+  if (!peerReady()) { setNetView(false); renderLobby(); return; }
+  setNetView(true, '', ''); $('#net-status').textContent = "Recherche d'une partie publique…";
+  $('#net-wait-text').textContent = '';
+  let peer;
+  try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
+  Object.assign(NET, { role: 'seek', peer, pub: true, link: null, seek: { i: -1, free: -1, conn: null, timer: 0, attempt } });
+  peer.on('open', () => { if (NET.peer === peer && NET.role === 'seek') seekNext(); });
+  peer.on('error', err => guestPeerError(peer, err));
+  try { $('#net-back').focus({ preventScroll: true }); } catch (e) {}
+}
+function seekNext() {
+  const S = NET.seek; if (!S) return;
+  S.i++;
+  if (S.i >= PUB_SLOTS) { hostPublic(); return; }
+  const i = S.i, conn = NET.peer.connect(pubId(i), { serialization: 'json' });
+  S.conn = conn;
+  S.timer = setTimeout(() => { if (NET.seek === S && S.conn === conn) seekDone(false); }, 6000);
+  conn.on('data', d => {
+    if (NET.seek !== S || S.conn !== conn || !d) return;
+    if (d.t === 'lobby') adoptPublic(conn, i, d);
+    else if (d.t === 'full' || d.t === 'started') seekDone(false);
   });
-  setTimeout(() => { if (NET.peer === peer && !(NET.link && NET.link.open)) backToLobby(peerErrorText({ type: 'peer-unavailable' })); }, 15000);
+  conn.on('close', () => { if (NET.seek === S && S.conn === conn) seekDone(false); });
+}
+function seekDone(free) {
+  const S = NET.seek; if (!S) return;
+  clearTimeout(S.timer);
+  if (free && S.free < 0) S.free = S.i;
+  const c = S.conn; S.conn = null;
+  if (c && !free) { try { c.close(); } catch (e) {} }
+  seekNext();
+}
+function adoptPublic(conn, i, d) {
+  clearTimeout(NET.seek.timer);
+  guestInit(NET.peer, 'pub-' + i, true);
+  attachGuestConn(conn);
+  setNetView(true, '', 'Partie trouvée !');
+  $('#net-status').textContent = 'Partie publique trouvée.';
+  guestOpened(conn);
+  onGuestData(d);
+}
+function hostPublic() {
+  const S = NET.seek;
+  if (S.free < 0) { failOnline("Toutes les parties publiques sont pleines pour l'instant. Réessaie dans un moment, ou crée un lobby pour jouer avec tes potes."); return; }
+  dropPeer(); NET.role = null; NET.seek = null;
+  hostGame(null, 0, { slot: S.free, attempt: S.attempt });
 }
 function backToLobby(msg) {
   failOnline(msg);
+  if (NET.view === 'create') NET.view = 'join';
+  setNetView(false); renderLobby(msg);
   G.paused = false; resetDemoPlayers();
 }
 function resetDemoPlayers() {
@@ -2352,20 +2577,23 @@ function onGuestData(d) {
     if (!NET.gotSnap) {
       const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h' })) : [];
       renderNetPlayers(list, num(d.you) | 0);
+      $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg });
+      if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
     }
   } else if (d.t === 's') {
     const me = num(d.me) | 0; if (me >= 1 && me <= 3) NET.me = me;
     applySnap(d.s);
   }
   else if (d.t === 'full') backToLobby('Cette partie est déjà complète (4 artificiers au maximum).');
-  else if (d.t === 'started') backToLobby("Cette partie a déjà commencé. Demande à l'hôte d'en créer une nouvelle.");
-  else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby("L'hôte a fermé la partie."); }
+  else if (d.t === 'started') backToLobby("Cette partie a déjà commencé. Demande à l'hôte de créer un nouveau lobby.");
+  else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
 }
 function leaveOnline() {
   if (NET.role === 'host') { for (const L of NET.links) if (L.conn.open) { try { L.conn.send({ t: 'bye' }); } catch (e) {} } }
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
+  if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0 });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0 });
 }
 function opponentLeft(msg) {
   leaveOnline();
@@ -2532,10 +2760,23 @@ function netTick() {
         const s = buildSnap();
         for (const L of NET.links) if (L.conn.open && L.slot >= 0) { try { L.conn.send({ t: 's', s, me: L.slot }); } catch (e) {} }
       }
-    } else if (now - NET.sendT > 1500) { NET.sendT = now; refreshHostLobby(); }
+    } else {
+      if (NET.pub) {
+        // partie publique : départ auto 15 s après l'arrivée du 2e joueur, 3 s à 4 joueurs
+        const humans = 1 + NET.links.filter(L => L.conn.open).length;
+        if (humans < 2) { if (NET.cdEnd) { NET.cdEnd = 0; NET.sendT = 0; } }
+        else {
+          if (!NET.cdEnd) { NET.cdEnd = now + PUB_WAIT; NET.sendT = 0; }
+          if (humans >= 4 && NET.cdEnd - now > PUB_FULL_WAIT) { NET.cdEnd = now + PUB_FULL_WAIT; NET.sendT = 0; }
+          if (now >= NET.cdEnd) { startOnlineMatch(); return; }
+        }
+      }
+      if (now - NET.sendT > (NET.pub ? 1000 : 1500)) { NET.sendT = now; refreshHostLobby(); }
+    }
     for (const L of NET.links.slice()) if (now - L.lastSeen > 10000) dropLink(L);
   } else if (NET.role === 'guest') {
     const l = NET.link; if (!l || !l.open) return;
+    if (!NET.gotSnap && NET.lastSeen && now - NET.lastSeen > 10000) { backToLobby("La connexion avec l'hôte a été perdue."); return; }
     if (now - NET.sendT > 33) { NET.sendT = now; sendGuest(); }
     if (NET.lastSeen && now - NET.lastSeen > 10000 && NET.gotSnap) opponentLeft("La connexion avec l'hôte a été perdue.");
   }
@@ -2573,7 +2814,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, onlineEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -2602,6 +2843,8 @@ function navBack(root) {
   if (root === keysEl) closeKeys();
   else if (root === onlineEl || root === endEl) toMenu();
   else if (root === pauseEl) resume();
+  else if (root === soloEl) closeSolo();
+  else if (root === helpEl) closeHelp();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
@@ -2641,7 +2884,7 @@ function pollPads() {
         if (el && root.contains(el) && el !== document.body) el.click();
         else navMove(root, 'down');
       } else if (hit(1)) navBack(root);
-      else if (hit(pb.pause)) { if (root === menuEl) onPlay(); else if (root === pauseEl) resume(); }
+      else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); }
     } else if (G.mode === 'match') {
       if (hit(pb.pause)) { pause(); releasePad(code, st); document.body.classList.add('pad-nav'); }
       else {
@@ -2743,8 +2986,10 @@ function finishCapture(e) {
   try { document.getElementById(`kb-${c.set}-${c.act}`).focus({ preventScroll: true }); } catch (err) {}
 }
 function openKeys(from) {
-  keysFrom = from; capture = null;
+  keysFrom = from; capture = null; padStatus();
   if (from === 'pause') pauseEl.hidden = true;
+  else if (from === 'help') helpEl.hidden = true;
+  else menuEl.hidden = true;
   keysEl.hidden = false; $('#keys-status').textContent = KEYS_HINT;
   renderKeyHelp();
   try { $('#keys-close').focus({ preventScroll: true }); } catch (e) {}
@@ -2752,10 +2997,12 @@ function openKeys(from) {
 function closeKeys() {
   capture = null; keysEl.hidden = true;
   if (keysFrom === 'pause' && G.mode === 'match') { pauseEl.hidden = false; try { $('#resume').focus({ preventScroll: true }); } catch (e) {} }
-  else try { $('#btn-keys').focus({ preventScroll: true }); } catch (e) {}
+  else if (keysFrom === 'help') { helpEl.hidden = false; try { $('#help-keys').focus({ preventScroll: true }); } catch (e) {} }
+  else { menuEl.hidden = false; try { $('#btn-keys').focus({ preventScroll: true }); } catch (e) {} }
 }
 $('#btn-keys').addEventListener('click', () => openKeys('menu'));
 $('#btn-keys2').addEventListener('click', () => openKeys('pause'));
+$('#help-keys').addEventListener('click', () => openKeys('help'));
 $('#keys-close').addEventListener('click', closeKeys);
 $('#keys-reset').addEventListener('click', () => {
   settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); settings.keyLabels = {}; settings.pad = { ...DEFAULT_PAD }; capture = null;
@@ -2794,7 +3041,7 @@ function boot(data) {
   buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp();
   resize(); toMenu();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (pc.length === 4 || q.has('en-ligne')) { settings.mode = 'online'; syncMenu(); openOnline(pc.length === 4 ? pc : ''); }
+  if (pc.length === 4) openJoin(pc);
   if (document.fonts && document.fonts.load) {
     Promise.all([document.fonts.load('40px "Bagel Fat One"'), document.fonts.load('800 16px "Alegreya Sans"')]).catch(() => {});
   }
