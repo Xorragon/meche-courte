@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jouer · Mèche Courte</title>
-<meta name="description" content="Mèche Courte, duel d'artificiers dans le navigateur : contre l'ordi, à deux sur le même clavier ou en ligne avec un pote.">
+<meta name="description" content="Mèche Courte, jeu d'artificiers dans le navigateur : jusqu'à 4 joueurs, contre des ordis, à deux sur le même clavier ou en ligne avec des potes.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,6 +20,8 @@
   --muted:#a8b49c;
   --p1:#3cc7b5;
   --p2:#ff6b81;
+  --p3:#6aa8ff;
+  --p4:#ffd34d;
   --font-display:"Bagel Fat One","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
   --font-body:"Alegreya Sans","Gill Sans","Trebuchet MS",sans-serif;
   color-scheme:dark;
@@ -33,7 +35,21 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 
 /* ---------- Bandeau de score ---------- */
 #hud{width:min(100%, max(var(--arena-w,732px), 320px));display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;flex:none}
+.hside{display:flex;align-items:center;gap:16px;min-width:0}
+.hside.r{justify-content:flex-end}
 .pcard{display:flex;align-items:center;gap:10px;min-width:0}
+.pcard[hidden]{display:none}
+#hud.many .hside{gap:10px}
+#hud.many .pcard{gap:7px}
+#hud.many .portrait{width:38px;height:38px}
+#hud.many .pname{font-size:16px}
+#hud.many .ptag{font-size:10px;margin-left:5px}
+#hud.many .right .ptag{margin-right:5px}
+#hud.many .pip{width:9px;height:9px}
+#hud.many .st{font-size:12px}
+#hud.many .st canvas{width:14px;height:14px}
+#hud.many .stats{gap:4px}
+@media (max-width:760px){#hud.many .stats,#hud.many .ptag{display:none}}
 .pcard.right{flex-direction:row-reverse;text-align:right}
 .portrait{width:52px;height:52px;border-radius:50%;flex:none;background:#0c1510;box-shadow:0 0 0 3px var(--pc),0 4px 12px rgba(0,0,0,.5)}
 .pinfo{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -98,6 +114,7 @@ body.touch #touch{display:flex}
 .seg button:hover{border-color:rgba(243,229,192,.55)}
 .seg button[aria-pressed="true"]{background:var(--parchment);color:#2a1a0e;border-color:var(--parchment)}
 .opt.disabled{opacity:.35}
+.seg button:disabled{opacity:.3;cursor:not-allowed}
 button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .cta{display:inline-flex;align-items:center;gap:14px;font-family:var(--font-display);font-size:28px;line-height:1;color:#2b1206;background:var(--ember);border:0;border-radius:14px;padding:15px 24px 17px;cursor:pointer;box-shadow:0 6px 0 #a3410f,0 16px 34px rgba(255,122,47,.22);transition:transform .08s,box-shadow .08s}
 .cta:hover{transform:translateY(-1px)}
@@ -140,6 +157,13 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 .net-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 16px;border:2px solid rgba(243,229,192,.2);border-radius:12px}
 .net-list li.empty{justify-content:center;color:var(--muted);border-style:dashed;padding:12px}
 .net-list b{font-family:var(--font-display);font-weight:400;font-size:22px;letter-spacing:.1em;color:var(--gold)}
+.net-players{list-style:none;margin:14px auto 4px;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.net-players li{display:flex;align-items:baseline;gap:8px;padding:7px 14px;border-radius:999px;border:2px solid var(--pc);background:rgba(0,0,0,.18)}
+.net-players b{font-family:var(--font-display);font-weight:400;font-size:18px;color:var(--pc)}
+.net-players span{font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#net-host-ctrl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px}
+#net-host-ctrl[hidden]{display:none}
+#net-host-ctrl .cta{margin-top:10px}
 .net-list button{font:800 15px/1 var(--font-body);color:#2b1206;background:var(--ember);border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
 .cta:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .small{font-size:14px}
@@ -158,12 +182,22 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 <body>
 <div id="app">
   <header id="hud">
-    <div class="pcard" id="card0" style="--pc:var(--p1)">
-      <canvas class="portrait" width="104" height="104"></canvas>
-      <div class="pinfo">
-        <div class="pname"><span class="nm">Mèche</span><span class="ptag">J1</span></div>
-        <div class="pips"></div>
-        <div class="stats"></div>
+    <div class="hside l">
+      <div class="pcard" id="card0" style="--pc:var(--p1)">
+        <canvas class="portrait" width="104" height="104"></canvas>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">J1</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
+      </div>
+      <div class="pcard" id="card3" style="--pc:var(--p4)" hidden>
+        <canvas class="portrait" width="104" height="104"></canvas>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
       </div>
     </div>
     <div id="clock">
@@ -176,12 +210,22 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <button class="ibtn" id="btn-mute" type="button" aria-label="Couper le son" aria-pressed="false" title="Son (M)"></button>
       </div>
     </div>
-    <div class="pcard right" id="card1" style="--pc:var(--p2)">
-      <canvas class="portrait" width="104" height="104"></canvas>
-      <div class="pinfo">
-        <div class="pname"><span class="nm">Braise</span><span class="ptag">Ordi</span></div>
-        <div class="pips"></div>
-        <div class="stats"></div>
+    <div class="hside r">
+      <div class="pcard right" id="card2" style="--pc:var(--p3)" hidden>
+        <canvas class="portrait" width="104" height="104"></canvas>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
+      </div>
+      <div class="pcard right" id="card1" style="--pc:var(--p2)">
+        <canvas class="portrait" width="104" height="104"></canvas>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
       </div>
     </div>
   </header>
@@ -196,20 +240,29 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <div class="menu">
     <section>
       <a class="home-link" href="index.html">← Le site du jeu</a>
-      <p class="kicker">Duel d'artificiers</p>
+      <p class="kicker">Jusqu'à 4 artificiers</p>
       <h1 class="title">Mèche<br><span>Courte</span></h1>
       <div class="fuse" aria-hidden="true"></div>
       <div class="opts">
         <div class="opt">
           <span class="opt-label" id="lbl-mode">Mode</span>
           <div class="seg" data-key="mode" role="group" aria-labelledby="lbl-mode">
-            <button type="button" id="m-cpu" data-v="cpu">1 joueur contre l'ordi</button>
-            <button type="button" id="m-duo" data-v="duo">2 joueurs, même clavier</button>
-            <button type="button" id="m-online" data-v="online">En ligne avec un pote</button>
+            <button type="button" id="m-cpu" data-v="cpu">Seul</button>
+            <button type="button" id="m-duo" data-v="duo">À deux sur un clavier</button>
+            <button type="button" id="m-online" data-v="online">En ligne avec des potes</button>
+          </div>
+        </div>
+        <div class="opt" id="opt-bots">
+          <span class="opt-label" id="lbl-bots">Ordis dans l'arène</span>
+          <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots">
+            <button type="button" id="b-0" data-v="0">0</button>
+            <button type="button" id="b-1" data-v="1">1</button>
+            <button type="button" id="b-2" data-v="2">2</button>
+            <button type="button" id="b-3" data-v="3">3</button>
           </div>
         </div>
         <div class="opt" id="opt-diff">
-          <span class="opt-label" id="lbl-diff">Adversaire</span>
+          <span class="opt-label" id="lbl-diff">Niveau des ordis</span>
           <div class="seg" data-key="diff" role="group" aria-labelledby="lbl-diff">
             <button type="button" id="d-0" data-v="0">Distrait</button>
             <button type="button" id="d-1" data-v="1">Rusé</button>
@@ -227,7 +280,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       </div>
       <div class="go">
         <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
-        <p class="rule">Fais sauter les caisses, ramasse les bonus et attrape ton adversaire dans le souffle d'une explosion. Au bout de 2 minutes, des rochers tombent du ciel en spirale.</p>
+        <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Au bout de 2 minutes, des rochers tombent du ciel en spirale.</p>
       </div>
     </section>
     <section class="side">
@@ -235,7 +288,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <div class="ctrl">
         <p><span class="who c1">Mèche</span> <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) pour bouger, <kbd>Espace</kbd> pour poser une bombe</p>
         <p><span class="who c2">Braise</span> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour bouger, <kbd>Entrée</kbd> pour poser une bombe</p>
-        <p class="small">Contre l'ordi, les flèches et <kbd>Entrée</kbd> marchent aussi pour Mèche. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
+        <p class="small">Seul ou en ligne, les flèches et <kbd>Entrée</kbd> marchent aussi pour ton perso. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
       </div>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
@@ -256,8 +309,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 
 <div id="end" class="overlay" hidden>
   <div class="box">
-    <p class="kicker" id="end-kicker">Fin du duel</p>
-    <h2 id="end-title">Mèche remporte le duel</h2>
+    <p class="kicker" id="end-kicker">Fin de la partie</p>
+    <h2 id="end-title">Mèche remporte la partie</h2>
     <p class="score-line" id="end-score">3 – 1</p>
     <p class="rule" id="end-note" style="margin:-10px 0 18px"></p>
     <div class="row">
@@ -270,7 +323,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
 <div id="online" class="overlay" hidden>
   <div class="box online">
     <p class="kicker">Jouer en ligne</p>
-    <h2>Duel avec un pote</h2>
+    <h2>Partie entre potes</h2>
     <p class="rule" id="net-status" role="status"></p>
     <div id="net-home" style="display:flex;flex-direction:column;align-items:center">
       <div class="row" style="margin-top:18px"><button class="cta" id="net-host" type="button">Créer une partie</button></div>
@@ -283,9 +336,20 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div id="net-wait" hidden>
       <p class="net-code" id="net-code">····</p>
       <p class="rule" id="net-wait-text"></p>
+      <ul class="net-players" id="net-players" aria-label="Joueurs dans la partie"></ul>
       <div class="row" style="margin-top:14px"><button class="ghost" id="net-invite" type="button" hidden>Copier le lien d'invitation</button></div>
+      <div id="net-host-ctrl" hidden>
+        <span class="opt-label" id="lbl-bots2">Ordis en plus</span>
+        <div class="seg" data-key="bots" role="group" aria-labelledby="lbl-bots2">
+          <button type="button" id="nb-0" data-v="0">0</button>
+          <button type="button" id="nb-1" data-v="1">1</button>
+          <button type="button" id="nb-2" data-v="2">2</button>
+          <button type="button" id="nb-3" data-v="3">3</button>
+        </div>
+        <button class="cta" id="net-start" type="button">Lancer la partie</button>
+      </div>
     </div>
-    <p class="rule small" style="margin-top:22px">La connexion se fait directement entre vos deux navigateurs. Certains réseaux d'entreprise ou d'école la bloquent : dans ce cas, essayez depuis une connexion perso ou un partage 4G.</p>
+    <p class="rule small" style="margin-top:22px">La connexion se fait directement entre vos navigateurs. Certains réseaux d'entreprise ou d'école la bloquent : dans ce cas, essayez depuis une connexion perso ou un partage 4G.</p>
     <div class="row" style="margin-top:16px"><button class="ghost" id="net-back" type="button">Retour <kbd>Échap</kbd></button></div>
   </div>
 </div>
@@ -316,7 +380,10 @@ const ITEMS = [
 const PALS = [
   { name: 'Mèche',  coat: '#2a9d8f', coatDark: '#1c6e64', scarf: '#ffcf5a', scarfDark: '#dfa327', helm: '#b86a2e', helmLight: '#e8a05a', helmDark: '#7d4318', ui: '#3cc7b5' },
   { name: 'Braise', coat: '#c63c55', coatDark: '#87213a', scarf: '#ff9f43', scarfDark: '#d4741a', helm: '#6b7688', helmLight: '#aab4c4', helmDark: '#434b59', ui: '#ff6b81' },
+  { name: 'Silex',  coat: '#3f78c9', coatDark: '#28508a', scarf: '#f3e5c0', scarfDark: '#cbbd96', helm: '#9c7a4a', helmLight: '#d1b07a', helmDark: '#5e4524', ui: '#6aa8ff' },
+  { name: 'Soufre', coat: '#d6a21e', coatDark: '#9a7010', scarf: '#7a4bb3', scarfDark: '#55307f', helm: '#6b7688', helmLight: '#aab4c4', helmDark: '#434b59', ui: '#ffd34d' },
 ];
+const SPAWNS = [[1, 1, 'down'], [COLS - 2, ROWS - 2, 'up'], [COLS - 2, 1, 'down'], [1, ROWS - 2, 'up']];
 const AI_LV = [
   { react: 0.38, think: 0.34, aggro: 0.25, item: 0.7, margin: 0.22, chase: 0.25, bombRate: 0.7 },
   { react: 0.16, think: 0.20, aggro: 0.65, item: 1.0, margin: 0.12, chase: 0.7,  bombRate: 0.95 },
@@ -331,7 +398,7 @@ const idx = (x, y) => y * COLS + x;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-const settings = { mode: 'cpu', diff: 1, wins: 3 };
+const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3 };
 try { const s = JSON.parse(localStorage.getItem('meche-courte') || 'null'); if (s) Object.assign(settings, s); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} }
 
@@ -356,9 +423,17 @@ const NET = {
   role: null, peer: null, link: null, guestOn: false, lastSeen: 0, code: null, mi: 0,
   guestPeer: null, hostPeer: null, myPeer: null, gin: null, lastBomb: 0, lastKick: 0,
   events: [], fxSeq: 0, lastFx: 0, lastQ: -1, q: 0, gotSnap: false,
-  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0,
+  bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, sendT: 0, links: [], started: false, me: 1,
 };
-const localIdx = () => NET.role === 'guest' ? 1 : 0;
+const localIdx = () => NET.role === 'guest' ? NET.me : 0;
+function setPlayers(list) { G.players = list; G.scores = list.map(() => 0); }
+const humansLocal = () => settings.mode === 'duo' ? 2 : 1;
+const minBots = () => settings.mode === 'cpu' ? 1 : 0;
+function maxBots() {
+  if (settings.mode === 'online') return NET.role === 'host' ? 3 - NET.links.length : 3;
+  return 4 - humansLocal();
+}
+const effBots = () => clamp(settings.bots | 0, minBots(), Math.max(minBots(), maxBots()));
 
 /* =========================================================
    Audio synthétisé
@@ -425,7 +500,8 @@ function genMap(seed) {
     else if (x % 2 === 0 && y % 2 === 0) g[k] = PILLAR;
     else g[k] = EMPTY;
   }
-  const safe = new Set([idx(1, 1), idx(2, 1), idx(1, 2), idx(COLS - 2, ROWS - 2), idx(COLS - 3, ROWS - 2), idx(COLS - 2, ROWS - 3)]);
+  const safe = new Set([idx(1, 1), idx(2, 1), idx(1, 2), idx(COLS - 2, ROWS - 2), idx(COLS - 3, ROWS - 2), idx(COLS - 2, ROWS - 3),
+    idx(COLS - 2, 1), idx(COLS - 3, 1), idx(COLS - 2, 2), idx(1, ROWS - 2), idx(2, ROWS - 2), idx(1, ROWS - 3)]);
   const pairs = [];
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
@@ -458,7 +534,7 @@ function makePlayer(i, lv) {
   };
 }
 function resetPlayer(p) {
-  if (p.id === 0) { p.x = 1; p.y = 1; p.face = 'down'; } else { p.x = COLS - 2; p.y = ROWS - 2; p.face = 'up'; }
+  const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
   p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.active = 0;
   p.alive = true; p.deathT = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
   if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1; p.ai.sig = -1; p.ai.stuck = 0; }
@@ -756,6 +832,10 @@ const FX = {
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
   drop() { Sfx.play('drop'); },
+  left(slot) {
+    const pal = PALS[slot]; if (!pal) return;
+    addP({ kind: 'text', x: W / 2, y: 70, vx: 0, vy: 0, life: 3.5, max: 3.5, size: 18, color: pal.ui, text: `${pal.name} a quitté la partie : un ordi prend sa place` });
+  },
   snd(n) { Sfx.play(n); },
 };
 function fx(n, a, b, c, d) {
@@ -879,7 +959,7 @@ function itemWant(p, it) {
   if (it === 2) return p.speedLv < MAX_SPEED_LV ? 0.9 : 0;
   return p.kick ? 0 : 0.5;
 }
-function bombValue(p, x, y, D, ek, bset) {
+function bombValue(p, x, y, D, eks, bset) {
   const cells = blast(x, y, p.range, bset);
   let v = 0, crates = 0;
   for (const k of cells) {
@@ -887,11 +967,11 @@ function bombValue(p, x, y, D, ek, bset) {
     if (G.items[k] >= 0) v -= 2;
   }
   if (crates > 0) v += 2 + crates * 1.5;
-  if (ek >= 0 && cells.includes(ek)) v += 7 * p.ai.lv.aggro + 1;
+  for (const ek of eks) if (cells.includes(ek)) v += 7 * p.ai.lv.aggro + 1;
   return v;
 }
-function chooseTarget(p, D, sx, sy, step, ek, bset) {
-  const lv = p.ai.lv, sk = idx(sx, sy);
+function chooseTarget(p, D, sx, sy, step, eks, bset) {
+  const lv = p.ai.lv, sk = idx(sx, sy), ek = eks.length ? eks[0] : -1;
   const prev = new Int16Array(N).fill(-2), dist = new Uint8Array(N);
   prev[sk] = -1; const q = [sk]; let qi = 0; const cands = [];
   const canBomb = p.active < p.maxBombs;
@@ -900,7 +980,7 @@ function chooseTarget(p, D, sx, sy, step, ek, bset) {
     const k = q[qi++], d = dist[k], x = k % COLS, y = (k / COLS) | 0;
     let s = 0, bv = 0;
     const it = G.items[k]; if (it >= 0) s += itemWant(p, it) * 10 * lv.item;
-    if (canBomb && !G.bombAt[k]) { bv = bombValue(p, x, y, D, ek, bset); if (bv >= 2.5) s += bv; else bv = 0; }
+    if (canBomb && !G.bombAt[k]) { bv = bombValue(p, x, y, D, eks, bset); if (bv >= 2.5) s += bv; else bv = 0; }
     if (ek >= 0 && lv.chase > 0) s += Math.max(0, 6 - (Math.abs(x - ex) + Math.abs(y - ey))) * lv.chase * 0.7;
     s -= d * 0.85;
     s += Math.random() * 0.25;
@@ -947,18 +1027,20 @@ function think(p) {
     if (path) setPath(p, path, sx, sy);
     return;
   }
-  const enemy = G.players.find(o => o !== p && o.alive);
-  const ek = enemy ? idx(Math.round(enemy.x), Math.round(enemy.y)) : -1;
+  // adversaires vivants, le plus proche en premier
+  const eks = G.players.filter(o => o !== p && o.alive)
+    .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))
+    .map(o => idx(Math.round(o.x), Math.round(o.y)));
   const bset = currentBombSet();
   if (off < 0.03 && p.active < p.maxBombs && !G.bombAt[sk]) {
-    const bv = bombValue(p, sx, sy, D, ek, bset);
+    const bv = bombValue(p, sx, sy, D, eks, bset);
     if (bv >= 2.5 && Math.random() < lv.bombRate) {
       const D2 = computeDanger({ x: sx, y: sy, r: p.range, t: FUSE });
       const esc = findEscape(sx, sy, 0, step, lv.margin + 0.1, D2, -1, true);
       if (esc && esc.length) { p.x = sx; p.y = sy; placeBomb(p); setPath(p, esc, sx, sy); return; }
     }
   }
-  const path = chooseTarget(p, D, sx, sy, step, ek, bset);
+  const path = chooseTarget(p, D, sx, sy, step, eks, bset);
   setPath(p, path || [], sx, sy);
 }
 function aiSignature() {
@@ -1027,7 +1109,7 @@ function update(dt) {
   if (G.phase === 'intro') {
     G.phaseT -= dt;
     if (G.phaseT <= 0.55 && !G.introBeep) { G.introBeep = true; fx('snd', 'go'); }
-    if (G.phaseT <= 0) { G.phase = 'play'; for (const p of G.players) p.bombQueued = false; if (NET.gin) NET.lastBomb = Math.max(NET.lastBomb, NET.gin.b); }
+    if (G.phaseT <= 0) { G.phase = 'play'; for (const p of G.players) p.bombQueued = false; for (const L of NET.links) if (L.gin) L.lastBomb = Math.max(L.lastBomb, L.gin.b); }
     smoothRemote(dt);
     return;
   }
@@ -1088,7 +1170,7 @@ function endRound() {
 }
 function afterRound() {
   if (G.mode === 'match' && G.lastWinner >= 0 && G.scores[G.lastWinner] >= G.winsNeeded) { G.phase = 'matchEnd'; showEnd(); return; }
-  if (G.mode === 'demo' && Math.max(G.scores[0], G.scores[1]) >= 3) G.scores = [0, 0];
+  if (G.mode === 'demo' && Math.max(...G.scores) >= 3) G.scores = G.scores.map(() => 0);
   G.round++;
   newRound();
 }
@@ -1116,7 +1198,7 @@ function drawGround(c, seed) {
     const light = r() < 0.5; g.addColorStop(0, light ? 'rgba(200,230,120,.13)' : 'rgba(40,80,30,.13)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  for (const [sx, sy] of [[1, 1], [COLS - 2, ROWS - 2]]) {
+  for (const [sx, sy] of SPAWNS) {
     const x = (sx + 0.5) * T, y = (sy + 0.5) * T, g = c.createRadialGradient(x, y, 4, x, y, 58);
     g.addColorStop(0, 'rgba(150,105,60,.55)'); g.addColorStop(0.6, 'rgba(150,105,60,.25)'); g.addColorStop(1, 'rgba(150,105,60,0)');
     c.fillStyle = g; c.fillRect(x - 60, y - 60, 120, 120);
@@ -1522,7 +1604,7 @@ function render() {
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
   } else if (G.phase === 'roundEnd') {
     const a = Math.min(1, (2.8 - G.phaseT) * 4);
-    const sc = `${PALS[0].name} ${G.scores[0]} – ${G.scores[1]} ${PALS[1].name}`;
+    const sc = G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ');
     if (G.lastWinner >= 0) drawBanner(c, `${PALS[G.lastWinner].name} gagne la manche`, sc, PALS[G.lastWinner].ui, a);
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   }
@@ -1535,7 +1617,7 @@ function render() {
    ========================================================= */
 const $ = s => document.querySelector(s);
 const menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online');
-const cards = [$('#card0'), $('#card1')];
+const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
 const STAT_TITLES = ['Bombes', 'Portée', 'Vitesse', 'Coup de pied'];
@@ -1555,7 +1637,7 @@ function iconCanvas(type, px) {
   const c = cv.getContext('2d'); c.scale(px / 34, px / 34); drawToken(c, type, 17, 17, 1.05); return cv;
 }
 function buildStatics() {
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 4; i++) {
     const st = cards[i].querySelector('.stats'); st.innerHTML = '';
     for (let j = 0; j < 4; j++) {
       const sp = document.createElement('span'); sp.className = 'st'; sp.title = STAT_TITLES[j];
@@ -1574,10 +1656,12 @@ function buildStatics() {
   const tb = $('#tbomb canvas'), c = tb.getContext('2d'); c.scale(112 / 48, 112 / 48); drawBomb(c, 24, 24, null, 0);
 }
 function setupHud() {
-  for (let i = 0; i < 2; i++) {
+  $('#hud').classList.toggle('many', G.players.length > 2);
+  for (let i = 0; i < 4; i++) {
     const p = G.players[i], card = cards[i];
+    card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = p.pal.name;
-    card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
@@ -1586,7 +1670,7 @@ function setupHud() {
 }
 function setTxt(el, v, key) { if (hudCache[key] !== v) { hudCache[key] = v; el.textContent = v; } }
 function updateHud() {
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < G.players.length && i < 4; i++) {
     const p = G.players[i]; if (!p) continue;
     const sts = cards[i].querySelectorAll('.st');
     setTxt(sts[0].lastChild, String(p.maxBombs), 'b' + i);
@@ -1605,13 +1689,21 @@ function syncMenu() {
     const key = seg.dataset.key;
     seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v) === String(settings[key]) ? 'true' : 'false'));
   });
-  $('#opt-diff').classList.toggle('disabled', settings.mode !== 'cpu');
+  const eb = effBots(), lo = minBots(), hi = maxBots();
+  document.querySelectorAll('.seg[data-key="bots"] button').forEach(b => {
+    const v = Number(b.dataset.v);
+    b.disabled = v < lo || v > Math.max(lo, hi);
+    b.setAttribute('aria-pressed', v === eb ? 'true' : 'false');
+  });
+  $('#opt-diff').classList.toggle('disabled', eb === 0 && settings.mode !== 'online');
 }
 document.querySelectorAll('.seg').forEach(seg => {
   seg.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.disabled) return;
     const key = seg.dataset.key; settings[key] = key === 'mode' ? b.dataset.v : Number(b.dataset.v);
     syncMenu(); saveSettings();
+    if (key === 'bots') refreshHostLobby();
   });
 });
 const SPK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3.5v11L5 10H2z" fill="currentColor"/>';
@@ -1628,9 +1720,10 @@ function blurActive() { if (document.activeElement && document.activeElement.blu
 function startMatch() {
   Sfx.init();
   G.mode = 'match'; G.paused = false;
-  const lv = AI_LV[clamp(settings.diff | 0, 0, 2)];
-  G.players = [makePlayer(0, null), makePlayer(1, settings.mode === 'cpu' ? lv : null)];
-  G.scores = [0, 0]; G.round = 1; G.winsNeeded = settings.wins;
+  const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [];
+  for (let i = 0; i < humansLocal(); i++) list.push(makePlayer(i, null));
+  for (let i = 0, nb = effBots(); i < nb; i++) list.push(makePlayer(list.length, lv));
+  setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
   newRound(); setupHud();
   menuEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
   blurActive(); saveSettings();
@@ -1639,16 +1732,16 @@ function toMenu() {
   leaveOnline();
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false;
-  G.players = [makePlayer(0, AI_LV[1]), makePlayer(1, AI_LV[1])];
-  G.scores = [0, 0]; G.round = 1; G.winsNeeded = 3;
-  newRound(); setupHud();
+  setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
+  G.round = 1; G.winsNeeded = 3;
+  newRound(); setupHud(); syncMenu();
   menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true;
   try { playBtn.focus({ preventScroll: true }); } catch (e) {}
 }
 function pause() {
   if (G.mode !== 'match' || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
   if (NET.role) {
-    $('#pause-kicker').textContent = 'Partie en ligne'; $('#pause-title').textContent = 'Le duel continue';
+    $('#pause-kicker').textContent = 'Partie en ligne'; $('#pause-title').textContent = 'La partie continue';
     pauseEl.hidden = false; G.players[localIdx()].dirStack.length = 0;
     try { $('#resume').focus({ preventScroll: true }); } catch (e) {}
     return;
@@ -1661,13 +1754,15 @@ function pause() {
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
   const w = G.lastWinner, p = PALS[w];
-  const solo = settings.mode === 'cpu';
-  $('#end-kicker').textContent = NET.role ? (w === localIdx() ? 'Victoire' : 'Défaite') : solo ? (w === 0 ? 'Victoire' : 'Défaite') : 'Fin du duel';
+  const oneHuman = NET.role || humansLocal() === 1, wp = G.players[w];
+  $('#end-kicker').textContent = oneHuman ? (w === localIdx() ? 'Victoire' : 'Défaite') : (wp && wp.ai ? 'Les ordis gagnent' : 'Fin de la partie');
   $('#again').hidden = NET.role === 'guest';
   $('#end-note').textContent = NET.role === 'guest' ? "L'hôte peut lancer la revanche." : '';
   pauseEl.hidden = true;
-  const title = $('#end-title'); title.textContent = `${p.name} remporte le duel`; title.style.color = p.ui;
-  $('#end-score').textContent = `${G.scores[0]} – ${G.scores[1]}`;
+  const title = $('#end-title'); title.textContent = `${p.name} remporte la partie`; title.style.color = p.ui;
+  const es = $('#end-score');
+  es.textContent = G.players.length > 2 ? G.players.map(o => `${o.pal.name} ${G.scores[o.id]}`).join('  ·  ') : `${G.scores[0]} – ${G.scores[1]}`;
+  es.style.fontSize = G.players.length > 2 ? '22px' : '';
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -1676,6 +1771,7 @@ function onAgain() { if (NET.role === 'host') startOnlineMatch(); else if (!NET.
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#net-host').addEventListener('click', hostGame);
+$('#net-start').addEventListener('click', startOnlineMatch);
 $('#net-back').addEventListener('click', toMenu);
 $('#tomenu').addEventListener('click', toMenu);
 $('#resume').addEventListener('click', resume);
@@ -1759,6 +1855,8 @@ function setNetView(wait, code, text) {
   $('#net-home').style.display = wait ? 'none' : 'flex';
   $('#net-wait').hidden = !wait;
   $('#net-invite').hidden = !(wait && NET.role === 'host');
+  $('#net-host-ctrl').hidden = !(wait && NET.role === 'host');
+  if (!wait) $('#net-players').innerHTML = '';
   if (wait) { $('#net-code').textContent = code.toUpperCase(); $('#net-wait-text').textContent = text; }
 }
 function renderLobby(msg) {
@@ -1783,14 +1881,47 @@ function peerErrorText(err) {
   return "La connexion a échoué. Réessaie dans un moment.";
 }
 function dropPeer() {
-  const l = NET.link, p = NET.peer;
-  NET.link = null; NET.peer = null;
-  setTimeout(() => { try { l && l.close(); } catch (e) {} try { p && p.destroy(); } catch (e) {} }, 150);
+  const links = NET.links.slice(), l = NET.link, p = NET.peer;
+  NET.links = []; NET.link = null; NET.peer = null;
+  setTimeout(() => {
+    for (const L of links) { try { L.conn.close(); } catch (e) {} }
+    try { l && l.close(); } catch (e) {}
+    try { p && p.destroy(); } catch (e) {}
+  }, 150);
 }
 function failOnline(msg) {
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, guestOn: false, lastSeen: 0 });
-  setNetView(false); renderLobby(msg);
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0 });
+  setNetView(false); renderLobby(msg); syncMenu();
+}
+/* ---------- Salon (hôte) : jusqu'à 3 potes + des ordis, 4 artificiers au total ---------- */
+function lobbyList() {
+  const out = [{ k: 'h' }];
+  NET.links.forEach(() => out.push({ k: 'h' }));
+  for (let i = 0, nb = effBots(); i < nb; i++) out.push({ k: 'b' });
+  return out;
+}
+function renderNetPlayers(list, you) {
+  const ul = $('#net-players'); ul.innerHTML = '';
+  list.forEach((pl, i) => {
+    const pal = PALS[i]; if (!pal) return;
+    const li = document.createElement('li'); li.style.setProperty('--pc', pal.ui);
+    const b = document.createElement('b'), sp = document.createElement('span');
+    b.textContent = pal.name;
+    sp.textContent = i === you ? 'toi' : pl.k === 'b' ? 'ordi' : i === 0 ? 'hôte' : 'pote';
+    li.append(b, sp); ul.appendChild(li);
+  });
+}
+function refreshHostLobby() {
+  if (NET.role !== 'host' || NET.started) return;
+  syncMenu();
+  const list = lobbyList(), n = NET.links.length;
+  renderNetPlayers(list, 0);
+  $('#net-start').disabled = list.length < 2;
+  $('#net-wait-text').textContent = n
+    ? `${n} pote${n > 1 ? 's' : ''} dans la partie. Ajoute des ordis si tu veux, puis lance quand tout le monde est là.`
+    : "Donne ce code à tes potes (ou envoie le lien d'invitation) : ils choisissent « En ligne avec des potes », entrent le code et cliquent sur Rejoindre. Jusqu'à 3 potes.";
+  NET.links.forEach((L, i) => { if (L.conn.open) { try { L.conn.send({ t: 'lobby', list, you: i + 1 }); } catch (e) {} } });
 }
 function hostGame(e, attempt = 0) {
   if (NET.role || !peerReady()) return;
@@ -1798,56 +1929,98 @@ function hostGame(e, attempt = 0) {
   renderLobby('Création de la partie…'); $('#net-host').disabled = true; $('#net-join-btn').disabled = true;
   let peer;
   try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'host', peer, link: null, code, gin: null, events: [], lastBomb: 0, lastKick: 0, guestOn: false, lastSeen: 0 });
+  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     $('#net-status').textContent = 'Partie créée.';
-    setNetView(true, code, `Donne ce code à ton pote (ou envoie-lui le lien d'invitation). Il choisit « En ligne avec un pote », entre le code et clique sur Rejoindre. Le duel démarre dès qu'il arrive.`);
+    setNetView(true, code, ''); refreshHostLobby();
   });
   peer.on('connection', conn => {
     if (NET.peer !== peer) return;
-    if (NET.link) { conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (err) {} setTimeout(() => conn.close(), 300); }); return; }
-    NET.link = conn;
-    conn.on('open', () => { if (NET.link !== conn) return; NET.lastSeen = performance.now(); NET.guestOn = true; startOnlineMatch(); });
-    conn.on('data', onNetData);
-    conn.on('close', () => { if (NET.link === conn) opponentLeft('Ton pote a quitté la partie.'); });
-    conn.on('error', () => { if (NET.link === conn) opponentLeft('La connexion avec ton pote a été perdue.'); });
+    const refuse = t => conn.on('open', () => { try { conn.send({ t }); } catch (err) {} setTimeout(() => { try { conn.close(); } catch (err) {} }, 300); });
+    if (NET.started) { refuse('started'); return; }
+    if (NET.links.length >= 3) { refuse('full'); return; }
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastSeen: performance.now(), slot: -1 };
+    NET.links.push(L);
+    conn.on('open', () => { L.lastSeen = performance.now(); refreshHostLobby(); });
+    conn.on('data', d => onHostData(L, d));
+    conn.on('close', () => dropLink(L));
+    conn.on('error', () => dropLink(L));
+    refreshHostLobby();
   });
   peer.on('disconnected', () => { if (NET.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch (err) {} } });
   peer.on('error', err => {
     if (NET.peer !== peer) return;
     if (err && err.type === 'unavailable-id' && attempt < 3) { dropPeer(); NET.role = null; hostGame(null, attempt + 1); return; }
-    if (NET.guestOn) return; // la partie passe par la connexion directe : une coupure du serveur de relais ne la gêne pas
+    if (NET.links.length || NET.started) return; // les parties passent par les connexions directes
     failOnline(peerErrorText(err));
   });
 }
+function onHostData(L, d) {
+  if (!d || typeof d !== 'object' || NET.links.indexOf(L) < 0) return;
+  L.lastSeen = performance.now();
+  if (d.t === 'g') L.gin = readGuest(d) || L.gin;
+  else if (d.t === 'bye') dropLink(L);
+}
+// Un pote s'en va : en salon il disparaît de la liste ; en partie, un ordi prend sa place.
+function dropLink(L) {
+  const i = NET.links.indexOf(L); if (i < 0) return;
+  NET.links.splice(i, 1);
+  try { L.conn.close(); } catch (e) {}
+  if (NET.started && L.slot >= 0) {
+    const p = G.players[L.slot];
+    if (p && p.remote) {
+      p.remote = false; p.moving = false; p.dirStack = [];
+      p.ai = { lv: AI_LV[clamp(settings.diff | 0, 0, 2)], path: [], cd: 0.2, sig: -1, stuck: 0 };
+      fx('left', L.slot); setupHud();
+    }
+  } else refreshHostLobby();
+}
+function startOnlineMatch() {
+  if (NET.role !== 'host') return;
+  const humans = 1 + NET.links.length;
+  const bots = clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
+  Sfx.init(); NET.mi++; NET.started = true;
+  G.mode = 'match'; G.paused = false;
+  const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null)];
+  NET.links.forEach((L, i) => {
+    L.slot = i + 1; const p = makePlayer(i + 1, null); p.remote = true; list.push(p);
+    if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; }
+  });
+  for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
+  setPlayers(list); G.round = 1; G.winsNeeded = settings.wins;
+  newRound(); setupHud();
+  menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
+  blurActive();
+}
+/* ---------- Invité ---------- */
 function joinGame(raw) {
   if (NET.role || !peerReady()) return;
   const code = String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (code.length !== 4) { renderLobby('Le code de la partie fait 4 caractères.'); try { $('#net-code-in').focus(); } catch (e) {} return; }
   let peer;
   try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, mi: -1, lastSeen: 0 });
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, mi: -1, lastSeen: 0, me: 1, kinds: '' });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
-  G.players = [makePlayer(0, null), makePlayer(1, null)]; G.players[0].remote = true;
+  setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
   resetPlayer(G.players[0]); resetPlayer(G.players[1]);
   setNetView(true, code, 'Connexion à la partie…');
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     const conn = peer.connect(PEER_PREFIX + code, { serialization: 'json' });
     NET.link = conn;
-    conn.on('open', () => { if (NET.link !== conn) return; NET.lastSeen = performance.now(); $('#net-wait-text').textContent = 'Connecté ! La partie démarre…'; sendGuest(); });
-    conn.on('data', onNetData);
+    conn.on('open', () => { if (NET.link !== conn) return; NET.lastSeen = performance.now(); $('#net-wait-text').textContent = "Connecté ! En attente que l'hôte lance la partie…"; sendGuest(); });
+    conn.on('data', onGuestData);
     conn.on('close', () => { if (NET.link !== conn) return; if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby("La partie s'est fermée avant de commencer."); });
     conn.on('error', () => { if (NET.link === conn && !NET.gotSnap) backToLobby(peerErrorText({ type: 'webrtc' })); });
   });
   peer.on('error', err => {
     if (NET.peer !== peer) return;
-    if (NET.gotSnap) return;
+    if (NET.gotSnap || (NET.link && NET.link.open)) return;
     backToLobby(peerErrorText(err));
   });
-  setTimeout(() => { if (NET.peer === peer && !NET.gotSnap) backToLobby((NET.link && NET.link.open) ? "L'hôte ne répond pas. Demande-lui de recréer la partie." : peerErrorText({ type: 'peer-unavailable' })); }, 15000);
+  setTimeout(() => { if (NET.peer === peer && !(NET.link && NET.link.open)) backToLobby(peerErrorText({ type: 'peer-unavailable' })); }, 15000);
 }
 function backToLobby(msg) {
   failOnline(msg);
@@ -1855,27 +2028,31 @@ function backToLobby(msg) {
 }
 function resetDemoPlayers() {
   G.mode = 'demo';
-  G.players = [makePlayer(0, AI_LV[1]), makePlayer(1, AI_LV[1])];
-  G.scores = [0, 0]; G.round = 1; G.winsNeeded = 3;
+  setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
+  G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud();
 }
-function onNetData(d) {
-  if (!d || typeof d !== 'object') return;
+function onGuestData(d) {
+  if (!d || typeof d !== 'object' || NET.role !== 'guest') return;
   NET.lastSeen = performance.now();
-  if (NET.role === 'host') {
-    if (d.t === 'g') NET.gin = readGuest(d) || NET.gin;
-    else if (d.t === 'bye') opponentLeft('Ton pote a quitté la partie.');
-  } else if (NET.role === 'guest') {
-    if (d.t === 's') applySnap(d.s);
-    else if (d.t === 'full') backToLobby('Cette partie est déjà complète.');
-    else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby("L'hôte a fermé la partie."); }
+  if (d.t === 'lobby') {
+    if (!NET.gotSnap) {
+      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h' })) : [];
+      renderNetPlayers(list, num(d.you) | 0);
+    }
+  } else if (d.t === 's') {
+    const me = num(d.me) | 0; if (me >= 1 && me <= 3) NET.me = me;
+    applySnap(d.s);
   }
+  else if (d.t === 'full') backToLobby('Cette partie est déjà complète (4 artificiers au maximum).');
+  else if (d.t === 'started') backToLobby("Cette partie a déjà commencé. Demande à l'hôte d'en créer une nouvelle.");
+  else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby("L'hôte a fermé la partie."); }
 }
 function leaveOnline() {
-  const l = NET.link;
-  if (l && l.open) { try { l.send({ t: 'bye' }); } catch (e) {} }
+  if (NET.role === 'host') { for (const L of NET.links) if (L.conn.open) { try { L.conn.send({ t: 'bye' }); } catch (e) {} } }
+  else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   dropPeer();
-  Object.assign(NET, { role: null, gin: null, code: null, gotSnap: false, guestOn: false, lastSeen: 0 });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0 });
 }
 function opponentLeft(msg) {
   leaveOnline();
@@ -1885,17 +2062,6 @@ function opponentLeft(msg) {
   $('#end-score').textContent = ''; $('#end-note').textContent = ''; $('#again').hidden = true;
   endEl.hidden = false;
   try { $('#tomenu').focus({ preventScroll: true }); } catch (e) {}
-}
-function startOnlineMatch() {
-  if (NET.role !== 'host') return;
-  Sfx.init(); NET.mi++;
-  G.mode = 'match'; G.paused = false;
-  G.players = [makePlayer(0, null), makePlayer(1, null)]; G.players[1].remote = true;
-  G.scores = [0, 0]; G.round = 1; G.winsNeeded = settings.wins;
-  if (NET.gin) { NET.lastBomb = NET.gin.b; NET.lastKick = NET.gin.k ? NET.gin.k[0] : 0; }
-  newRound(); setupHud();
-  menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
-  blurActive();
 }
 const num = v => (typeof v === 'number' && Number.isFinite(v)) ? v : 0;
 function readGuest(pr) {
@@ -1907,14 +2073,16 @@ function readGuest(pr) {
   };
 }
 function applyGuestInput() {
-  const gi = NET.gin, p = G.players[1]; if (!gi || !p) return;
-  if (p.alive && gi.mi === NET.mi && gi.rd === G.round) {
-    p.x = gi.x; p.y = gi.y; p.face = FACES[gi.f] || 'down'; p.moving = !!gi.m;
-    if (gi.b > NET.lastBomb) { NET.lastBomb = gi.b; placeBomb(p); }
-    if (gi.k && gi.k[0] > NET.lastKick) { NET.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4])); }
-  } else {
-    NET.lastBomb = Math.max(NET.lastBomb, gi.b); if (gi.k) NET.lastKick = Math.max(NET.lastKick, gi.k[0]);
-    p.moving = false;
+  for (const L of NET.links) {
+    const gi = L.gin, p = G.players[L.slot]; if (!gi || !p || !p.remote) continue;
+    if (p.alive && gi.mi === NET.mi && gi.rd === G.round) {
+      p.x = gi.x; p.y = gi.y; p.face = FACES[gi.f] || 'down'; p.moving = !!gi.m;
+      if (gi.b > L.lastBomb) { L.lastBomb = gi.b; placeBomb(p); }
+      if (gi.k && gi.k[0] > L.lastKick) { L.lastKick = gi.k[0]; if (p.kick) doKick(gi.k[1], gi.k[2], Math.sign(gi.k[3]), Math.sign(gi.k[4])); }
+    } else {
+      L.lastBomb = Math.max(L.lastBomb, gi.b); if (gi.k) L.lastKick = Math.max(L.lastKick, gi.k[0]);
+      p.moving = false;
+    }
   }
 }
 const b36 = (n, w) => { let s = Math.max(0, n | 0).toString(36); while (s.length < w) s = '0' + s; return s; };
@@ -1931,7 +2099,8 @@ function buildSnap() {
   const p = [];
   for (const o of G.players) p.push(Math.round(o.x * 1000), Math.round(o.y * 1000), Math.max(0, FACES.indexOf(o.face)), o.alive ? 1 : 0, Math.round(Math.min(o.deathT, 2) * 100), o.maxBombs, o.range, o.speedLv, o.kick ? 1 : 0, o.moving ? 1 : 0);
   return {
-    q: ++NET.q, mi: NET.mi, ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
+    q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
+    ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded,
     seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
   };
@@ -1942,9 +2111,18 @@ function applySnap(s) {
 }
 function decodeSnap(s) {
   const first = !NET.gotSnap, newMatch = s.mi !== NET.mi, newRound = newMatch || s.rd !== G.round, prevPhase = G.phase;
+  const n = clamp(num(s.n) | 0 || 2, 2, 4), kinds = String(s.k || '').slice(0, 4);
   NET.lastQ = s.q; NET.mi = s.mi;
+  let hudDirty = first || newMatch || kinds !== NET.kinds;
+  if (first || newMatch || G.players.length !== n || (G.players[NET.me] && G.players[NET.me].remote)) {
+    const list = [];
+    for (let i = 0; i < n; i++) { const p = makePlayer(i, null); p.remote = i !== NET.me; resetPlayer(p); list.push(p); }
+    setPlayers(list); hudDirty = true;
+  }
+  G.players.forEach((p, i) => { p.isBot = kinds[i] === 'b'; });
+  NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
-  G.round = num(s.rd) | 0; G.scores = [num(s.sc && s.sc[0]) | 0, num(s.sc && s.sc[1]) | 0]; G.lastWinner = num(s.lw) | 0;
+  G.round = num(s.rd) | 0; G.scores = G.players.map((_, i) => num(s.sc && s.sc[i]) | 0); G.lastWinner = num(s.lw) | 0;
   if (num(s.seed) !== G.seed) { G.seed = num(s.seed) | 0; groundDirty = true; }
   const g = String(s.g || '');
   for (let k = 0; k < N; k++) {
@@ -1961,14 +2139,15 @@ function decodeSnap(s) {
   const bs = Array.isArray(s.b) ? s.b : [];
   G.bombs = [];
   for (let i = 0; i + 8 <= bs.length; i += 8) {
-    const pass = new Set(); const m = num(bs[i + 7]); if (m & 1) pass.add(0); if (m & 2) pass.add(1);
-    G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[num(bs[i + 6]) ? 1 : 0], range: 2, passers: pass });
+    const pass = new Set(), m = num(bs[i + 7]);
+    for (let j = 0; j < 4; j++) if (m & (1 << j)) pass.add(j);
+    G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[clamp(num(bs[i + 6]) | 0, 0, n - 1)], range: 2, passers: pass });
   }
   const fa = Array.isArray(s.fa) ? s.fa : [];
   G.falling = [];
   for (let i = 0; i + 2 <= fa.length; i += 2) { const k = num(fa[i]) | 0; if (k >= 0 && k < N) G.falling.push({ k, t: Math.max(0.001, num(fa[i + 1]) / 100) }); }
   const ps = Array.isArray(s.p) ? s.p : [];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < n; i++) {
     const o = i * 10, p = G.players[i];
     const x = clamp(num(ps[o]) / 1000, 0, COLS - 1), y = clamp(num(ps[o + 1]) / 1000, 0, ROWS - 1);
     p.alive = !!ps[o + 3]; p.deathT = num(ps[o + 4]) / 100;
@@ -1978,7 +2157,7 @@ function decodeSnap(s) {
       if (first || newRound || G.phase !== 'play' || !p.alive || Math.abs(p.x - x) + Math.abs(p.y - y) > 2.5) { p.x = x; p.y = y; if (G.phase !== 'play') p.face = FACES[ps[o + 2]] || p.face; }
     } else {
       p.x = x; p.y = y; p.face = FACES[ps[o + 2]] || 'down'; p.moving = !!ps[o + 9];
-      if (first || newRound) { p.rx = x; p.ry = y; }
+      if (first || newRound || p.rx === undefined) { p.rx = x; p.ry = y; }
     }
   }
   const ev = Array.isArray(s.e) ? s.e : [];
@@ -1988,7 +2167,8 @@ function decodeSnap(s) {
     if (first || !Object.prototype.hasOwnProperty.call(FX, e[1])) continue;
     try { FX[e[1]](e[1] === 'snd' ? String(e[2]) : num(e[2]), num(e[3]), num(e[4]), num(e[5])); } catch (err) {}
   }
-  if (first || newMatch || num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); setupHud(); }
+  if (num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); hudDirty = true; }
+  if (hudDirty) setupHud();
   rebuildBombAt();
   predictKick();
   if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); }
@@ -2011,14 +2191,13 @@ function updateGuest(dt) {
   if (G.phase === 'intro' || G.phase === 'roundEnd') G.phaseT = Math.max(0, G.phaseT - dt);
   if (G.phase === 'play') G.time = Math.max(0, G.time - dt);
   if (G.suddenFlash > 0) G.suddenFlash -= dt;
-  const me = G.players[1];
-  if (G.phase === 'play' && me.alive) updateHuman(me, dt); else me.moving = false;
+  const me = G.players[NET.me];
+  if (me) { if (G.phase === 'play' && me.alive) updateHuman(me, dt); else me.moving = false; }
   for (const p of G.players) { if (p.alive) { if (p.moving) p.phase += dt * speedOf(p) * 3.3; } else p.deathT += dt; }
   smoothRemote(dt);
 }
 function sendGuest() {
-  const l = NET.link; if (!l || !l.open) return;
-  const me = G.players[1];
+  const l = NET.link, me = G.players[NET.me]; if (!l || !l.open || !me) return;
   try {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
@@ -2027,11 +2206,21 @@ function sendGuest() {
   } catch (e) {}
 }
 function netTick() {
-  const l = NET.link; if (!l || !l.open) return;
   const now = performance.now();
-  if (NET.role === 'host' && NET.guestOn && now - NET.sendT > 50) { NET.sendT = now; try { l.send({ t: 's', s: buildSnap() }); } catch (e) {} }
-  else if (NET.role === 'guest' && now - NET.sendT > 33) { NET.sendT = now; sendGuest(); }
-  if (NET.lastSeen && now - NET.lastSeen > 10000 && (NET.role === 'host' ? NET.guestOn : NET.gotSnap)) opponentLeft('La connexion avec ton pote a été perdue.');
+  if (NET.role === 'host') {
+    if (NET.started) {
+      if (now - NET.sendT > 50) {
+        NET.sendT = now;
+        const s = buildSnap();
+        for (const L of NET.links) if (L.conn.open && L.slot >= 0) { try { L.conn.send({ t: 's', s, me: L.slot }); } catch (e) {} }
+      }
+    } else if (now - NET.sendT > 1500) { NET.sendT = now; refreshHostLobby(); }
+    for (const L of NET.links.slice()) if (now - L.lastSeen > 10000) dropLink(L);
+  } else if (NET.role === 'guest') {
+    const l = NET.link; if (!l || !l.open) return;
+    if (now - NET.sendT > 33) { NET.sendT = now; sendGuest(); }
+    if (NET.lastSeen && now - NET.lastSeen > 10000 && NET.gotSnap) opponentLeft("La connexion avec l'hôte a été perdue.");
+  }
 }
 document.getElementById('net-join').addEventListener('submit', e => { e.preventDefault(); joinGame($('#net-code-in').value); });
 document.getElementById('net-invite').addEventListener('click', () => {
@@ -2039,7 +2228,7 @@ document.getElementById('net-invite').addEventListener('click', () => {
   const done = ok => { btn.textContent = ok ? 'Lien copié !' : url; setTimeout(() => { btn.textContent = "Copier le lien d'invitation"; }, 2500); };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); }
 });
-window.addEventListener('pagehide', () => { if (NET.role) leaveOnline(); });
+
 
 /* ---------- Taille ---------- */
 function resize() {
