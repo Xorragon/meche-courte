@@ -445,7 +445,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
-      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Le classement montre les 10 joueurs qui ont le plus de bonus. Chaque vrai joueur qui arrive prend la place d'un ordi.</p>
+      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Le classement montre les 10 joueurs qui ont le plus de bonus. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -476,6 +476,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="row" style="margin-top:12px">
       <button class="ghost tiny" type="button" id="btn-keys2">Changer les touches</button>
       <button class="ghost tiny rumble-btn" type="button" id="btn-rumble2" aria-pressed="true">Vibrations de la manette : activées</button>
+      <button class="ghost tiny" type="button" id="btn-cam" hidden>Caméra : Réactive</button>
     </div>
   </div>
 </div>
@@ -717,7 +718,7 @@ function setMapSize(c, r) {
   G.bombAt = new Array(N).fill(null); G.grow = new Float32Array(N);
   groundDirty = true;
 }
-let touchDir = null;
+let touchDir = null, touchVec = null;
 const FACES = ['down', 'up', 'left', 'right'];
 const PH = ['intro', 'play', 'roundEnd', 'matchEnd'];
 const NET = {
@@ -1539,7 +1540,109 @@ function updateAI(p, dt) {
 /* =========================================================
    Joueur humain
    ========================================================= */
+// Battle royale : déplacement libre (pas de couloirs), collisions seulement contre les obstacles.
+// Boîte de collision carrée de 2*FREE_H case ; aide aux virages si on frôle un coin.
+const FREE_H = 0.38, FREE_NUDGE = 0.72;
+function freeAxis(p, ax, d) {
+  const out = { moved: 0, blocked: false, bomb: null };
+  if (!d) return out;
+  const o = ax === 'x' ? 'y' : 'x', R = 0.5 + FREE_H - 1e-6, dir = Math.sign(d);
+  const cur = p[ax], perp = p[o];
+  let nv = cur + d;
+  const test = (ca, cp, bomb) => {
+    if (Math.abs(perp - cp) >= R - 1e-3) return; // collé contre un mur sur l'autre axe : ne compte pas
+    const gap = (ca - cur) * dir;
+    if (gap <= 1e-6) return; // obstacle derrière nous (ou qu'on quitte) : ne retient pas
+    const lim = gap < R ? cur : ca - dir * R; // déjà chevauché : on ne s'enfonce pas plus
+    if ((nv - lim) * dir > 0) { nv = lim; out.blocked = true; out.bomb = bomb; }
+  };
+  const a0 = Math.round(Math.min(cur, nv)) - 1, a1 = Math.round(Math.max(cur, nv)) + 1, pr = Math.round(perp);
+  for (let a = a0; a <= a1; a++) for (let q = pr - 1; q <= pr + 1; q++) {
+    if (ax === 'x' ? solidAt(a, q) : solidAt(q, a)) test(a, q, null);
+  }
+  for (const b of G.bombs) {
+    if (b.passers.has(p.id)) continue;
+    const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog;
+    test(ax === 'x' ? bx : by, ax === 'x' ? by : bx, b);
+  }
+  out.moved = Math.abs(nv - cur); p[ax] = nv;
+  return out;
+}
+// bloqué sur un axe : glisser vers le couloir libre le plus proche
+function freeNudge(p, ax, dir, amt) {
+  const o = ax === 'x' ? 'y' : 'x', lane = Math.round(p[o]), off = p[o] - lane;
+  const ahead = Math.round(p[ax]) + dir;
+  const free = l => !(ax === 'x' ? blockedFor(p, ahead, l) : blockedFor(p, l, ahead));
+  let target = null;
+  if (free(lane)) { if (Math.abs(off) > 1e-4) target = lane; }
+  else if (Math.abs(off) > 1e-4) { const l2 = lane + Math.sign(off); if (1 - Math.abs(off) <= FREE_NUDGE && free(l2)) target = l2; }
+  if (target === null) return 0;
+  const step = Math.min(amt, Math.abs(target - p[o]));
+  return freeAxis(p, o, Math.sign(target - p[o]) * step).moved;
+}
+function freeKick(p, b, dx, dy) {
+  if (!p.kick || !b || b.mdx || b.mdy) return;
+  if (Math.abs(dx ? p.y - b.y : p.x - b.x) >= 0.5) return; // il faut être à peu près en face
+  requestKick(b.x, b.y, dx, dy, p);
+}
+// relancer sa propre bombe (on est encore dessus) en fonçant dedans après avoir reculé
+function freeKickOwn(p, vx, vy) {
+  if (!p.kick) return;
+  const hx = Math.abs(vx) >= Math.abs(vy), dx = hx ? Math.sign(vx) : 0, dy = hx ? 0 : Math.sign(vy);
+  if (!dx && !dy) return;
+  for (const b of G.bombs) {
+    if (b.mdx || b.mdy || !b.passers.has(p.id)) continue;
+    const gap = dx ? (b.x - p.x) * dx : (b.y - p.y) * dy, side = dx ? Math.abs(p.y - b.y) : Math.abs(p.x - b.x);
+    if (gap >= 0.45 && gap < 0.98 && side < 0.5) { requestKick(b.x, b.y, dx, dy, p); return; }
+  }
+}
+function inputVec(p) {
+  let vx = 0, vy = 0, last = null;
+  for (const c of p.dirStack) {
+    const an = c === 'T' ? touchVec : c.startsWith('pad') ? padVec[c] : null;
+    if (an) { vx = an[0]; vy = an[1]; }
+    const d = c === 'T' ? touchDir : c.startsWith('pad') ? padDir[c] : keyDir(c);
+    if (!d) continue;
+    last = d;
+    if (an) continue;
+    const [ax, dir] = DIRV[d];
+    if (ax === 'x') vx = dir; else vy = dir;
+  }
+  return [vx, vy, last];
+}
+function updateHumanFree(p, dt) {
+  let [vx, vy, last] = inputVec(p);
+  const len = Math.hypot(vx, vy);
+  p.moving = false;
+  if (last) p.face = last;
+  if (len < 1e-3) return;
+  vx /= len; vy /= len;
+  // orientation : axe dominant ; à égalité, la dernière direction pressée
+  if (Math.abs(Math.abs(vx) - Math.abs(vy)) > 0.15) p.face = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
+  const dist = speedOf(p) * dt, n = Math.max(1, Math.ceil(dist / 0.2));
+  let moved = 0;
+  freeKickOwn(p, vx, vy);
+  for (let i = 0; i < n; i++) {
+    const sx = vx * dist / n, sy = vy * dist / n;
+    const rx = freeAxis(p, 'x', sx), ry = freeAxis(p, 'y', sy);
+    moved += rx.moved + ry.moved;
+    // en diagonale contre un mur : on glisse le long à pleine vitesse
+    const full = dist / n;
+    if (sx && sy && ry.moved < 1e-6 && rx.moved > 1e-6) moved += freeAxis(p, 'x', Math.sign(vx) * (full - Math.abs(sx))).moved;
+    else if (sx && sy && rx.moved < 1e-6 && ry.moved > 1e-6) moved += freeAxis(p, 'y', Math.sign(vy) * (full - Math.abs(sy))).moved;
+    if (rx.blocked) {
+      if (Math.abs(vx) >= Math.abs(vy)) freeKick(p, rx.bomb, Math.sign(vx), 0);
+      if (Math.abs(vy) < 0.4) moved += freeNudge(p, 'x', Math.sign(vx), Math.abs(sx) - rx.moved);
+    }
+    if (ry.blocked) {
+      if (Math.abs(vy) > Math.abs(vx)) freeKick(p, ry.bomb, 0, Math.sign(vy));
+      if (Math.abs(vx) < 0.4) moved += freeNudge(p, 'y', Math.sign(vy), Math.abs(sy) - ry.moved);
+    }
+  }
+  p.moving = moved > 1e-5;
+}
 function updateHuman(p, dt) {
+  if (G.mode === 'br') { updateHumanFree(p, dt); updateHumanActions(p); return; }
   const dist = speedOf(p) * dt, st = p.dirStack;
   p.moving = false;
   for (let i = st.length - 1; i >= 0; i--) {
@@ -1549,6 +1652,9 @@ function updateHuman(p, dt) {
     const [ax, dir] = DIRV[d];
     if (tryMove(p, ax, dir, dist) > 1e-5) { p.moving = true; p.face = d; break; }
   }
+  updateHumanActions(p);
+}
+function updateHumanActions(p) {
   if (p.bombQueued) { p.bombQueued = false; if (NET.role === 'guest') NET.bombSeq++; else placeBomb(p); }
   if (p.stopQueued) { p.stopQueued = false; if (NET.role === 'guest') NET.stopSeq++; else stopKicked(p); }
 }
@@ -1769,7 +1875,21 @@ function brWorld() {
 }
 // Caméra douce : une zone morte au centre (le perso bouge un peu sans que l'écran bouge),
 // puis un amorti « ressort critique » (vitesse continue : pas d'à-coups d'accélération).
-const CAM_DEAD_X = 1.6 * T, CAM_DEAD_Y = 1.1 * T, CAM_SMOOTH = 0.32;
+// Préréglages de caméra (battle royale) : zone morte, temps de lissage, anticipation
+const CAMS = {
+  reactive: { name: 'Réactive', dx: 0.6, dy: 0.4, st: 0.15, lead: 0 },
+  centree: { name: 'Centrée', dx: 0, dy: 0, st: 0.07, lead: 0 },
+  anticipee: { name: 'Anticipée', dx: 0, dy: 0, st: 0.2, lead: 2.2 },
+  douce: { name: 'Douce', dx: 1.2, dy: 0.8, st: 0.24, lead: 0 },
+};
+const CAM_ORDER = ['reactive', 'centree', 'anticipee', 'douce'];
+if (!CAMS[settings.cam]) settings.cam = 'reactive';
+function cycleCam() {
+  settings.cam = CAM_ORDER[(CAM_ORDER.indexOf(settings.cam) + 1) % CAM_ORDER.length]; saveSettings();
+  G.camL = null; syncCamBtn();
+  if (G.mode === 'br') brToast('Caméra : ' + CAMS[settings.cam].name + ' (touche C pour changer)');
+}
+function syncCamBtn() { const b = document.getElementById('btn-cam'); if (b) { b.textContent = 'Caméra : ' + CAMS[settings.cam].name; b.hidden = G.mode !== 'br'; } }
 function smoothDamp(cur, target, v, key, st, dt) {
   const om = 2 / st, x = om * dt, ex = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
   const change = cur - target, temp = (v[key] + om * change) * dt;
@@ -1781,20 +1901,29 @@ function smoothDamp(cur, target, v, key, st, dt) {
 function updateCamera(dt) {
   if (!BIG_MAP()) { G.cam.x = 0; G.cam.y = 0; return; }
   const me = G.players[localIdx()]; if (!me) return;
-  const px = (me.x + 0.5) * T, py = (me.y + 0.5) * T;
+  const cfg = CAMS[settings.cam] || CAMS.reactive, DX = cfg.dx * T, DY = cfg.dy * T;
+  let px = (me.x + 0.5) * T, py = (me.y + 0.5) * T;
+  // anticipation : la caméra regarde un peu devant, dans le sens du déplacement (vitesse lissée)
+  const P = G.camP || (G.camP = { x: me.x, y: me.y }), L = G.camL || (G.camL = { x: 0, y: 0 });
+  const vx = dt > 0 ? (me.x - P.x) / dt : 0, vy = dt > 0 ? (me.y - P.y) / dt : 0; P.x = me.x; P.y = me.y;
+  if (cfg.lead && !G.camSnap && Math.hypot(vx, vy) < 20) {
+    const sp = Math.hypot(vx, vy), k = 1 - Math.exp(-dt / 0.45);
+    const lx = sp > 0.5 ? vx / sp * cfg.lead * T : 0, ly = sp > 0.5 ? vy / sp * cfg.lead * T * 0.75 : 0;
+    L.x += (lx - L.x) * k; L.y += (ly - L.y) * k;
+  } else if (!cfg.lead || G.camSnap) { L.x = 0; L.y = 0; }
+  px += L.x; py += L.y;
   const F = G.camF || (G.camF = { x: px, y: py }), V = G.camV || (G.camV = { x: 0, y: 0 });
   if (G.camSnap) { F.x = px; F.y = py; }
-  // zone morte : le point visé ne bouge que si le perso en sort
-  if (px - F.x > CAM_DEAD_X) F.x = px - CAM_DEAD_X; else if (F.x - px > CAM_DEAD_X) F.x = px + CAM_DEAD_X;
-  if (py - F.y > CAM_DEAD_Y) F.y = py - CAM_DEAD_Y; else if (F.y - py > CAM_DEAD_Y) F.y = py + CAM_DEAD_Y;
+  if (px - F.x > DX) F.x = px - DX; else if (F.x - px > DX) F.x = px + DX;
+  if (py - F.y > DY) F.y = py - DY; else if (F.y - py > DY) F.y = py + DY;
   const tx = clamp(F.x - W / 2, 0, COLS * T - W), ty = clamp(F.y - H / 2, 0, ROWS * T - H);
   if (G.camSnap || Math.abs(tx - G.cam.x) > W * 1.5 || Math.abs(ty - G.cam.y) > H * 1.5) {
     G.cam.x = tx; G.cam.y = ty; V.x = 0; V.y = 0; G.camSnap = false; return;
   }
-  G.cam.x = smoothDamp(G.cam.x, tx, V, 'x', CAM_SMOOTH, dt);
-  G.cam.y = smoothDamp(G.cam.y, ty, V, 'y', CAM_SMOOTH, dt);
-  // le perso ne doit jamais sortir de l'écran, même s'il va très vite
+  G.cam.x = smoothDamp(G.cam.x, tx, V, 'x', cfg.st, dt);
+  G.cam.y = smoothDamp(G.cam.y, ty, V, 'y', cfg.st, dt);
   const mx = 2 * T, my = 2 * T;
+  px = (me.x + 0.5) * T; py = (me.y + 0.5) * T;
   G.cam.x = clamp(G.cam.x, clamp(px + mx - W, 0, COLS * T - W), clamp(px - mx, 0, COLS * T - W));
   G.cam.y = clamp(G.cam.y, clamp(py + my - H, 0, ROWS * T - H), clamp(py - my, 0, ROWS * T - H));
 }
@@ -2685,11 +2814,13 @@ function closeHelp() { helpEl.hidden = true; menuEl.hidden = false; try { $('#bt
 function pause() {
   if (!inGame() || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
   if (NET.role) {
+    syncCamBtn();
     $('#pause-kicker').textContent = 'Partie en ligne'; $('#pause-title').textContent = 'La partie continue';
     pauseEl.hidden = false; G.players[localIdx()].dirStack.length = 0;
     try { $('#resume').focus({ preventScroll: true }); } catch (e) {}
     return;
   }
+  syncCamBtn();
   $('#pause-kicker').textContent = 'Partie suspendue'; $('#pause-title').textContent = 'Pause';
   G.paused = true; pauseEl.hidden = false;
   for (const p of G.players) p.dirStack.length = 0;
@@ -2937,6 +3068,7 @@ window.addEventListener('keydown', e => {
   if (!kb) {
     if (code === 'KeyP') pause();
     else if (code === 'KeyM') toggleMute();
+    else if (code === 'KeyC' && G.mode === 'br' && inGame() && !e.repeat) cycleCam();
     return;
   }
   e.preventDefault();
@@ -2962,7 +3094,9 @@ function padSet(d) {
 }
 function padMove(e) {
   const r = pad.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-  padSet(Math.hypot(dx, dy) < 12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  const m = Math.hypot(dx, dy);
+  touchVec = m < 12 ? null : [dx / m, dy / m];
+  padSet(m < 12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
 }
 pad.addEventListener('pointerdown', e => { e.preventDefault(); try { pad.setPointerCapture(e.pointerId); } catch (_) {} padMove(e); });
 pad.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') padMove(e); });
@@ -3577,7 +3711,7 @@ document.getElementById('net-invite').addEventListener('click', () => {
 
 
 /* ---------- Manettes (API Gamepad, disposition standard) ---------- */
-const padDir = {}, padSt = {};
+const padDir = {}, padSt = {}, padVec = {};
 const PAD_DEAD = 0.45;
 function rumble(strong, weak, ms, force) {
   if (!settings.rumble || (!inGame() && !force) || !navigator.getGamepads) return;
@@ -3597,7 +3731,7 @@ function padOwner(i, order) {
 }
 function releasePad(code, st) {
   for (const p of G.players) removeFrom(p.dirStack, code);
-  st.dir = null; padDir[code] = null;
+  st.dir = null; padDir[code] = null; padVec[code] = null;
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
@@ -3646,7 +3780,12 @@ function pollPads() {
     const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [], nav: null, navT: 0 });
     const btn = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
     const hit = k => btn(k) && !st.prev[k];
-    let dir = null;
+    let dir = null, vec = null;
+    { // vecteur libre (battle royale) : croix en diagonale ou stick analogique
+      const bx = (btn(pb.right) ? 1 : 0) - (btn(pb.left) ? 1 : 0), by = (btn(pb.down) ? 1 : 0) - (btn(pb.up) ? 1 : 0);
+      const sx = gp.axes[0] || 0, sy = gp.axes[1] || 0;
+      if (bx || by) vec = [bx, by]; else if (Math.hypot(sx, sy) > PAD_DEAD) vec = [sx, sy];
+    }
     if (btn(pb.up)) dir = 'up'; else if (btn(pb.down)) dir = 'down'; else if (btn(pb.left)) dir = 'left'; else if (btn(pb.right)) dir = 'right';
     else {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
@@ -3680,6 +3819,8 @@ function pollPads() {
         if (owner !== st.owner || p !== st.pl) { releasePad(code, st); st.owner = owner; st.pl = p; }
         if (p && !p.ai && !p.remote) {
           if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
+          padVec[code] = dir ? vec : null;
+          if (G.mode === 'br' && hit(8) && !Object.values(pb).includes(8)) cycleCam();
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
         }
@@ -3695,6 +3836,7 @@ function padStatus() {
   el.textContent = names.length ? `Manette${names.length > 1 ? 's' : ''} détectée${names.length > 1 ? 's' : ''} : ${names.join(', ')}.` : "Branche une manette et appuie sur un bouton pour qu'elle soit détectée.";
 }
 window.addEventListener('gamepadconnected', () => { Sfx.init(); padStatus(); renderKeyHelp(); });
+document.getElementById('btn-cam').addEventListener('click', cycleCam);
 function syncRumble() {
   document.querySelectorAll('.rumble-btn').forEach(b => {
     b.textContent = `Vibrations de la manette : ${settings.rumble ? 'activées' : 'désactivées'}`;
@@ -3841,7 +3983,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { G, settings, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
