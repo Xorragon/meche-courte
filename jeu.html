@@ -125,13 +125,17 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ghost{display:inline-flex;align-items:center;gap:10px;font:800 18px/1 var(--font-body);color:var(--parchment);background:transparent;border:2px solid rgba(243,229,192,.35);border-radius:14px;padding:14px 20px;cursor:pointer}
 .ghost:hover{border-color:var(--parchment)}
 .keysbox{max-width:620px}
-.keytable{border-collapse:collapse;margin:14px auto 6px;width:min(100%,520px)}
+.keytable{border-collapse:collapse;margin:14px auto 6px;width:min(100%,640px)}
 .keytable th,.keytable td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(243,229,192,.12)}
 .keytable th{font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.keytable th.c1{color:var(--p1)} .keytable th.c2{color:var(--p2)}
+.keytable th.c1{color:var(--p1)} .keytable th.c2{color:var(--p2)} .keytable th.c3{color:var(--gold)}
+.keytable .fixed{color:var(--muted);font-weight:700;font-size:14px;padding-left:12px}
+.keysbox{max-width:760px}
+body.pad-nav :focus{outline:3px solid var(--gold);outline-offset:3px}
 .keytable td:first-child{font-weight:700}
 .keybtn{min-width:110px;font:800 15px/1 var(--font-body);color:var(--parchment);background:rgba(0,0,0,.22);border:2px solid rgba(243,229,192,.28);border-bottom-width:4px;border-radius:9px;padding:8px 10px;cursor:pointer}
 .keybtn:hover{border-color:rgba(243,229,192,.6)}
+@media (max-width:600px){.keytable th,.keytable td{padding:5px 3px}.keytable th{font-size:10px;letter-spacing:.06em}.keytable td:first-child{font-size:13px}.keybtn{min-width:0;width:100%;font-size:12px;padding:7px 4px}.keytable .fixed{font-size:12px;padding-left:4px}}
 .keybtn.wait{border-color:var(--gold);color:var(--gold);animation:throb .5s ease-in-out infinite alternate}
 .ghost.tiny{font-size:15px;padding:9px 14px;border-radius:10px}
 .rumble-btn[aria-pressed="false"]{opacity:.7;border-style:dashed}
@@ -305,8 +309,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <div class="ctrl">
         <p id="keys-help-0"></p>
         <p id="keys-help-1"></p>
-        <p><span class="who c3">Manette</span> croix ou stick gauche pour bouger, <kbd>A</kbd> pour poser une bombe, <kbd>B</kbd> pour arrêter la bombe poussée, <kbd>Start</kbd> pour la pause</p>
-        <p class="small">Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
+        <p id="pad-help"></p>
+        <p class="small">La manette navigue aussi dans les menus (croix ou stick, <kbd>A</kbd> pour valider, <kbd>B</kbd> pour revenir). Seul ou en ligne, clavier et manette pilotent ton perso. À deux sur un clavier : avec une manette, elle joue Braise ; avec deux, la 1re joue Mèche et la 2e Braise. <kbd>Échap</kbd> met en pause, <kbd>M</kbd> coupe le son.</p>
         <p class="small" id="pad-status" role="status">Branche une manette et appuie sur un bouton pour qu'elle soit détectée.</p>
         <p class="row" style="justify-content:flex-start"><button class="ghost tiny" type="button" id="btn-keys">Changer les touches</button><button class="ghost tiny rumble-btn" type="button" id="btn-rumble" aria-pressed="true">Vibrations de la manette : activées</button></p>
       </div>
@@ -335,14 +339,14 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <div class="box keysbox">
     <p class="kicker">Réglages</p>
     <h2>Tes touches</h2>
-    <p class="rule" id="keys-status" role="status">Clique sur une touche du tableau, puis appuie sur la nouvelle touche. Échap pour annuler.</p>
+    <p class="rule" id="keys-status" role="status"></p>
     <table class="keytable">
-      <thead><tr><th scope="col">Action</th><th scope="col" class="c1">Mèche</th><th scope="col" class="c2">Braise</th></tr></thead>
+      <thead><tr><th scope="col">Action</th><th scope="col" class="c1">Mèche</th><th scope="col" class="c2">Braise</th><th scope="col" class="c3">Manette</th></tr></thead>
       <tbody id="keys-body"></tbody>
     </table>
-    <p class="rule small">Seul ou en ligne, les deux colonnes pilotent ton perso. À deux sur un clavier, la colonne Mèche est au 1er joueur, la colonne Braise au 2e. Échap reste la touche de pause.</p>
+    <p class="rule small">Seul ou en ligne, les colonnes Mèche et Braise pilotent toutes les deux ton perso. À deux sur un clavier, la colonne Mèche est au 1er joueur, la colonne Braise au 2e. La colonne Manette vaut pour toutes les manettes ; le stick gauche fait toujours bouger. Échap reste la touche de pause au clavier.</p>
     <div class="row" style="margin-top:14px">
-      <button class="ghost tiny" type="button" id="keys-reset">Rétablir les touches par défaut</button>
+      <button class="ghost tiny" type="button" id="keys-reset">Tout rétablir par défaut</button>
       <button class="cta" type="button" id="keys-close">Terminé</button>
     </div>
   </div>
@@ -439,7 +443,7 @@ const idx = (x, y) => y * COLS + x;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true, keys: null, keyLabels: {} };
+const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true, keys: null, keyLabels: {}, pad: null };
 try { const s = JSON.parse(localStorage.getItem('meche-courte') || 'null'); if (s) Object.assign(settings, s); } catch (e) {}
 function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} }
 
@@ -464,6 +468,17 @@ function rebuildKeyMap() {
   if (!keyMap.Numpad0 && settings.keys[1].stop === 'ShiftRight') keyMap.Numpad0 = { set: 1, act: 'stop' };
 }
 rebuildKeyMap();
+// boutons de manette (disposition standard) : un seul jeu, partagé par toutes les manettes
+const PAD_ACTIONS = [...ACTIONS, ['pause', 'Pause']];
+const DEFAULT_PAD = { up: 12, down: 13, left: 14, right: 15, bomb: 0, stop: 1, pause: 9 };
+if (!settings.pad || typeof settings.pad !== 'object' || !PAD_ACTIONS.every(([a]) => Number.isInteger(settings.pad[a]) && settings.pad[a] >= 0 && settings.pad[a] < 32)) settings.pad = { ...DEFAULT_PAD };
+const PAD_NAMES_X = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Select', 'Start', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'Home'];
+const PAD_NAMES_PS = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Share', 'Options', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'PS'];
+function padStyle() {
+  try { for (const g of navigator.getGamepads ? navigator.getGamepads() : []) if (g && g.connected) return /054c|playstation|dualsense|dualshock/i.test(g.id) ? 'ps' : 'x'; } catch (e) {}
+  return 'x';
+}
+const padLabel = i => ((padStyle() === 'ps' ? PAD_NAMES_PS : PAD_NAMES_X)[i]) || `Bouton ${i}`;
 const keyDir = code => { const k = keyMap[code]; return k && DIRS.has(k.act) ? k.act : null; };
 let kbLayout = null;
 try { if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(m => { kbLayout = m; renderKeyHelp(); }).catch(() => {}); } catch (e) {}
@@ -1951,7 +1966,7 @@ muteBtn.addEventListener('click', toggleMute);
 function removeFrom(a, v) { const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); }
 window.addEventListener('keydown', e => {
   const code = e.code;
-  if (capture) { e.preventDefault(); e.stopPropagation(); finishCapture(e); return; }
+  if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') toMenu(); return; }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(menuEl.hidden === false && code === 'Space')) e.preventDefault();
@@ -2427,39 +2442,86 @@ function releasePad(code, st) {
   for (const p of G.players) removeFrom(p.dirStack, code);
   st.dir = null; padDir[code] = null;
 }
+// Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
+function activeRoot() {
+  for (const el of [keysEl, onlineEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  return null;
+}
+function focusables(root) {
+  return [...root.querySelectorAll('button, input, a[href]')].filter(el => !el.disabled && el.getClientRects().length && !el.closest('[hidden]'));
+}
+function navMove(root, dir) {
+  const els = focusables(root); if (!els.length) return;
+  const cur = document.activeElement;
+  if (!els.includes(cur)) { els[0].focus({ preventScroll: true }); els[0].scrollIntoView({ block: 'nearest' }); return; }
+  const r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  let best = null, bs = Infinity;
+  for (const el of els) {
+    if (el === cur) continue;
+    const q = el.getBoundingClientRect(), dx = q.left + q.width / 2 - cx, dy = q.top + q.height / 2 - cy;
+    const qx = cx + dx, qy = cy + dy;
+    // la cible doit être franchement de ce côté (son centre au-delà du bord de l'élément courant)
+    if (dir === 'left' ? qx >= r.left + 2 : dir === 'right' ? qx <= r.right - 2 : dir === 'up' ? qy >= r.top + 2 : qy <= r.bottom - 2) continue;
+    const main = Math.abs(dir === 'left' || dir === 'right' ? dx : dy);
+    const cross = dir === 'left' || dir === 'right' ? Math.abs(dy) : Math.abs(dx);
+    const sc = main + cross * 2.5;
+    if (sc < bs) { bs = sc; best = el; }
+  }
+  if (best) { best.focus({ preventScroll: true }); best.scrollIntoView({ block: 'nearest' }); }
+}
+function navBack(root) {
+  if (root === keysEl) closeKeys();
+  else if (root === onlineEl || root === endEl) toMenu();
+  else if (root === pauseEl) resume();
+}
+window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
   if (!navigator.getGamepads) return;
   let list; try { list = navigator.getGamepads(); } catch (e) { return; }
-  const order = [];
+  const order = [], now = performance.now(), pb = settings.pad;
   for (const gp of list) if (gp && gp.connected) order.push(gp.index);
   for (const gp of list) {
     if (!gp || !gp.connected) continue;
     const code = 'pad' + gp.index;
-    const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [] });
+    const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [], nav: null, navT: 0 });
     const btn = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
     const hit = k => btn(k) && !st.prev[k];
     let dir = null;
-    if (btn(12)) dir = 'up'; else if (btn(13)) dir = 'down'; else if (btn(14)) dir = 'left'; else if (btn(15)) dir = 'right';
+    if (btn(pb.up)) dir = 'up'; else if (btn(pb.down)) dir = 'down'; else if (btn(pb.left)) dir = 'left'; else if (btn(pb.right)) dir = 'right';
     else {
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (Math.max(Math.abs(ax), Math.abs(ay)) > PAD_DEAD) dir = Math.abs(ax) > Math.abs(ay) ? (ax > 0 ? 'right' : 'left') : (ay > 0 ? 'down' : 'up');
     }
-    const confirm = hit(0) || hit(9), back = hit(1);
-    // menus et fenêtres
-    if (!keysEl.hidden) { releasePad(code, st); if (back) closeKeys(); }
-    else if (!onlineEl.hidden) { releasePad(code, st); if (back) toMenu(); }
-    else if (!menuEl.hidden) { releasePad(code, st); if (confirm) onPlay(); }
-    else if (!endEl.hidden) { releasePad(code, st); if (confirm && !$('#again').hidden) onAgain(); else if (back) toMenu(); }
-    else if (!pauseEl.hidden) { releasePad(code, st); if (confirm || back) resume(); }
-    else if (G.mode === 'match') {
-      if (hit(9)) { pause(); releasePad(code, st); }
+    const root = activeRoot();
+    if (capture) {
+      // réglage en cours : le prochain bouton pressé devient le bouton de l'action (colonne Manette)
+      releasePad(code, st);
+      if (capture.set === 2) {
+        if (now - capture.t > 150) for (let k = 0; k < gp.buttons.length; k++) if (hit(k)) { assignPad(k); break; }
+      } else if (hit(1)) { capture = null; $('#keys-status').textContent = 'Changement annulé.'; renderKeyHelp(); }
+    } else if (root) {
+      releasePad(code, st);
+      // croix ou stick : déplacer la sélection (avec répétition si on maintient)
+      if (dir) {
+        if (dir !== st.nav) { st.nav = dir; st.navT = now + 380; document.body.classList.add('pad-nav'); navMove(root, dir); }
+        else if (now >= st.navT) { st.navT = now + 140; navMove(root, dir); }
+      } else st.nav = null;
+      if (hit(0)) {
+        document.body.classList.add('pad-nav');
+        const el = document.activeElement;
+        if (el && root.contains(el) && el !== document.body) el.click();
+        else navMove(root, 'down');
+      } else if (hit(1)) navBack(root);
+      else if (hit(pb.pause)) { if (root === menuEl) onPlay(); else if (root === pauseEl) resume(); }
+    } else if (G.mode === 'match') {
+      if (hit(pb.pause)) { pause(); releasePad(code, st); document.body.classList.add('pad-nav'); }
       else {
         const owner = padOwner(gp.index, order), p = G.players[owner];
         if (owner !== st.owner || p !== st.pl) { releasePad(code, st); st.owner = owner; st.pl = p; }
         if (p && !p.ai && !p.remote) {
           if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
-          if ((hit(0) || hit(2)) && G.phase === 'play' && !G.paused) p.bombQueued = true;
-          if (hit(1) && G.phase === 'play' && !G.paused) p.stopQueued = true;
+          if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
+          if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
         }
       }
     }
@@ -2472,7 +2534,7 @@ function padStatus() {
   try { names = [...navigator.getGamepads()].filter(g => g && g.connected).map(g => g.id.replace(/\s*\(.*$/, '').trim() || 'Manette'); } catch (e) {}
   el.textContent = names.length ? `Manette${names.length > 1 ? 's' : ''} détectée${names.length > 1 ? 's' : ''} : ${names.join(', ')}.` : "Branche une manette et appuie sur un bouton pour qu'elle soit détectée.";
 }
-window.addEventListener('gamepadconnected', () => { Sfx.init(); padStatus(); });
+window.addEventListener('gamepadconnected', () => { Sfx.init(); padStatus(); renderKeyHelp(); });
 function syncRumble() {
   document.querySelectorAll('.rumble-btn').forEach(b => {
     b.textContent = `Vibrations de la manette : ${settings.rumble ? 'activées' : 'désactivées'}`;
@@ -2490,33 +2552,55 @@ document.querySelectorAll('.rumble-btn').forEach(b => b.addEventListener('click'
 const keysEl = $('#keys');
 let capture = null, keysFrom = null;
 const kbd = code => `<kbd>${keyLabel(code).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))}</kbd>`;
+const KEYS_HINT = "Choisis une case du tableau (souris, clavier ou manette), puis appuie sur la nouvelle touche ou le nouveau bouton. Échap pour annuler.";
 function renderKeyHelp() {
   const names = [['c1', 'Mèche'], ['c2', 'Braise']];
   settings.keys.forEach((k, i) => {
     const el = document.getElementById('keys-help-' + i); if (!el) return;
     el.innerHTML = `<span class="who ${names[i][0]}">${names[i][1]}</span> ${kbd(k.up)} ${kbd(k.left)} ${kbd(k.down)} ${kbd(k.right)} pour bouger, ${kbd(k.bomb)} pour poser une bombe, ${kbd(k.stop)} pour arrêter la bombe poussée`;
   });
+  const pb = settings.pad, ph = document.getElementById('pad-help');
+  if (ph) ph.innerHTML = `<span class="who c3">Manette</span> ${pb.up === 12 && pb.down === 13 && pb.left === 14 && pb.right === 15 ? 'croix' : [pb.up, pb.left, pb.down, pb.right].map(i => `<kbd>${esc(padLabel(i))}</kbd>`).join(' ')} ou stick gauche pour bouger, <kbd>${esc(padLabel(pb.bomb))}</kbd> pour poser une bombe, <kbd>${esc(padLabel(pb.stop))}</kbd> pour arrêter la bombe poussée, <kbd>${esc(padLabel(pb.pause))}</kbd> pour la pause`;
   const body = $('#keys-body'); if (!body) return;
+  const focusedId = document.activeElement && document.activeElement.id;
   body.innerHTML = '';
-  for (const [a, label] of ACTIONS) {
+  for (const [a, label] of PAD_ACTIONS) {
     const tr = document.createElement('tr'), th = document.createElement('td'); th.textContent = label; tr.appendChild(th);
-    for (let si = 0; si < 2; si++) {
-      const td = document.createElement('td'), b = document.createElement('button');
+    for (let si = 0; si < 3; si++) {
+      const td = document.createElement('td');
+      if (si < 2 && a === 'pause') { td.className = 'fixed'; td.textContent = si === 0 ? 'Échap' : ''; tr.appendChild(td); continue; }
+      const b = document.createElement('button'), who = si === 2 ? 'Manette' : si ? 'Braise' : 'Mèche';
+      const cur = si === 2 ? padLabel(settings.pad[a]) : keyLabel(settings.keys[si][a]);
       b.type = 'button'; b.className = 'keybtn'; b.id = `kb-${si}-${a}`;
       const waiting = capture && capture.set === si && capture.act === a;
-      b.textContent = waiting ? 'Appuie…' : keyLabel(settings.keys[si][a]);
+      b.textContent = waiting ? (si === 2 ? 'Appuie sur un bouton…' : 'Appuie…') : cur;
       if (waiting) b.classList.add('wait');
-      b.setAttribute('aria-label', `${label}, ${si ? 'Braise' : 'Mèche'} : ${keyLabel(settings.keys[si][a])}. Changer`);
-      b.addEventListener('click', () => { capture = { set: si, act: a }; $('#keys-status').textContent = `Appuie sur la touche pour « ${label} » (${si ? 'Braise' : 'Mèche'}). Échap pour annuler.`; renderKeyHelp(); });
+      b.setAttribute('aria-label', `${label}, ${who} : ${cur}. Changer`);
+      b.addEventListener('click', () => {
+        capture = { set: si, act: a, t: performance.now() };
+        $('#keys-status').textContent = si === 2 ? `Appuie sur le bouton de manette pour « ${label} ». Échap pour annuler.` : `Appuie sur la touche pour « ${label} » (${who}). Échap pour annuler.`;
+        renderKeyHelp();
+      });
       td.appendChild(b); tr.appendChild(td);
     }
     body.appendChild(tr);
   }
+  if (focusedId) { const f = document.getElementById(focusedId); if (f && f !== document.activeElement) try { f.focus({ preventScroll: true }); } catch (e) {} }
+}
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function assignPad(btnIdx) {
+  const c = capture; capture = null;
+  const old = settings.pad[c.act]; let swapped = null;
+  for (const [a, l] of PAD_ACTIONS) if (a !== c.act && settings.pad[a] === btnIdx) { settings.pad[a] = old; swapped = l; }
+  settings.pad[c.act] = btnIdx; saveSettings();
+  $('#keys-status').textContent = `C'est noté : ${padLabel(btnIdx)}.` + (swapped ? ` Ce bouton servait déjà pour « ${swapped} », qui prend ton ancien bouton (${padLabel(old)}).` : '');
+  renderKeyHelp();
+  try { document.getElementById(`kb-2-${c.act}`).focus({ preventScroll: true }); } catch (e) {}
 }
 function finishCapture(e) {
   const c = capture; capture = null;
   const st = $('#keys-status');
-  if (e.code === 'Escape' || !e.code) { st.textContent = 'Changement annulé.'; renderKeyHelp(); return; }
+  if (e.code === 'Escape' || !e.code || c.set === 2) { st.textContent = 'Changement annulé.'; renderKeyHelp(); return; }
   const old = settings.keys[c.set][c.act];
   // la touche était déjà prise ailleurs : on échange
   let swapped = null;
@@ -2532,7 +2616,7 @@ function finishCapture(e) {
 function openKeys(from) {
   keysFrom = from; capture = null;
   if (from === 'pause') pauseEl.hidden = true;
-  keysEl.hidden = false; $('#keys-status').textContent = 'Clique sur une touche du tableau, puis appuie sur la nouvelle touche. Échap pour annuler.';
+  keysEl.hidden = false; $('#keys-status').textContent = KEYS_HINT;
   renderKeyHelp();
   try { $('#keys-close').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -2545,9 +2629,9 @@ $('#btn-keys').addEventListener('click', () => openKeys('menu'));
 $('#btn-keys2').addEventListener('click', () => openKeys('pause'));
 $('#keys-close').addEventListener('click', closeKeys);
 $('#keys-reset').addEventListener('click', () => {
-  settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); settings.keyLabels = {}; capture = null;
+  settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); settings.keyLabels = {}; settings.pad = { ...DEFAULT_PAD }; capture = null;
   rebuildKeyMap(); saveSettings(); renderKeyHelp();
-  $('#keys-status').textContent = 'Touches par défaut rétablies.';
+  $('#keys-status').textContent = 'Touches et boutons par défaut rétablis.';
 });
 window.addEventListener('gamepaddisconnected', e => { const code = 'pad' + e.gamepad.index; if (padSt[code]) releasePad(code, padSt[code]); delete padSt[code]; padStatus(); });
 
