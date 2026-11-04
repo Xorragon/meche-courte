@@ -139,6 +139,23 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .txt{font:700 18px/1.2 var(--font-body);color:var(--parchment);background:rgba(0,0,0,.28);border:2px solid rgba(243,229,192,.3);border-radius:10px;padding:8px 12px;width:min(240px,100%);user-select:text;-webkit-user-select:text}
 .txt:focus{outline:3px solid var(--gold);outline-offset:2px;border-color:var(--parchment)}
 #opt-name2[hidden]{display:none}
+.elo-badge{font:800 13px/1 var(--font-body);letter-spacing:.06em;color:#2b1206;background:var(--gold);border:0;border-radius:999px;padding:7px 11px;cursor:pointer}
+.elo-badge:hover{filter:brightness(1.08)}
+.nick-note{flex-basis:100%;font-size:13px;color:var(--muted);min-height:0}
+.nick-note:empty{display:none}
+.nick-note.bad{color:#ff8f8f}
+.end-elo{margin:0 0 18px;font-weight:800;font-size:17px;color:var(--gold);min-height:1.2em}
+.ranksbox{max-width:680px;width:min(680px,100%)}
+.ranktable{border-collapse:collapse;margin:14px auto 6px;width:100%;font-variant-numeric:tabular-nums}
+.ranktable th,.ranktable td{padding:7px 10px;text-align:right;border-bottom:1px solid rgba(243,229,192,.12)}
+.ranktable th{font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ranktable th:nth-child(2),.ranktable td:nth-child(2){text-align:left}
+.ranktable td:nth-child(2){font-weight:800;max-width:14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ranktable td:nth-child(3){font-family:var(--font-display);font-size:20px;color:var(--gold)}
+.ranktable tr.me td{background:rgba(255,207,90,.12)}
+.ranktable tr.gap td{border:0;text-align:center;color:var(--muted);padding:2px}
+@media (max-width:560px){.ranktable th,.ranktable td{padding:6px 5px}.ranktable th:nth-child(5),.ranktable td:nth-child(5){display:none}}
+.net-players em{font-style:normal;font-weight:800;font-size:12px;color:var(--gold)}
 .mbtns{display:grid;gap:12px;width:min(460px,100%)}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
 .mbtn b{font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
@@ -302,6 +319,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
+      <button class="elo-badge" id="elo-badge" type="button" hidden></button>
+      <span class="nick-note" id="nick-note" role="status"></span>
     </form>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
@@ -311,6 +330,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="mlinks">
       <button class="ghost tiny" type="button" id="btn-join">Rejoindre avec un code</button>
       <button class="ghost tiny" type="button" id="btn-keys">Touches et manette</button>
+      <button class="ghost tiny" type="button" id="btn-ranks">Classement</button>
       <button class="ghost tiny" type="button" id="btn-help">Comment jouer</button>
     </div>
   </div>
@@ -363,6 +383,20 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="cta" id="play" type="button">Allumer la mèche <kbd>Entrée</kbd></button>
       <button class="ghost" id="solo-back" type="button">Retour <kbd>Échap</kbd></button>
     </div>
+  </div>
+</div>
+
+<div id="ranks" class="overlay" hidden>
+  <div class="box ranksbox">
+    <p class="kicker">En ligne</p>
+    <h2>Classement Elo</h2>
+    <p class="rule" id="ranks-status" role="status"></p>
+    <table class="ranktable">
+      <thead><tr><th scope="col">Rang</th><th scope="col">Pseudo</th><th scope="col">Elo</th><th scope="col">Parties</th><th scope="col">Victoires</th></tr></thead>
+      <tbody id="ranks-body"></tbody>
+    </table>
+    <p class="rule small">Chaque partie en ligne entre joueurs (lobby ou partie publique) compte, que tu la gagnes ou non. Tout le monde part de 1000. À 3 ou 4, chaque paire de joueurs compte comme un duel, selon le classement final ; les ordis ne comptent pas. Le résultat n'est retenu que si les joueurs envoient le même.</p>
+    <div class="row" style="margin-top:14px"><button class="cta" type="button" id="ranks-close">Retour <kbd>Échap</kbd></button></div>
   </div>
 </div>
 
@@ -432,7 +466,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="kicker" id="end-kicker">Fin de la partie</p>
     <h2 id="end-title">Mèche remporte la partie</h2>
     <p class="score-line" id="end-score">3 – 1</p>
-    <p class="rule" id="end-note" style="margin:-10px 0 18px"></p>
+    <p class="rule" id="end-note" style="margin:-10px 0 8px"></p>
+    <p class="end-elo" id="end-elo" role="status"></p>
     <div class="row">
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
@@ -1991,7 +2026,7 @@ function render() {
    Interface (HTML)
    ========================================================= */
 const $ = s => document.querySelector(s);
-const menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
+const ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
 const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
@@ -2126,7 +2161,8 @@ function toMenu() {
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
   G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud(); syncMenu();
-  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true;
+  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true;
+  clearTimeout(reportT); $('#end-elo').textContent = ''; if (settings.account) refreshMe();
   try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {}
 }
 // Écrans du menu : solo (réglages de la partie locale) et « Comment jouer »
@@ -2153,7 +2189,8 @@ function pause() {
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
-  if (G.pointsMode) { showEndPoints(); return; }
+  if (G.pointsMode) { showEndPoints(); reportMatch(); return; }
+  setTimeout(reportMatch, 0);
   $('#end-score').style.whiteSpace = '';
   const w = G.lastWinner, p = PALS[w];
   const oneHuman = NET.role || humansLocal() === 1, wp = G.players[w];
@@ -2197,9 +2234,144 @@ playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
 function bindNick(inp, key, def) {
-  const commit = () => { settings[key] = cleanNick(inp.value, def()); inp.value = settings[key]; saveSettings(); renderNetPlayersIfHost(); };
+  const commit = () => {
+    settings[key] = cleanNick(inp.value, def()); inp.value = settings[key]; saveSettings(); renderNetPlayersIfHost();
+    if (key === 'name' && settings.account && settings.name !== settings.srvName) pushName();
+  };
   inp.addEventListener('change', commit); inp.addEventListener('blur', commit);
   inp.addEventListener('input', () => { const v = cleanNick(inp.value, ''); if (v) { settings[key] = v; saveSettings(); } });
+}
+/* ---------- Classement Elo (base Supabase, fonctions SQL mc_*) ---------- */
+// Adresse et clé publique du projet Supabase : la clé publique est faite pour être dans le navigateur,
+// les tables ne sont lisibles qu'à travers les fonctions, qui vérifient le secret du joueur.
+const SB_URL = 'https://evdrvzqmewlnkoyjecbt.supabase.co', SB_KEY = 'sb_publishable_5Kk5TCZVX_yBHris5SB0RA_zioO7mUS';
+const ELO = { me: null, down: false };
+async function rpc(fn, args) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: JSON.stringify(args || {}), signal: ctl.signal, cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error('http ' + r.status); e.status = r.status; throw e; }
+    ELO.down = false;
+    if (j && j.error) { const e = new Error(j.error); e.code = j.error; e.status = j.error === 'unknown' ? 404 : 400; throw e; }
+    return j;
+  } catch (e) { if (!e.status) ELO.down = true; throw e; } finally { clearTimeout(t); }
+}
+// Même interface qu'avant : chemins « à la REST » traduits en appels de fonctions
+function api(method, path, body) {
+  const [route, query] = path.split('?'), q = new URLSearchParams(query || ''), parts = route.split('/');
+  if (route === 'register') return rpc('mc_register', { p_name: body.name });
+  if (route === 'rename') return rpc('mc_rename', { p_id: body.id, p_secret: body.secret, p_name: body.name });
+  if (parts[0] === 'player') return rpc('mc_player', { p_id: parts[1] });
+  if (route === 'leaderboard') return rpc('mc_leaderboard', { p_id: q.get('id') || null });
+  if (route === 'report') return rpc('mc_report', { p_id: body.id, p_secret: body.secret, p_mid: body.mid, p_ids: body.ids, p_ranks: body.ranks });
+  if (parts[0] === 'match') return rpc('mc_match', { p_mid: parts[1], p_id: q.get('id') || null });
+  return Promise.reject(new Error('route'));
+}
+const myAid = () => (settings.account && settings.account.id) || '';
+let accountP = null;
+// Compte créé tout seul au premier lancement : identifiant public + secret gardés dans ce navigateur
+function ensureAccount() {
+  if (settings.account && settings.account.id) return Promise.resolve(settings.account);
+  if (!accountP) accountP = api('POST', 'register', { name: settings.name }).then(a => {
+    settings.account = { id: a.id, secret: a.secret }; settings.srvName = a.name;
+    if (a.name !== settings.name) { settings.name = a.name; syncMenu(); }
+    saveSettings(); ELO.me = a; renderEloBadge(); return settings.account;
+  }).finally(() => { accountP = null; });
+  return accountP;
+}
+async function refreshMe() {
+  try {
+    const acc = await ensureAccount();
+    ELO.me = await api('GET', 'player/' + acc.id);
+    if (settings.srvName !== ELO.me.name) settings.srvName = ELO.me.name;
+    if (cleanNick(settings.name, '') !== ELO.me.name) await pushName();
+  } catch (e) {
+    if (e.status === 404 && settings.account) { settings.account = null; saveSettings(); }
+  }
+  renderEloBadge();
+}
+let pushingName = '';
+async function pushName() {
+  const want = settings.name;
+  if (!settings.account || want === pushingName) return;
+  pushingName = want;
+  const note = $('#nick-note');
+  try {
+    const r = await api('POST', 'rename', { id: settings.account.id, secret: settings.account.secret, name: want });
+    settings.srvName = r.name; saveSettings(); note.textContent = ''; note.classList.remove('bad');
+    if (ELO.me) ELO.me.name = r.name;
+  } catch (e) {
+    if (e.code === 'taken' && settings.srvName) {
+      note.textContent = `« ${want} » est déjà pris au classement : tu restes « ${settings.srvName} ».`; note.classList.add('bad');
+      if (settings.name === want) { settings.name = settings.srvName; saveSettings(); syncMenu(); renderNetPlayersIfHost(); }
+    }
+  } finally { pushingName = ''; }
+}
+function renderEloBadge() {
+  const b = $('#elo-badge'), m = ELO.me;
+  b.hidden = !m;
+  if (m) { b.textContent = `Elo ${m.elo}` + (m.rank ? ` · ${ordinal(m.rank)}` : ''); b.title = m.games ? `${m.games} partie${m.games > 1 ? 's' : ''} classée${m.games > 1 ? 's' : ''}, ${m.wins} gagnée${m.wins > 1 ? 's' : ''}` : 'Pas encore de partie classée'; }
+}
+// Écran du classement
+async function openRanks() {
+  menuEl.hidden = true; ranksEl.hidden = false;
+  try { $('#ranks-close').focus({ preventScroll: true }); } catch (e) {}
+  const st = $('#ranks-status'), body = $('#ranks-body');
+  st.textContent = 'Chargement…'; body.innerHTML = '';
+  try {
+    if (!settings.account) await ensureAccount().catch(() => {});
+    const d = await api('GET', 'leaderboard' + (myAid() ? '?id=' + myAid() : ''));
+    if (d.me) { ELO.me = d.me; renderEloBadge(); }
+    const row = (p, me) => {
+      const tr = document.createElement('tr'); if (me) tr.className = 'me';
+      for (const v of [p.rank ? ordinal(p.rank) : '–', p.name, p.elo, p.games, p.wins]) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
+      body.appendChild(tr);
+    };
+    d.top.forEach(p => row(p, p.id === myAid()));
+    if (d.me && !d.top.some(p => p.id === d.me.id)) {
+      const gap = document.createElement('tr'); gap.className = 'gap'; gap.innerHTML = '<td colspan="5">⋯</td>'; body.appendChild(gap);
+      row(d.me, true);
+    }
+    st.textContent = d.total ? `${d.total} joueur${d.total > 1 ? 's' : ''} classé${d.total > 1 ? 's' : ''}.` + (d.me && !d.me.games ? ' Joue une partie en ligne pour entrer au classement.' : '')
+      : "Personne n'est encore classé. Joue une partie en ligne contre quelqu'un pour ouvrir le classement.";
+  } catch (e) {
+    st.textContent = "Le classement n'est pas joignable pour l'instant. Réessaie dans un moment.";
+  }
+}
+function closeRanks() { ranksEl.hidden = true; menuEl.hidden = false; try { $('#btn-ranks').focus({ preventScroll: true }); } catch (e) {} }
+// Fin d'une partie en ligne : chaque joueur envoie le même résultat ; le serveur l'applique quand ils concordent
+let reportT = 0;
+function reportMatch() {
+  const el = $('#end-elo'); el.textContent = '';
+  clearTimeout(reportT);
+  if (!NET.role || !NET.mid || !settings.account) return;
+  const ids = G.players.map(p => (!p.ai && !p.isBot) || p.aid ? (p.aid || null) : null);
+  const humans = ids.filter(Boolean).length;
+  if (humans < 2 || !ids[localIdx()]) { el.textContent = humans < 2 ? '' : 'Partie non classée.'; return; }
+  let ranks;
+  if (G.pointsMode) { if (!G.ranking.length) rankMatch(); ranks = G.players.map((_, i) => G.ranking[i] || 4); }
+  else ranks = G.players.map((_, i) => i === G.lastWinner ? 1 : 2);
+  const mid = NET.mid, acc = settings.account, t0 = performance.now();
+  el.textContent = 'Classement : envoi du résultat…';
+  const show = r => {
+    if (r.state === 'applied' && r.me) {
+      const d = r.me.delta;
+      el.textContent = `Elo ${r.me.after} (${d >= 0 ? '+' : ''}${d})`;
+      ELO.me = Object.assign(ELO.me || {}, { elo: r.me.after }); renderEloBadge(); refreshMe();
+      return true;
+    }
+    if (r.state === 'void') { el.textContent = 'Partie non classée : les résultats ne concordent pas.'; return true; }
+    el.textContent = `Classement : en attente des autres joueurs (${r.reported}/${r.humans})…`;
+    return false;
+  };
+  const poll = () => {
+    if (performance.now() - t0 > 170000) { el.textContent = 'Partie non classée : tous les joueurs n\'ont pas confirmé le résultat.'; return; }
+    reportT = setTimeout(() => api('GET', 'match/' + mid + '?id=' + acc.id).then(r => { if (!show(r)) poll(); }).catch(() => poll()), performance.now() - t0 < 20000 ? 1500 : 4000);
+  };
+  api('POST', 'report', { id: acc.id, secret: acc.secret, mid, ids, ranks })
+    .then(r => { if (!show(r)) poll(); })
+    .catch(e => { el.textContent = e.status ? 'Partie non classée.' : "Classement injoignable : partie non classée."; });
 }
 function renderNetPlayersIfHost() { if (NET.role === 'host' && !NET.started) refreshHostLobby(); }
 bindNick($('#nick-in'), 'name', () => settings.name);
@@ -2207,6 +2379,9 @@ bindNick($('#name2-in'), 'name2', () => 'Joueur 2');
 $('#nick-form').addEventListener('submit', e => { e.preventDefault(); $('#nick-in').blur(); });
 $('#solo-back').addEventListener('click', closeSolo);
 $('#btn-help').addEventListener('click', openHelp);
+$('#btn-ranks').addEventListener('click', openRanks);
+$('#elo-badge').addEventListener('click', openRanks);
+$('#ranks-close').addEventListener('click', closeRanks);
 $('#help-close').addEventListener('click', closeHelp);
 $('#btn-create').addEventListener('click', createLobby);
 $('#btn-search').addEventListener('click', () => searchGame());
@@ -2227,10 +2402,11 @@ window.addEventListener('keydown', e => {
   if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') toMenu(); return; }
-  const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden;
+  const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
   if (!onlineEl.hidden) { if (code === 'Escape') toMenu(); return; }
   if (!helpEl.hidden) { if (code === 'Escape') closeHelp(); return; }
+  if (!ranksEl.hidden) { if (code === 'Escape') closeRanks(); return; }
   if (!soloEl.hidden) {
     if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); onPlay(); }
     else if (code === 'Escape') closeSolo();
@@ -2319,7 +2495,7 @@ const LV_NAMES = ['Distrait', 'Rusé', 'Redoutable'];
 function showOnline(view) {
   NET.view = view;
   const [k, t] = NET_VIEWS[view]; $('#net-kicker').textContent = k; $('#net-title').textContent = t;
-  menuEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; onlineEl.hidden = false;
+  menuEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; onlineEl.hidden = false;
 }
 function setNetView(wait, code, text) {
   const v = NET.view || 'join';
@@ -2378,8 +2554,8 @@ function failOnline(msg) {
 }
 /* ---------- Salon (hôte) : jusqu'à 3 potes + des ordis, 4 artificiers au total ---------- */
 function lobbyList() {
-  const out = [{ k: 'h', n: settings.name }];
-  NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote' }));
+  const out = [{ k: 'h', n: settings.name, e: ELO.me ? ELO.me.elo | 0 : 0 }];
+  NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote', e: L.elo | 0 }));
   for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b', n: PALS[out.length].name });
   return out;
 }
@@ -2391,7 +2567,9 @@ function renderNetPlayers(list, you) {
     const b = document.createElement('b'), sp = document.createElement('span');
     b.textContent = cleanNick(pl.n, pal.name);
     sp.textContent = i === you ? 'toi' : pl.k === 'b' ? 'ordi' : i === 0 ? 'hôte' : 'pote';
-    li.append(b, sp); ul.appendChild(li);
+    li.append(b);
+    const e = num(pl.e) | 0; if (pl.k !== 'b' && e > 0) { const em = document.createElement('em'); em.textContent = e; em.title = 'Elo'; li.append(em); }
+    li.append(sp); ul.appendChild(li);
   });
 }
 function lobbyMsg(you) {
@@ -2466,6 +2644,11 @@ function onHostData(L, d) {
   L.lastSeen = performance.now();
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
+    if (L.gin && (L.gin.aid !== L.aid || L.gin.el !== L.elo)) {
+      L.aid = L.gin.aid; L.elo = L.gin.el;
+      const p = G.players[L.slot]; if (NET.started && p && p.remote) p.aid = L.aid;
+      else if (!NET.started) refreshHostLobby();
+    }
     if (L.gin && L.gin.nk && L.gin.nk !== L.nick) {
       L.nick = L.gin.nk; L.pid = L.gin.pid;
       const p = G.players[L.slot]; if (NET.started && p && p.remote) { p.nick = L.nick; setupHud(); }
@@ -2496,9 +2679,11 @@ function startOnlineMatch() {
   const bots = NET.pub ? 0 : clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
   Sfx.init(); NET.mi++; NET.started = true;
   G.mode = 'match'; G.paused = false;
+  NET.mid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null, settings.name)];
+  list[0].aid = myAid();
   NET.links.forEach((L, i) => {
-    L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; list.push(p);
+    L.slot = i + 1; const p = makePlayer(i + 1, null, L.nick); p.remote = true; p.aid = L.aid || ''; list.push(p);
     if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; }
   });
   for (let i = 0; i < bots; i++) list.push(makePlayer(list.length, lv));
@@ -2624,7 +2809,7 @@ function onGuestData(d) {
   NET.lastSeen = performance.now();
   if (d.t === 'lobby') {
     if (!NET.gotSnap) {
-      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n })) : [];
+      const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n, e: x && x.e })) : [];
       renderNetPlayers(list, num(d.you) | 0);
       $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg });
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
@@ -2650,6 +2835,7 @@ function opponentLeft(msg) {
   $('#end-kicker').textContent = 'Partie interrompue';
   const t = $('#end-title'); t.textContent = msg; t.style.color = 'var(--parchment)';
   $('#end-score').textContent = ''; $('#end-note').textContent = ''; $('#again').hidden = true;
+  clearTimeout(reportT); $('#end-elo').textContent = '';
   endEl.hidden = false;
   try { $('#tomenu').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -2661,6 +2847,7 @@ function readGuest(pr) {
     f: num(pr.f) | 0, m: pr.m ? 1 : 0, b: num(pr.b) | 0, st: num(pr.st) | 0,
     k: Array.isArray(pr.k) && pr.k.length === 5 ? pr.k.map(v => num(v) | 0) : null,
     nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
+    aid: typeof pr.aid === 'string' && /^[a-z0-9]{12}$/.test(pr.aid) ? pr.aid : '', el: clamp(num(pr.el) | 0, 0, 9999),
   };
 }
 function applyGuestInput() {
@@ -2693,7 +2880,7 @@ function buildSnap() {
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
-    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick),
+    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '',
     seed: G.seed, g, f, bu, b, fa, p, e: NET.events.slice(),
   };
 }
@@ -2713,6 +2900,8 @@ function decodeSnap(s) {
   }
   G.players.forEach((p, i) => {
     p.isBot = kinds[i] === 'b';
+    const aid = Array.isArray(s.ids) && typeof s.ids[i] === 'string' && /^[a-z0-9]{12}$/.test(s.ids[i]) ? s.ids[i] : '';
+    p.aid = aid;
     const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', PALS[i].name);
     if (p.nick !== nk) { p.nick = nk; hudDirty = true; }
   });
@@ -2772,7 +2961,8 @@ function decodeSnap(s) {
   predictKick();
   if (first) { NET.gotSnap = true; menuEl.hidden = true; onlineEl.hidden = true; endEl.hidden = true; blurActive(); }
   if (newMatch && !first) { endEl.hidden = true; }
-  if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; showEnd(); }
+  if (typeof s.md === 'string' && /^[a-z0-9]{10,24}$/.test(s.md)) NET.mid = s.md;
+  if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
 }
 function updateGuest(dt) {
   G.t += dt; updateParticles(dt);
@@ -2802,7 +2992,7 @@ function sendGuest() {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
       f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq,
-      nk: settings.name, pid: settings.pid,
+      nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0,
     });
   } catch (e) {}
 }
@@ -2869,7 +3059,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, onlineEl, ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -2900,6 +3090,7 @@ function navBack(root) {
   else if (root === pauseEl) resume();
   else if (root === soloEl) closeSolo();
   else if (root === helpEl) closeHelp();
+  else if (root === ranksEl) closeRanks();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
@@ -3095,6 +3286,7 @@ function boot(data) {
   if (typeof data.muted === 'boolean') Sfx.muted = data.muted;
   buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp();
   resize(); toMenu();
+  refreshMe();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (pc.length === 4) openJoin(pc);
   if (document.fonts && document.fonts.load) {
