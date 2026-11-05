@@ -2368,7 +2368,7 @@ function syncAuraPick() {
     const lk = a > mx;
     b.classList.toggle('locked', lk); b.setAttribute('aria-checked', String(a === cur));
     b.querySelector('span').textContent = lk ? `niv. ${a * 10}` : a ? AURAS[a] : 'Aucune';
-    b.setAttribute('aria-label', a ? `Aura ${AURAS[a]}` + (lk ? `, débloquée au niveau ${a * 10}` : '') : 'Aucune aura');
+    b.setAttribute('aria-label', a ? (lk ? `Aura mystère, débloquée au niveau ${a * 10}` : `Aura ${AURAS[a]}`) : 'Aucune aura');
   }
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
@@ -2979,10 +2979,11 @@ function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
 function drawCharBomb(c, x, y, b, t, im, fr) {
   const left = Math.max(0, b.timer), u = 1 - left / FUSE;
   const pulse = 1 + Math.sin(t * (7 + u * 22)) * (0.035 + u * 0.07);
-  const [sx, sy, w, h, ax, bot] = fr, S = 40 / 72;
+  // K : agrandie pour que la boule ait la taille de la bombe de base (≈ 28 px), sinon un gros perso peut la cacher
+  const [sx, sy, w, h, ax, bot] = fr, S = 40 / 72, K = 1.4;
   c.save(); c.translate(x, y + 3);
-  c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 12, 12, 4); c.fill();
-  c.translate(0, 14); c.scale(pulse, 2 - pulse);
+  c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 12, 14, 4.6); c.fill();
+  c.translate(0, 14); c.scale(pulse * K, (2 - pulse) * K);
   c.drawImage(im, sx, sy, w, h, -ax * S, -bot * S, w * S, h * S);
   // étincelle vivante au bout de la mèche
   const tx = (w * 0.8 - ax) * S, ty = (h * 0.13 - bot) * S;
@@ -3474,6 +3475,30 @@ function syncCharPicker() {
     b.querySelector('span').textContent = lk ? `${CHARS[i].elo} Elo` : CHARS[i].name;
   });
 }
+// Perso pas encore débloqué : seulement son ombre (dessin rempli d'une couleur sombre unie)
+let silCv = null;
+function drawSilhouette(c, cv, draw) {
+  if (!silCv) silCv = document.createElement('canvas');
+  if (silCv.width !== cv.width || silCv.height !== cv.height) { silCv.width = cv.width; silCv.height = cv.height; }
+  const s = silCv.getContext('2d');
+  s.setTransform(1, 0, 0, 1, 0, 0); s.globalCompositeOperation = 'source-over'; s.clearRect(0, 0, silCv.width, silCv.height);
+  s.setTransform(c.getTransform()); draw.call(null, s);
+  s.setTransform(1, 0, 0, 1, 0, 0);
+  // seuil sur la transparence : les halos et lueurs disparaissent, il reste une ombre nette
+  const id = s.getImageData(0, 0, silCv.width, silCv.height), d = id.data;
+  for (let k = 0; k < d.length; k += 4) { const on = d[k + 3] > 150; d[k] = 52; d[k + 1] = 46; d[k + 2] = 76; d[k + 3] = on ? 242 : 0; }
+  s.putImageData(id, 0, 0);
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(silCv, 0, 0); c.restore();
+}
+// Aura pas encore débloquée : une brume grise et un point d'interrogation, pareils pour toutes (pas de spoil)
+function drawMysteryAura(c, x, y, t) {
+  c.save(); c.translate(x, y);
+  const g = c.createRadialGradient(0, -8, 2, 0, -8, 26); g.addColorStop(0, 'rgba(150,150,170,.35)'); g.addColorStop(1, 'rgba(150,150,170,0)');
+  c.fillStyle = g; c.fillRect(-26, -34, 52, 52);
+  c.strokeStyle = 'rgba(190,190,210,.45)'; c.lineWidth = 1.2; c.setLineDash([3, 3]); c.lineDashOffset = -t * 8;
+  c.beginPath(); c.ellipse(0, 15, 17, 6, 0, 0, TAU); c.stroke(); c.setLineDash([]);
+  c.restore();
+}
 function drawLock(c, x, y) {
   c.save(); c.translate(x, y);
   c.strokeStyle = '#f3e5c0'; c.lineWidth = 2.2; c.beginPath(); c.arc(0, -3, 4.2, Math.PI, 0); c.lineTo(4.2, 1); c.moveTo(-4.2, 1); c.lineTo(-4.2, -3); c.stroke();
@@ -3487,11 +3512,16 @@ function drawCharPicker(t) {
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
     const k = cv.width / 52; c.setTransform(k, 0, 0, k, 0, 0);
     const lk = a > auraMaxOf(settings.skin);
-    if (lk) c.globalAlpha = 0.35;
+    if (lk) {
+      drawMysteryAura(c, 26, 33, t); c.globalAlpha = 0.4;
+      drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false });
+      c.globalAlpha = 1; c.font = '900 22px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,4,.85)'; c.strokeText('?', 26, 20); c.fillStyle = '#e8e2f2'; c.fillText('?', 26, 20); c.textAlign = 'start';
+      continue;
+    }
     if (a) drawAura(c, 26, 33, a, t, false, a);
     drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false });
     if (a) drawAura(c, 26, 33, a, t, true, a);
-    c.globalAlpha = 1; if (lk) drawLock(c, 26, 28);
   }
   const emb = !menuEl.hidden && ELO.rk && document.querySelector('#elo-badge .rk-emb');
   if (emb) { const c = emb.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 76, 76); c.translate(38, 40); drawRankEmblem(c, 26, ELO.rk, t); }
@@ -3500,12 +3530,11 @@ function drawCharPicker(t) {
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
     const sel = i === settings.skin, k = cv.width / 52;
     c.setTransform(k, 0, 0, k, 0, 0);
-    const lk = charLocked(i), L = levelOf(i), au = lk ? 0 : auraOfLevel(L);
-    if (lk) c.globalAlpha = 0.35;
+    const lk = charLocked(i), L = levelOf(i), au = lk ? 0 : auraOf(i);
+    if (lk) { drawSilhouette(c, cv, s => drawChar(s, 26, 32, i, PALS[0], 'down', 0, false, t, { noShadow: true })); drawLock(c, 26, 26); return; }
     if (au) drawAura(c, 26, 32, au, t, false, i);
-    drawChar(c, 26, 32, i, PALS[0], 'down', lk ? 0 : t * 9, sel, t, { noShadow: false });
+    drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false });
     if (au) drawAura(c, 26, 32, au, t, true, i);
-    if (lk) { c.globalAlpha = 1; drawLock(c, 26, 26); }
     else if (L > 1) {
       c.font = '800 9px system-ui, sans-serif'; c.textBaseline = 'top'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(20,12,4,.85)'; c.fillStyle = L >= LV_MAX ? '#ffe08a' : '#f3e5c0';
       c.strokeText(String(L), 3, 2); c.fillText(String(L), 3, 2);
@@ -4935,7 +4964,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
