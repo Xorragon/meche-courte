@@ -170,6 +170,13 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .char-xp.end{margin:0 auto 14px;width:min(460px,100%)}
 .char-xp .gain{grid-column:1/-1;font-weight:800;color:var(--gold);font-size:15px}
 .xp-toast{top:46px;z-index:3;border:1px solid rgba(255,214,110,.35)}
+.secretbox{max-width:440px}
+.secret-form{display:flex;gap:10px;justify-content:center;margin:14px 0 6px}
+.secret-form input{width:min(240px,60vw);padding:10px 14px;border-radius:12px;border:1px solid rgba(243,229,192,.35);background:rgba(10,16,10,.55);color:var(--parchment);font:800 20px/1 var(--font-body);letter-spacing:.18em;text-align:center;text-transform:uppercase}
+.secret-form input:focus{outline:2px solid var(--gold);outline-offset:2px}
+.secret-msg{min-height:1.3em;font-weight:800}
+.secret-msg.ok{color:var(--gold)}
+.secret-msg.bad{color:#ff8a7a}
 .pick-hint{margin:-12px 0 12px;min-height:1.1em;font-weight:800;font-size:13px;color:var(--gold)}
 .pick-hint:empty{display:none}
 .charpick button.locked{cursor:not-allowed}
@@ -393,6 +400,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="ghost tiny" type="button" id="btn-keys">Touches et manette</button>
       <button class="ghost tiny" type="button" id="btn-ranks">Classement</button>
       <button class="ghost tiny" type="button" id="btn-help">Comment jouer</button>
+      <button class="ghost tiny" type="button" id="btn-secret">Secret</button>
     </div>
   </div>
 </div>
@@ -447,6 +455,19 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </div>
 </div>
 
+<div id="secret" class="overlay" hidden>
+  <div class="box secretbox">
+    <p class="kicker">Chut…</p>
+    <h2>Code secret</h2>
+    <p class="rule">Tu as un code ? Entre-le ici pour recevoir ta récompense.</p>
+    <form id="secret-form" class="secret-form" autocomplete="off">
+      <input id="secret-in" type="text" maxlength="24" spellcheck="false" autocapitalize="characters" aria-label="Code secret" placeholder="Ton code">
+      <button class="cta" type="submit">Valider</button>
+    </form>
+    <p class="rule secret-msg" id="secret-msg" role="status"></p>
+    <div class="row" style="margin-top:14px"><button class="ghost" type="button" id="secret-close">Retour <kbd>Échap</kbd></button></div>
+  </div>
+</div>
 <div id="ranks" class="overlay" hidden>
   <div class="box ranksbox">
     <p class="kicker">En ligne</p>
@@ -3003,7 +3024,7 @@ function render() {
    Interface (HTML)
    ========================================================= */
 const $ = s => document.querySelector(s);
-const ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
+const secretEl = $('#secret'), ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
 const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
@@ -3220,7 +3241,7 @@ function toMenu() {
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
   G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud(); syncMenu();
-  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true;
+  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; secretEl.hidden = true;
   clearTimeout(reportT); $('#end-elo').textContent = ''; if (settings.account) refreshMe();
   try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -3445,6 +3466,45 @@ $('#nick-form').addEventListener('submit', e => { e.preventDefault(); $('#nick-i
 $('#solo-back').addEventListener('click', closeSolo);
 $('#btn-help').addEventListener('click', openHelp);
 $('#btn-ranks').addEventListener('click', openRanks);
+// ---------- Codes secrets : le jeu ne garde que l'empreinte SHA-256 de chaque code (en majuscules, sans espaces)
+// once : récompense à usage unique par navigateur (settings.codes garde les codes déjà utilisés)
+const SECRET_CODES = {
+  // code administrateur : tous les persos débloqués et tous au niveau 100 (toutes les auras)
+  dc12cb5f23b794f151d80bfcbcf4435d840f561e1edd36f1fd89db303347054d: {
+    id: 'admin', once: false,
+    apply() {
+      for (const ch of CHARS) { settings.xp[ch.key] = Math.max(Number(settings.xp[ch.key]) || 0, XP_TOTAL[LV_MAX]); if (ch.elo) settings.unl[ch.key] = true; }
+      return 'Code administrateur accepté : tous les persos sont débloqués, niveau 100, toutes les auras.';
+    },
+  },
+};
+async function sha256Hex(txt) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function openSecret() {
+  menuEl.hidden = true; secretEl.hidden = false; $('#secret-msg').textContent = ''; $('#secret-msg').className = 'rule secret-msg'; $('#secret-in').value = '';
+  try { $('#secret-in').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeSecret() { secretEl.hidden = true; menuEl.hidden = false; try { $('#btn-secret').focus({ preventScroll: true }); } catch (e) {} }
+$('#btn-secret').addEventListener('click', openSecret);
+$('#secret-close').addEventListener('click', closeSecret);
+$('#secret-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('#secret-msg'), code = $('#secret-in').value.replace(/\s+/g, '').toUpperCase();
+  const say = (t, ok) => { msg.textContent = t; msg.className = 'rule secret-msg ' + (ok ? 'ok' : 'bad'); };
+  if (!code) { say('Entre un code.', false); return; }
+  let h = '';
+  try { h = await sha256Hex(code); } catch (err) { say('Impossible de vérifier le code sur ce navigateur.', false); return; }
+  const c = SECRET_CODES[h];
+  if (!c) { say('Code inconnu.', false); return; }
+  if (!Array.isArray(settings.codes)) settings.codes = [];
+  if (c.once && settings.codes.includes(c.id)) { say('Tu as déjà utilisé ce code.', false); return; }
+  const text = c.apply();
+  if (!settings.codes.includes(c.id)) settings.codes.push(c.id);
+  saveSettings(); syncCharPicker(); Sfx.play('pickup');
+  say(text, true); $('#secret-in').value = '';
+});
 $('#elo-badge').addEventListener('click', openRanks);
 $('#ranks-close').addEventListener('click', closeRanks);
 $('#help-close').addEventListener('click', closeHelp);
@@ -3466,7 +3526,8 @@ window.addEventListener('keydown', e => {
   const code = e.code;
   if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
-  if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') toMenu(); return; }
+  if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else toMenu(); } return; }
+  if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
   const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
   if (!onlineEl.hidden) { if (code === 'Escape') toMenu(); return; }
@@ -4176,7 +4237,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, onlineEl, secretEl, ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -4208,6 +4269,7 @@ function navBack(root) {
   else if (root === soloEl) closeSolo();
   else if (root === helpEl) closeHelp();
   else if (root === ranksEl) closeRanks();
+  else if (root === secretEl) closeSecret();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
