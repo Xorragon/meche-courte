@@ -39,18 +39,37 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 .hside.r{justify-content:flex-end}
 .pcard{display:flex;align-items:center;gap:10px;min-width:0}
 .pcard[hidden]{display:none}
-#hud.many .hside{gap:10px}
-#hud.many .pcard{gap:7px}
-#hud.many .portrait{width:38px;height:38px}
-#hud.many .pname{font-size:16px}
-#hud.many .ptag{font-size:10px;margin-left:5px}
-#hud.many .right .ptag{margin-right:5px}
-#hud.many .pip{width:9px;height:9px}
-#hud.many .st{font-size:12px}
-#hud.many .st canvas{width:14px;height:14px}
-#hud.many .stats{gap:4px}
-@media (max-width:760px){#hud.many .stats,#hud.many .ptag{display:none}}
+body.hudmany .hside{gap:10px}
+body.hudmany .pcard{gap:7px}
+body.hudmany .portrait{width:38px;height:38px}
+body.hudmany .pname{font-size:16px}
+body.hudmany .ptag{font-size:10px;margin-left:5px}
+body.hudmany .right .ptag{margin-right:5px}
+body.hudmany .pip{width:9px;height:9px}
+body.hudmany .st{font-size:12px}
+body.hudmany .st canvas{width:14px;height:14px}
+body.hudmany .stats{gap:4px}
+@media (max-width:760px){body.hudmany .stats,body.hudmany .ptag{display:none}}
 .pcard.right{flex-direction:row-reverse;text-align:right}
+#hud-b{width:min(100%, max(var(--arena-w,732px), 320px));display:flex;justify-content:space-between;align-items:center;gap:12px;flex:none}
+#hud-b[hidden]{display:none}
+.pwrap{position:relative;display:inline-block;flex:none;line-height:0}
+.pframe{position:absolute;left:50%;top:50%;width:162%;height:162%;transform:translate(-50%,-50%);pointer-events:none}
+/* Grand écran : les 4 joueurs dans les 4 coins, de part et d'autre de l'arène */
+body.hudside #hud-b{height:0;margin-top:-10px}
+body.hudside .pcard{position:fixed;z-index:2;max-width:calc((100vw - var(--arena-w)) / 2 - 40px);gap:14px}
+body.hudside #card0,body.hudside #card3{right:calc(50% + var(--arena-w) / 2 + 22px)}
+body.hudside #card2,body.hudside #card1{left:calc(50% + var(--arena-w) / 2 + 22px)}
+body.hudside #card0,body.hudside #card2{top:calc(var(--arena-top) + 14px)}
+body.hudside #card3,body.hudside #card1{bottom:calc(var(--arena-bot) + 14px)}
+body.hudside .portrait,body.hudside.hudmany .portrait{width:64px;height:64px}
+body.hudside .pname,body.hudside.hudmany .pname{font-size:24px}
+body.hudside.hudmany .st{font-size:15px}
+body.hudside.hudmany .st canvas{width:19px;height:19px}
+body.hudside.hudmany .stats{gap:8px}
+body.hudside.hudmany .ptag{font-size:11px}
+body.hudside.hudmany .nm{max-width:9em}
+body.hudside .pinfo{gap:6px}
 .portrait{width:52px;height:52px;border-radius:50%;flex:none;background:#0c1510;box-shadow:0 0 0 3px var(--pc),0 4px 12px rgba(0,0,0,.5)}
 .pinfo{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pname{font-family:var(--font-display);font-size:22px;line-height:1;color:var(--pc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -59,14 +78,14 @@ body{background:var(--night);color:var(--parchment);font-family:var(--font-body)
 .right .pname{display:flex;flex-direction:row-reverse;justify-content:flex-start;align-items:center}
 .nm{display:inline-block;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;min-width:0}
 .right .nm{display:block}
-#hud.many .nm{max-width:6.2em}
-@media (max-width:560px){#hud.many .nm{max-width:3.6em}.nm{max-width:5.5em}}
+body.hudmany .nm{max-width:6.2em}
+@media (max-width:560px){body.hudmany .nm{max-width:3.6em}.nm{max-width:5.5em}}
 .pts{white-space:nowrap}
 .pips{display:flex;gap:5px}
 .right .pips{justify-content:flex-end}
 .pip{width:11px;height:11px;border-radius:50%;border:2px solid var(--pc);opacity:.5}
 .pts{font:800 15px/1 var(--font-body);color:var(--pc);font-variant-numeric:tabular-nums;letter-spacing:.02em}
-#hud.many .pts{font-size:13px}
+body.hudmany .pts{font-size:13px}
 .pip.on{background:var(--pc);opacity:1;box-shadow:0 0 8px var(--pc)}
 .stats{display:flex;gap:8px;flex-wrap:wrap}
 .right .stats{justify-content:flex-end}
@@ -155,8 +174,28 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .txt{font:700 18px/1.2 var(--font-body);color:var(--parchment);background:rgba(0,0,0,.28);border:2px solid rgba(243,229,192,.3);border-radius:10px;padding:8px 12px;width:min(240px,100%);user-select:text;-webkit-user-select:text}
 .txt:focus{outline:3px solid var(--gold);outline-offset:2px;border-color:var(--parchment)}
 #opt-name2[hidden]{display:none}
-.elo-badge{font:800 13px/1 var(--font-body);letter-spacing:.06em;color:#2b1206;background:var(--gold);border:0;border-radius:999px;padding:7px 11px;cursor:pointer}
-.elo-badge:hover{filter:brightness(1.08)}
+.elo-badge{--r0:#6b3b17;--r1:#b8733a;--r2:#f0b07a;--rg:200,120,60;position:relative;display:inline-flex;align-items:center;gap:6px;font:800 13px/1 var(--font-body);letter-spacing:.04em;color:var(--parchment);
+  background:linear-gradient(180deg,rgba(28,22,14,.92),rgba(12,10,8,.92)) padding-box,linear-gradient(135deg,var(--r2),var(--r1) 45%,var(--r0)) border-box;
+  border:3px solid transparent;border-radius:14px;padding:3px 12px 3px 4px;cursor:pointer;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 14px rgba(var(--rg),.35);background-size:100% 100%,200% 200%}
+.elo-badge:hover{filter:brightness(1.1)}
+.elo-badge .rk-emb{width:38px;height:38px;flex:none}
+.elo-badge .rk-txt{display:flex;flex-direction:column;gap:3px;text-align:left}
+.elo-badge .rk-txt b{font:400 16px/1 var(--font-display);color:var(--r2);letter-spacing:.01em}
+.elo-badge .rk-txt small{font-size:11.5px;color:rgba(243,229,192,.75);letter-spacing:.04em}
+.elo-badge::before,.elo-badge::after{content:none;position:absolute;width:9px;height:9px;transform:rotate(45deg);background:linear-gradient(135deg,var(--r2),var(--r1));border:1px solid rgba(0,0,0,.6);top:50%;margin-top:-5px}
+.elo-badge::before{left:-6px}.elo-badge::after{right:-6px}
+.rk-bronze{--r0:#6b3b17;--r1:#b8733a;--r2:#f0b07a;--rg:200,120,60}
+.rk-argent{--r0:#5d6875;--r1:#b9c3ce;--r2:#ffffff;--rg:200,215,235}
+.rk-or{--r0:#7a4d08;--r1:#e8b23a;--r2:#fff1a8;--rg:255,205,80;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 18px rgba(var(--rg),.5)}
+.rk-platine{--r0:#16615b;--r1:#4fcfc0;--r2:#dcfffa;--rg:90,230,210;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 4px rgba(var(--rg),.25),0 0 20px rgba(var(--rg),.5)}
+.rk-diamant{--r0:#203f8c;--r1:#5fa8ff;--r2:#e6f4ff;--rg:110,180,255;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 24px rgba(var(--rg),.6);animation:rkshine 3s linear infinite}
+.rk-maitre{--r0:#3f1675;--r1:#a45cff;--r2:#f3dcff;--rg:190,110,255;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 4px rgba(255,214,110,.35),0 0 26px rgba(var(--rg),.65);animation:rkshine 2.6s linear infinite}
+.rk-legende{--r0:#6e0b04;--r1:#ff4f2e;--r2:#ffd36e;--rg:255,110,50;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 4px rgba(255,211,110,.4),0 0 30px rgba(var(--rg),.75);animation:rkshine 1.6s linear infinite}
+.rk-platine::before,.rk-platine::after,.rk-diamant::before,.rk-diamant::after,.rk-maitre::before,.rk-maitre::after,.rk-legende::before,.rk-legende::after{content:''}
+@keyframes rkshine{0%{background-position:0 0,0% 50%}100%{background-position:0 0,200% 50%}}
+.rk-diamant,.rk-maitre,.rk-legende{background:linear-gradient(180deg,rgba(28,22,14,.92),rgba(12,10,8,.92)) padding-box,linear-gradient(110deg,var(--r0),var(--r1) 25%,var(--r2) 50%,var(--r1) 75%,var(--r0)) border-box;background-size:100% 100%,200% 100%}
+.rk-name{font-weight:800}
+.rk-name.rk-bronze{color:#f0b07a}.rk-name.rk-argent{color:#e2e8ee}.rk-name.rk-or{color:#ffd66e}.rk-name.rk-platine{color:#7fe8da}.rk-name.rk-diamant{color:#9cc9ff}.rk-name.rk-maitre{color:#d0a2ff}.rk-name.rk-legende{color:#ff8a5c}
 .nick-note{flex-basis:100%;font-size:13px;color:var(--muted);min-height:0}
 .nick-note:empty{display:none}
 .nick-note.bad{color:#ff8f8f}
@@ -177,6 +216,14 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .secret-msg{min-height:1.3em;font-weight:800}
 .secret-msg.ok{color:var(--gold)}
 .secret-msg.bad{color:#ff8a7a}
+.aurapick{width:min(600px,100%);display:grid;grid-template-columns:repeat(11,1fr);gap:4px;margin:-6px 0 16px}
+.aurapick:empty{display:none}
+.aurapick button{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:2px 1px 4px;border-radius:10px;border:2px solid rgba(243,229,192,.14);background:rgba(10,16,10,.45);color:var(--parchment);font:800 10px/1.1 var(--font-body);cursor:pointer}
+.aurapick button[aria-checked="true"]{border-color:var(--gold);background:rgba(255,214,110,.12)}
+.aurapick button.locked{opacity:.45;cursor:not-allowed}
+.aurapick button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aurapick canvas{width:40px;height:44px}
+@media (max-width:520px){.aurapick{grid-template-columns:repeat(6,1fr)}.aurapick canvas{width:36px;height:40px}}
 .pick-hint{margin:-12px 0 12px;min-height:1.1em;font-weight:800;font-size:13px;color:var(--gold)}
 .pick-hint:empty{display:none}
 .charpick button.locked{cursor:not-allowed}
@@ -308,17 +355,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <header id="hud">
     <div class="hside l">
       <div class="pcard" id="card0" style="--pc:var(--p1)">
-        <canvas class="portrait" width="104" height="104"></canvas>
+        <span class="pwrap"><canvas class="portrait" width="104" height="104"></canvas><canvas class="pframe" width="168" height="168" aria-hidden="true"></canvas></span>
         <div class="pinfo">
           <div class="pname"><span class="nm"></span><span class="ptag">J1</span></div>
-          <div class="pips"></div>
-          <div class="stats"></div>
-        </div>
-      </div>
-      <div class="pcard" id="card3" style="--pc:var(--p4)" hidden>
-        <canvas class="portrait" width="104" height="104"></canvas>
-        <div class="pinfo">
-          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
           <div class="pips"></div>
           <div class="stats"></div>
         </div>
@@ -336,15 +375,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     <div class="hside r">
       <div class="pcard right" id="card2" style="--pc:var(--p3)" hidden>
-        <canvas class="portrait" width="104" height="104"></canvas>
-        <div class="pinfo">
-          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
-          <div class="pips"></div>
-          <div class="stats"></div>
-        </div>
-      </div>
-      <div class="pcard right" id="card1" style="--pc:var(--p2)">
-        <canvas class="portrait" width="104" height="104"></canvas>
+        <span class="pwrap"><canvas class="portrait" width="104" height="104"></canvas><canvas class="pframe" width="168" height="168" aria-hidden="true"></canvas></span>
         <div class="pinfo">
           <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
           <div class="pips"></div>
@@ -365,6 +396,28 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     <p class="br-toast xp-toast" id="xp-toast" role="status"></p>
   </div></main>
+  <footer id="hud-b">
+    <div class="hside l">
+      <div class="pcard bottom" id="card3" style="--pc:var(--p4)" hidden>
+        <span class="pwrap"><canvas class="portrait" width="104" height="104"></canvas><canvas class="pframe" width="168" height="168" aria-hidden="true"></canvas></span>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hside r">
+      <div class="pcard right bottom" id="card1" style="--pc:var(--p2)">
+        <span class="pwrap"><canvas class="portrait" width="104" height="104"></canvas><canvas class="pframe" width="168" height="168" aria-hidden="true"></canvas></span>
+        <div class="pinfo">
+          <div class="pname"><span class="nm"></span><span class="ptag">Ordi</span></div>
+          <div class="pips"></div>
+          <div class="stats"></div>
+        </div>
+      </div>
+    </div>
+  </footer>
   <div id="touch" aria-hidden="true">
     <div id="pad"><span class="ar up"></span><span class="ar down"></span><span class="ar left"></span><span class="ar right"></span></div>
     <div class="tright">
@@ -389,6 +442,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
     <p class="pick-hint" role="status"></p>
     <div class="char-xp" id="char-xp"></div>
+    <div class="aurapick" id="aurapick" role="radiogroup" aria-label="Aura du perso"></div>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
@@ -713,7 +767,9 @@ const levelOf = i => levelOfXp(xpOf(i));
 // une aura tous les 10 niveaux, de la plus discrète à la plus puissante
 const AURAS = ['', 'Lueur', 'Sève', 'Ondine', 'Arcane', 'Aurore', 'Brasier', 'Orage', 'Cosmos', 'Prisme', 'Divine'];
 const auraOfLevel = L => Math.min(10, Math.floor(L / 10));
-const auraOf = i => auraOfLevel(levelOf(i));
+if (!settings.auraSel || typeof settings.auraSel !== 'object') settings.auraSel = {};
+const auraMaxOf = i => auraOfLevel(levelOf(i));
+const auraOf = i => { const mx = auraMaxOf(i), sel = settings.auraSel[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
@@ -2233,6 +2289,7 @@ function xpToast(msg, long) {
 // Panneau « niveau et XP » d'un perso (accueil, et fin de partie avec le gain)
 function xpPanelHtml(i, gainLine) {
   const ch = CHARS[i], x = xpOf(i), L = levelOfXp(x), au = auraOfLevel(L);
+  // (au = plus haute aura débloquée ; l'aura portée se choisit juste en dessous, à l'accueil)
   const lo = XP_TOTAL[L], hi = L < LV_MAX ? XP_TOTAL[L + 1] : lo, pct = L < LV_MAX ? Math.max(0, Math.min(100, (x - lo) / (hi - lo) * 100)) : 100;
   const nextA = au < 10 ? `prochaine au niveau ${(au + 1) * 10} : <em>${AURAS[au + 1]}</em>` : 'toutes les auras débloquées';
   const sub = (L < LV_MAX ? `${Math.floor(x - lo)} / ${hi - lo} XP` : 'Niveau maximum') + ' · ' + (au ? `aura <em>${AURAS[au]}</em> · ` : '') + nextA;
@@ -2241,6 +2298,32 @@ function xpPanelHtml(i, gainLine) {
 function syncXpUi() {
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
+  syncAuraPick();
+}
+// Sélecteur d'aura du perso choisi : « Aucune » + les 10 auras (verrouillées au-dessus de son niveau)
+const auraBtns = [];
+function syncAuraPick() {
+  const box = document.getElementById('aurapick'); if (!box) return;
+  const i = settings.skin;
+  if (charLocked(i)) { box.innerHTML = ''; auraBtns.length = 0; return; }
+  if (!auraBtns.length) {
+    for (let a = 0; a <= 10; a++) {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio');
+      const cv = document.createElement('canvas'); cv.width = 80; cv.height = 88;
+      const lb = document.createElement('span'); b.append(cv, lb); box.appendChild(b); auraBtns.push({ b, cv, a });
+      b.addEventListener('click', () => {
+        const k = settings.skin; if (a > auraMaxOf(k)) { const h = menuEl.querySelector('.pick-hint'); if (h) { h.textContent = `L'aura « ${AURAS[a]} » se débloque au niveau ${a * 10} de ${CHARS[k].name}.`; clearTimeout(h._t); h._t = setTimeout(() => { h.textContent = ''; }, 3500); } return; }
+        settings.auraSel[CHARS[k].key] = a; saveSettings(); syncAuraPick();
+      });
+    }
+  }
+  const mx = auraMaxOf(i), cur = auraOf(i);
+  for (const { b, a } of auraBtns) {
+    const lk = a > mx;
+    b.classList.toggle('locked', lk); b.setAttribute('aria-checked', String(a === cur));
+    b.querySelector('span').textContent = lk ? `niv. ${a * 10}` : a ? AURAS[a] : 'Aucune';
+    b.setAttribute('aria-label', a ? `Aura ${AURAS[a]}` + (lk ? `, débloquée au niveau ${a * 10}` : '') : 'Aucune aura');
+  }
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
 function addXp(skin, amount) {
@@ -2271,7 +2354,7 @@ let xpPrevPhase = '', xpPrevKills = 0, xpBrT = 0;
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
   if (!me || me.ai || !inGame()) { xpPrevPhase = G.phase; xpPrevKills = 0; return; }
-  me.aura = auraOf(me.skin);
+  me.aura = auraOf(me.skin); me.elo = ELO.me ? ELO.me.elo | 0 : 0;
   if (G.mode === 'match') {
     if (G.phase === 'roundEnd' && xpPrevPhase !== 'roundEnd' && xpPrevPhase) {
       const pts = G.pointsMode ? (G.gains[i] | 0) : (G.lastWinner === i ? PTS[0] : 0);
@@ -2544,6 +2627,138 @@ function drawBomb(c, x, y, b, t) {
 
 /* ---------- Persos en images ---------- */
 // Dessine le perso n° skin ; l'artificier (0), ou un perso dont l'image n'est pas encore chargée, est dessiné en code.
+// ---------- Rangs Elo : Bronze III → I, Argent, Or, Platine, Diamant, Maître (3 divisions chacun), puis Légende (+ Elo au-delà)
+const RANK_TIERS = [
+  { key: 'bronze', name: 'Bronze', c0: '#6b3b17', c1: '#b8733a', c2: '#f0b07a', glow: '200,120,60' },
+  { key: 'argent', name: 'Argent', c0: '#5d6875', c1: '#b9c3ce', c2: '#ffffff', glow: '200,215,235' },
+  { key: 'or', name: 'Or', c0: '#7a4d08', c1: '#e8b23a', c2: '#fff1a8', glow: '255,205,80' },
+  { key: 'platine', name: 'Platine', c0: '#16615b', c1: '#4fcfc0', c2: '#dcfffa', glow: '90,230,210' },
+  { key: 'diamant', name: 'Diamant', c0: '#203f8c', c1: '#5fa8ff', c2: '#e6f4ff', glow: '110,180,255' },
+  { key: 'maitre', name: 'Maître', c0: '#3f1675', c1: '#a45cff', c2: '#f3dcff', glow: '190,110,255' },
+  { key: 'legende', name: 'Légende', c0: '#6e0b04', c1: '#ff4f2e', c2: '#ffd36e', glow: '255,110,50' },
+];
+// Elo minimum de chaque division (III, II, I) par palier ; Légende à partir de 1850
+const RANK_MIN = [[0, 850, 900], [950, 1000, 1050], [1100, 1150, 1200], [1250, 1300, 1350], [1400, 1475, 1550], [1625, 1700, 1775]], LEGEND_MIN = 1850;
+function rankOf(elo) {
+  elo = elo | 0;
+  if (elo >= LEGEND_MIN) return { tier: 6, div: 0, name: 'Légende', label: `Légende +${elo - LEGEND_MIN}` };
+  for (let t = RANK_MIN.length - 1; t >= 0; t--) for (let d = 2; d >= 0; d--) if (elo >= RANK_MIN[t][d]) {
+    const div = 3 - d, name = `${RANK_TIERS[t].name} ${['III', 'II', 'I'][d]}`;
+    return { tier: t, div, name, label: name };
+  }
+  return { tier: 0, div: 3, name: 'Bronze III', label: 'Bronze III' };
+}
+function metalGrad(c, x0, y0, x1, y1, T) {
+  const g = c.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, T.c2); g.addColorStop(0.45, T.c1); g.addColorStop(1, T.c0); return g;
+}
+// Emblème du rang, centré en (0, 0), hauteur ~ 2 × s
+function drawRankEmblem(c, s, rk, t) {
+  const T = RANK_TIERS[rk.tier], k = s / 20;
+  c.save(); c.scale(k, k); c.lineJoin = 'round';
+  // halo
+  const halo = c.createRadialGradient(0, 0, 2, 0, 0, 24); halo.addColorStop(0, `rgba(${T.glow},${rk.tier >= 4 ? 0.55 : 0.3})`); halo.addColorStop(1, `rgba(${T.glow},0)`);
+  c.fillStyle = halo; c.fillRect(-24, -24, 48, 48);
+  const ink = 'rgba(25,12,4,.85)';
+  if (rk.tier >= 5) { // ailes (Maître, Légende)
+    for (const sx of [-1, 1]) {
+      c.save(); c.scale(sx, 1);
+      c.fillStyle = metalGrad(c, 8, -10, 22, 8, rk.tier === 6 ? RANK_TIERS[2] : T);
+      c.beginPath(); c.moveTo(8, -6); c.quadraticCurveTo(20, -14, 23, -4); c.quadraticCurveTo(18, -4, 20, 2); c.quadraticCurveTo(15, 1, 16, 7); c.quadraticCurveTo(11, 5, 8, 8); c.closePath();
+      c.fill(); c.lineWidth = 1.2; c.strokeStyle = ink; c.stroke(); c.restore();
+    }
+  }
+  // forme principale
+  c.beginPath();
+  if (rk.tier <= 2 || rk.tier === 5) { // écu
+    c.moveTo(-11, -12); c.lineTo(11, -12); c.lineTo(11, 0); c.quadraticCurveTo(11, 10, 0, 16); c.quadraticCurveTo(-11, 10, -11, 0); c.closePath();
+  } else if (rk.tier === 3) { // gemme hexagonale
+    for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + i * Math.PI / 3; c.lineTo(Math.cos(a) * 14, Math.sin(a) * 15); } c.closePath();
+  } else if (rk.tier === 4) { // diamant taillé
+    c.moveTo(-14, -5); c.lineTo(-7, -13); c.lineTo(7, -13); c.lineTo(14, -5); c.lineTo(0, 16); c.closePath();
+  } else { // Légende : étoile à 8 branches
+    for (let i = 0; i < 16; i++) { const a = -Math.PI / 2 + i * Math.PI / 8, r = i % 2 ? 9 : 16; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath();
+  }
+  c.fillStyle = metalGrad(c, -12, -14, 12, 16, T); c.fill(); c.lineWidth = 1.6; c.strokeStyle = ink; c.stroke();
+  // détails internes
+  c.save(); c.clip();
+  c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.moveTo(-16, -16); c.lineTo(16, -16); c.lineTo(-16, 6); c.closePath(); c.fill();
+  if (rk.tier === 4) { c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-14, -5); c.lineTo(14, -5); c.moveTo(-7, -13); c.lineTo(-3, -5); c.lineTo(0, 16); c.lineTo(3, -5); c.lineTo(7, -13); c.stroke(); }
+  if (rk.tier >= 4) { const sw = ((t * 0.6) % 2) * 40 - 20; c.fillStyle = 'rgba(255,255,255,.45)'; c.beginPath(); c.moveTo(sw - 4, -18); c.lineTo(sw + 2, -18); c.lineTo(sw - 8, 18); c.lineTo(sw - 14, 18); c.closePath(); c.fill(); }
+  c.restore();
+  if (rk.tier === 2 || rk.tier === 5) { // lauriers
+    c.strokeStyle = rk.tier === 5 ? '#ffd66e' : '#8a5a10'; c.lineWidth = 1.3;
+    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) { c.beginPath(); c.ellipse(sx * (6 - i * 0.5), 8 - i * 6, 1.6, 3.2, sx * 0.6, 0, TAU); c.stroke(); }
+  }
+  if (rk.tier >= 5) { // couronne
+    c.fillStyle = metalGrad(c, -8, -24, 8, -12, RANK_TIERS[2]);
+    c.beginPath(); c.moveTo(-8, -12); c.lineTo(-9, -21); c.lineTo(-4, -16); c.lineTo(0, -23); c.lineTo(4, -16); c.lineTo(9, -21); c.lineTo(8, -12); c.closePath(); c.fill(); c.lineWidth = 1.1; c.strokeStyle = ink; c.stroke();
+    c.fillStyle = rk.tier === 6 ? '#ff4f2e' : '#a45cff'; c.beginPath(); c.arc(0, -16, 1.6, 0, TAU); c.fill();
+  }
+  if (rk.tier === 6) { // flammes autour
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 + t * 0.8, f = 0.7 + 0.3 * Math.sin(t * 9 + i * 2);
+      c.save(); c.rotate(a); c.fillStyle = `rgba(255,${120 + i * 15},40,${0.75 * f})`;
+      c.beginPath(); c.moveTo(-3, -15); c.quadraticCurveTo(0, -15 - 9 * f, 3, -15); c.closePath(); c.fill(); c.restore();
+    }
+  }
+  // divisions : III = 1 trait, II = 2, I = 3 (progression)
+  if (rk.div) {
+    c.fillStyle = '#fff6dc'; c.strokeStyle = ink; c.lineWidth = 0.9;
+    const n = 4 - rk.div;
+    for (let i = 0; i < n; i++) { const x = (i - (n - 1) / 2) * 5.5; c.beginPath(); c.moveTo(x - 2.4, 4.5); c.lineTo(x, 2); c.lineTo(x + 2.4, 4.5); c.lineTo(x, 9); c.closePath(); c.fill(); c.stroke(); }
+  }
+  c.restore();
+}
+// Cadre autour d'un portrait rond de rayon r (centre 0, 0), selon le palier
+function drawRankFrame(c, r, rk, t) {
+  const T = RANK_TIERS[rk.tier], ink = 'rgba(25,12,4,.8)', w = 3 + rk.tier * 0.5;
+  c.save(); c.lineJoin = 'round';
+  if (rk.tier >= 3) { const g = c.createRadialGradient(0, 0, 0, 0, 0, r + 14), q = r / (r + 14); g.addColorStop(0, `rgba(${T.glow},0)`); g.addColorStop(q * 0.98, `rgba(${T.glow},0)`); g.addColorStop(q, `rgba(${T.glow},${rk.tier >= 5 ? 0.6 : 0.4})`); g.addColorStop(1, `rgba(${T.glow},0)`); c.fillStyle = g; c.fillRect(-r - 16, -r - 16, r * 2 + 32, r * 2 + 32); }
+  // ornements derrière l'anneau
+  if (rk.tier === 1 || rk.tier >= 5) for (const sx of [-1, 1]) { // ailes
+    c.save(); c.scale(sx, 1); c.fillStyle = metalGrad(c, r, -10, r + 14, 10, rk.tier === 6 ? RANK_TIERS[2] : T);
+    c.beginPath(); c.moveTo(r - 2, -6); c.quadraticCurveTo(r + 12, -16, r + 15, -3); c.quadraticCurveTo(r + 9, -2, r + 11, 4); c.quadraticCurveTo(r + 6, 3, r + 6, 9); c.quadraticCurveTo(r + 2, 7, r - 2, 8); c.closePath();
+    c.fill(); c.lineWidth = 1.1; c.strokeStyle = ink; c.stroke(); c.restore();
+  }
+  if (rk.tier === 4) for (let i = 0; i < 4; i++) { // cristaux
+    c.save(); c.rotate(i * Math.PI / 2); c.fillStyle = metalGrad(c, -4, -r - 12, 4, -r, T);
+    c.beginPath(); c.moveTo(-4.5, -r + 2); c.lineTo(0, -r - 11); c.lineTo(4.5, -r + 2); c.closePath(); c.fill(); c.lineWidth = 1; c.strokeStyle = ink; c.stroke(); c.restore();
+  }
+  if (rk.tier === 6) for (let i = 0; i < 10; i++) { // flammes
+    const a = i * TAU / 10 + t * 0.5, f = 0.6 + 0.4 * Math.sin(t * 10 + i * 1.9);
+    c.save(); c.rotate(a); const g = c.createLinearGradient(0, -r, 0, -r - 12 * f); g.addColorStop(0, 'rgba(255,80,30,.95)'); g.addColorStop(1, 'rgba(255,220,110,0)');
+    c.fillStyle = g; c.beginPath(); c.moveTo(-5, -r + 1); c.quadraticCurveTo(-2, -r - 8 * f, 0, -r - 13 * f); c.quadraticCurveTo(2, -r - 8 * f, 5, -r + 1); c.closePath(); c.fill(); c.restore();
+  }
+  // anneau
+  let ring = metalGrad(c, -r, -r, r, r, T);
+  if (rk.tier >= 4) { const a = t * 1.4; ring = c.createLinearGradient(Math.cos(a) * r, Math.sin(a) * r, -Math.cos(a) * r, -Math.sin(a) * r); ring.addColorStop(0, T.c2); ring.addColorStop(0.5, T.c1); ring.addColorStop(1, T.c0); }
+  c.lineWidth = w + 2; c.strokeStyle = ink; c.beginPath(); c.arc(0, 0, r + w / 2, 0, TAU); c.stroke();
+  c.lineWidth = w; c.strokeStyle = ring; c.beginPath(); c.arc(0, 0, r + w / 2, 0, TAU); c.stroke();
+  if (rk.tier === 3 || rk.tier === 5) { c.lineWidth = 1; c.strokeStyle = T.c2; c.beginPath(); c.arc(0, 0, r + w + 1.5, 0, TAU); c.stroke(); }
+  // rivets / gemmes
+  const gems = rk.tier === 0 ? 4 : rk.tier === 3 ? 6 : 0;
+  for (let i = 0; i < gems; i++) {
+    const a = i * TAU / gems + Math.PI / 4, x = Math.cos(a) * (r + w / 2), y = Math.sin(a) * (r + w / 2);
+    c.fillStyle = rk.tier === 0 ? T.c2 : '#ffffff'; c.strokeStyle = ink; c.lineWidth = 0.8;
+    c.beginPath(); if (rk.tier === 3) { c.moveTo(x, y - 3); c.lineTo(x + 2.4, y); c.lineTo(x, y + 3); c.lineTo(x - 2.4, y); c.closePath(); } else c.arc(x, y, 1.6, 0, TAU); c.fill(); c.stroke();
+  }
+  if (rk.tier === 2) { // lauriers en bas
+    c.strokeStyle = '#ffe48a'; c.lineWidth = 1.4;
+    for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) { const a = Math.PI / 2 + sx * (0.35 + i * 0.28), x = Math.cos(a) * (r + w + 3), y = Math.sin(a) * (r + w + 3); c.beginPath(); c.ellipse(x, y, 1.6, 3.4, a + Math.PI / 2 * sx * 0.3, 0, TAU); c.stroke(); }
+  }
+  if (rk.tier >= 2) { // joyau ou couronne en haut
+    if (rk.tier >= 5) {
+      c.fillStyle = metalGrad(c, -9, -r - 16, 9, -r - 2, RANK_TIERS[2]);
+      c.beginPath(); c.moveTo(-9, -r - 2); c.lineTo(-10, -r - 12); c.lineTo(-4.5, -r - 7); c.lineTo(0, -r - 15); c.lineTo(4.5, -r - 7); c.lineTo(10, -r - 12); c.lineTo(9, -r - 2); c.closePath(); c.fill(); c.lineWidth = 1.1; c.strokeStyle = ink; c.stroke();
+      c.fillStyle = rk.tier === 6 ? '#ff4f2e' : '#a45cff'; c.beginPath(); c.arc(0, -r - 6, 1.8, 0, TAU); c.fill();
+    } else {
+      c.fillStyle = rk.tier === 4 ? '#e6f4ff' : T.c2; c.strokeStyle = ink; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(0, -r - w - 5); c.lineTo(4, -r - w / 2); c.lineTo(0, -r + 3); c.lineTo(-4, -r - w / 2); c.closePath(); c.fill(); c.stroke();
+    }
+  }
+  c.restore();
+}
 // Auras (derrière le perso puis devant). x, y : centre de la case ; pieds vers y + 15, tête vers y − 40.
 function auraGlow(c, cx, cy, rx, ry, rgb, a) {
   c.save(); c.translate(cx, cy); c.scale(1, ry / rx); c.globalCompositeOperation = 'lighter';
@@ -3073,7 +3288,7 @@ function buildStatics() {
 }
 const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[localIdx()] : null) : G.players[i];
 function setupHud() {
-  $('#hud').classList.toggle('many', G.mode !== 'br' && G.players.length > 2);
+  document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2);
   if (G.mode !== 'br') $('#br-ui').hidden = true;
   for (let i = 0; i < 4; i++) {
     const p = hudPlayer(i), card = cards[i];
@@ -3086,9 +3301,26 @@ function setupHud() {
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
   }
   hudCache = {};
+  const hb = $('#hud-b'), hide = cards[1].hidden && cards[3].hidden;
+  if (hb.hidden !== hide) { hb.hidden = hide; resize(); }
+  hudCache.frames = null;
 }
 function setTxt(el, v, key) { if (hudCache[key] !== v) { hudCache[key] = v; el.textContent = v; } }
+let frameT = 0;
+function drawHudFrames() {
+  const now = performance.now(); if (now - frameT < 33) return; frameT = now;
+  for (let i = 0; i < 4; i++) {
+    const card = cards[i]; if (card.hidden) continue;
+    const p = hudPlayer(i), cv = card.querySelector('.pframe'), c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    if (!p || p.ai || !(p.elo > 0)) continue;
+    const rk = rankOf(p.elo); c.translate(cv.width / 2, cv.height / 2);
+    const k = cv.width / (1.62 * 52); c.scale(k, k); drawRankFrame(c, 26, rk, now / 1000);
+    card.querySelector('.pwrap').title = rk.label;
+  }
+}
 function updateHud() {
+  drawHudFrames();
   for (let i = 0; i < 4; i++) {
     const p = hudPlayer(i); if (!p) continue;
     const sts = cards[i].querySelectorAll('.st');
@@ -3204,6 +3436,18 @@ function drawLock(c, x, y) {
 }
 function drawCharPicker(t) {
   if (menuEl.hidden && endEl.hidden) return;
+  if (!menuEl.hidden) for (const { cv, a } of auraBtns) {
+    const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    const k = cv.width / 52; c.setTransform(k, 0, 0, k, 0, 0);
+    const lk = a > auraMaxOf(settings.skin);
+    if (lk) c.globalAlpha = 0.35;
+    if (a) drawAura(c, 26, 33, a, t, false, a);
+    drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false });
+    if (a) drawAura(c, 26, 33, a, t, true, a);
+    c.globalAlpha = 1; if (lk) drawLock(c, 26, 28);
+  }
+  const emb = !menuEl.hidden && ELO.rk && document.querySelector('#elo-badge .rk-emb');
+  if (emb) { const c = emb.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 76, 76); c.translate(38, 40); drawRankEmblem(c, 26, ELO.rk, t); }
   charBtns.forEach(({ cv, i, root }) => {
     if (root.hidden) return;
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
@@ -3397,7 +3641,15 @@ function renderEloBadge() {
   if (m) { let ch = false; for (const c of CHARS) if (c.elo && m.elo >= c.elo && !settings.unl[c.key]) { settings.unl[c.key] = true; ch = true; } if (ch) saveSettings(); }
   if (charBtns.length) syncCharPicker();
   b.hidden = !m;
-  if (m) { b.textContent = `Elo ${m.elo}` + (m.rank ? ` · ${ordinal(m.rank)}` : ''); b.title = m.games ? `${m.games} partie${m.games > 1 ? 's' : ''} classée${m.games > 1 ? 's' : ''}, ${m.wins} gagnée${m.wins > 1 ? 's' : ''}` : 'Pas encore de partie classée'; }
+  if (m) {
+    const rk = rankOf(m.elo);
+    b.className = 'elo-badge rk-' + RANK_TIERS[rk.tier].key;
+    b.innerHTML = `<canvas class="rk-emb" width="76" height="76" aria-hidden="true"></canvas><span class="rk-txt"><b></b><small></small></span>`;
+    b.querySelector('b').textContent = rk.label;
+    b.querySelector('small').textContent = `${m.elo} Elo` + (m.rank ? ` · ${ordinal(m.rank)}` : '');
+    b.title = (m.games ? `${m.games} partie${m.games > 1 ? 's' : ''} classée${m.games > 1 ? 's' : ''}, ${m.wins} gagnée${m.wins > 1 ? 's' : ''}` : 'Pas encore de partie classée') + ' · voir le classement';
+    ELO.rk = rk;
+  }
 }
 // Écran du classement
 async function openRanks() {
@@ -3412,6 +3664,7 @@ async function openRanks() {
     const row = (p, me) => {
       const tr = document.createElement('tr'); if (me) tr.className = 'me';
       for (const v of [p.rank ? ordinal(p.rank) : '–', p.name, p.elo, p.games, p.wins]) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
+      const rk = rankOf(p.elo), sp = document.createElement('span'); sp.className = 'rk-name rk-' + RANK_TIERS[rk.tier].key; sp.textContent = ' · ' + rk.label; tr.children[2].appendChild(sp);
       body.appendChild(tr);
     };
     d.top.forEach(p => row(p, p.id === myAid()));
@@ -3777,7 +4030,7 @@ function onHostData(L, d) {
   L.lastSeen = performance.now();
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
-    if (L.gin && G.players[L.slot] && G.players[L.slot].remote) G.players[L.slot].aura = L.gin.au | 0;
+    if (L.gin && G.players[L.slot] && G.players[L.slot].remote) { G.players[L.slot].aura = L.gin.au | 0; G.players[L.slot].elo = L.gin.el | 0; }
     if (L.gin && L.gin.sk !== L.skin) { L.skin = L.gin.sk; if (!NET.started) refreshHostLobby(); else if (G.mode === 'br' && G.players[L.slot] && G.players[L.slot].remote) G.players[L.slot].skin = L.skin; }
     if (L.gin && (L.gin.aid !== L.aid || L.gin.el !== L.elo)) {
       L.aid = L.gin.aid; L.elo = L.gin.el;
@@ -4024,7 +4277,7 @@ function buildSnap() {
   return {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
-    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0),
+    sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
     seed: G.seed, g, f, bu, b, fa, tw, p, e: NET.events.slice(), kw,
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
@@ -4059,6 +4312,7 @@ function decodeSnap(s) {
     const sk = Array.isArray(s.sk) ? clamp(num(s.sk[i]) | 0, 0, CHARS.length - 1) : 0;
     if (p.skin !== sk) { p.skin = sk; hudDirty = true; }
     if (i !== NET.me) p.aura = Array.isArray(s.au) ? clamp(num(s.au[i]) | 0, 0, 10) : 0;
+    if (i !== NET.me) p.elo = Array.isArray(s.eo) ? clamp(num(s.eo[i]) | 0, 0, 9999) : 0;
   });
   NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
@@ -4449,7 +4703,10 @@ window.addEventListener('gamepaddisconnected', e => { const code = 'pad' + e.gam
 /* ---------- Taille ---------- */
 function resize() {
   const stage = $('#stage');
-  const aw = stage.clientWidth - 14, ah = stage.clientHeight - 14;
+  // assez de place sur les côtés (et pas d'écran tactile) : joueurs dans les 4 coins autour de l'arène
+  const side = !document.body.classList.contains('touch') && window.innerWidth >= 1100 && window.innerHeight >= 520;
+  document.body.classList.toggle('hudside', side);
+  const aw = Math.min(stage.clientWidth - 14, side ? window.innerWidth - 2 * 245 : 1e9), ah = stage.clientHeight - 14;
   const s = Math.max(0.25, Math.min(aw / W, ah / H));
   const cw = Math.floor(W * s), ch = Math.floor(H * s);
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
@@ -4457,6 +4714,9 @@ function resize() {
   canvas.width = Math.max(1, Math.round(cw * dpr)); canvas.height = Math.max(1, Math.round(ch * dpr));
   K = canvas.width / W;
   document.documentElement.style.setProperty('--arena-w', (cw + 12) + 'px');
+  const fr = canvas.getBoundingClientRect();
+  document.documentElement.style.setProperty('--arena-top', Math.round(fr.top) + 'px');
+  document.documentElement.style.setProperty('--arena-bot', Math.round(window.innerHeight - fr.bottom) + 'px');
   buildSprites(); groundDirty = true;
 }
 if (window.ResizeObserver) new ResizeObserver(() => resize()).observe($('#stage'));
@@ -4488,7 +4748,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
