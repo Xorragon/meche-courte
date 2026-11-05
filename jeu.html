@@ -221,6 +221,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .acc-form label[hidden]{display:none}
 .acc-form .cta{margin-top:4px}
 .acc-who{font-size:18px;margin:14px 0 4px}.acc-who b{color:var(--gold)}
+.admin-pill{border-color:#ff6b5a!important;color:#ffb3a8!important;background:rgba(120,20,10,.45)!important}
 .acc-btn.on{border-color:rgba(255,214,110,.5);color:var(--gold)}
 .secret-form{display:flex;gap:10px;justify-content:center;margin:14px 0 6px}
 .secret-form input{width:min(240px,60vw);padding:10px 14px;border-radius:12px;border:1px solid rgba(243,229,192,.35);background:rgba(10,16,10,.55);color:var(--parchment);font:800 20px/1 var(--font-body);letter-spacing:.18em;text-align:center;text-transform:uppercase}
@@ -468,6 +469,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="ghost tiny" type="button" id="btn-help">Comment jouer</button>
       <button class="ghost tiny" type="button" id="btn-secret">Secret</button>
       <button class="ghost tiny acc-btn" type="button" id="btn-account">Créer un compte</button>
+      <button class="ghost tiny admin-pill" type="button" id="admin-pill" hidden title="Cliquer pour revenir à ta vraie progression">Mode admin ✕</button>
     </div>
   </div>
 </div>
@@ -790,8 +792,9 @@ settings.name2 = cleanNick(settings.name2, 'Joueur 2');
 if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CHARS.length) settings.skin = 0;
 // Persos à débloquer : une fois l'Elo requis atteint, le perso reste débloqué dans ce navigateur (settings.unl)
 if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
-const charLocked = i => { const ch = CHARS[i]; return !!(ch && ch.elo && !settings.unl[ch.key] && !(ELO.me && ELO.me.elo >= ch.elo)); };
-if (CHARS[settings.skin].elo && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
+const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && ch.elo && !settings.unl[ch.key] && !(ELO.me && ELO.me.elo >= ch.elo)); };
+const charLocked = i => !settings.admin && charLockedReal(i);
+if (CHARS[settings.skin].elo && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
 
 // ---------- Expérience et niveaux, par perso (1 à 100), gardés dans le navigateur (settings.xp[clé] = XP total)
 // XP gagnée : 10 par point marqué + 10 par manche jouée (battle royale : 3 points par victime, 1 point par 45 s en vie).
@@ -800,7 +803,10 @@ if (CHARS[settings.skin].elo && !settings.unl[CHARS[settings.skin].key]) setting
 const LV_MAX = 100, XP_PER_PT = 10, XP_BR_KILL = 3, XP_BR_ALIVE = 45;
 const XP_TOTAL = Array.from({ length: LV_MAX + 1 }, (_, L) => L <= 1 ? 0 : Math.round(37.5 * Math.pow(L - 1, 1.631)));
 if (!settings.xp || typeof settings.xp !== 'object') settings.xp = {};
-const xpOf = i => { const v = Number(settings.xp[CHARS[i].key]); return Number.isFinite(v) && v > 0 ? v : 0; };
+// Mode admin (settings.admin, gardé seulement dans ce navigateur, jamais envoyé au compte) : tous les persos débloqués,
+// tous au niveau 100, choix d'aura à part ; la vraie progression n'est ni modifiée ni augmentée pendant ce temps.
+const realXpOf = i => { const v = Number(settings.xp[CHARS[i].key]); return Number.isFinite(v) && v > 0 ? v : 0; };
+const xpOf = i => settings.admin ? XP_TOTAL[LV_MAX] : realXpOf(i);
 function levelOfXp(x) { let L = 1; while (L < LV_MAX && x >= XP_TOTAL[L + 1]) L++; return L; }
 const levelOf = i => levelOfXp(xpOf(i));
 // une aura tous les 10 niveaux, de la plus discrète à la plus puissante
@@ -808,7 +814,8 @@ const AURAS = ['', 'Lueur', 'Sève', 'Ondine', 'Arcane', 'Aurore', 'Brasier', 'O
 const auraOfLevel = L => Math.min(10, Math.floor(L / 10));
 if (!settings.auraSel || typeof settings.auraSel !== 'object') settings.auraSel = {};
 const auraMaxOf = i => auraOfLevel(levelOf(i));
-const auraOf = i => { const mx = auraMaxOf(i), sel = settings.auraSel[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
+const auraSelMap = () => settings.admin ? (settings.adminAuraSel || (settings.adminAuraSel = {})) : settings.auraSel;
+const auraOf = i => { const mx = auraMaxOf(i), sel = auraSelMap()[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
@@ -2332,7 +2339,7 @@ function xpPanelHtml(i, gainLine) {
   const lo = XP_TOTAL[L], hi = L < LV_MAX ? XP_TOTAL[L + 1] : lo, pct = L < LV_MAX ? Math.max(0, Math.min(100, (x - lo) / (hi - lo) * 100)) : 100;
   const nextA = au < 10 ? `prochaine au niveau ${(au + 1) * 10} : <em>${AURAS[au + 1]}</em>` : 'toutes les auras débloquées';
   const sub = (L < LV_MAX ? `${Math.floor(x - lo)} / ${hi - lo} XP` : 'Niveau maximum') + ' · ' + (au ? `aura <em>${AURAS[au]}</em> · ` : '') + nextA;
-  return (gainLine ? `<p class="gain">${gainLine}</p>` : '') + `<span class="lv">${esc(ch.name)} <b>niv. ${L}</b></span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span><span class="sub">${sub}</span>`;
+  return (gainLine ? `<p class="gain">${gainLine}</p>` : '') + `<span class="lv">${esc(ch.name)} <b>niv. ${L}</b>${settings.admin ? ' <small style="color:#ff9d8f">(admin)</small>' : ''}</span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span><span class="sub">${sub}</span>`;
 }
 function syncXpUi() {
   const el = document.getElementById('char-xp');
@@ -2352,7 +2359,7 @@ function syncAuraPick() {
       const lb = document.createElement('span'); b.append(cv, lb); box.appendChild(b); auraBtns.push({ b, cv, a });
       b.addEventListener('click', () => {
         const k = settings.skin; if (a > auraMaxOf(k)) { const h = menuEl.querySelector('.pick-hint'); if (h) { h.textContent = `L'aura « ${AURAS[a]} » se débloque au niveau ${a * 10} de ${CHARS[k].name}.`; clearTimeout(h._t); h._t = setTimeout(() => { h.textContent = ''; }, 3500); } return; }
-        settings.auraSel[CHARS[k].key] = a; saveSettings(); syncAuraPick();
+        auraSelMap()[CHARS[k].key] = a; saveSettings(); syncAuraPick();
       });
     }
   }
@@ -2367,7 +2374,8 @@ function syncAuraPick() {
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
 function addXp(skin, amount) {
   if (!(amount > 0) || !CHARS[skin]) return;
-  const before = xpOf(skin), L0 = levelOfXp(before), after = before + amount, L1 = levelOfXp(after);
+  if (settings.admin) { xpToast(`+${amount} XP (mode admin : non compté)`); return; }
+  const before = realXpOf(skin), L0 = levelOfXp(before), after = before + amount, L1 = levelOfXp(after);
   settings.xp[CHARS[skin].key] = after; saveSettings();
   if (!G.xpSess || G.xpSess.skin !== skin) G.xpSess = { skin, gain: 0, L0 };
   G.xpSess.gain += amount;
@@ -3627,10 +3635,13 @@ async function rpc(fn, args) {
 // ---------- Comptes : identifiant + mot de passe ; la progression (XP, auras, persos débloqués, codes) est gardée sur le compte
 // Créer un compte transforme le compte anonyme de ce navigateur (même Elo) et y envoie la progression actuelle.
 // Se connecter ailleurs : la progression du compte est fusionnée avec celle de l'appareil (XP max par perso, déblocages cumulés).
-const progOf = () => ({ xp: settings.xp || {}, unl: settings.unl || {}, codes: settings.codes || [], auraSel: settings.auraSel || {}, skin: settings.skin | 0 });
+const progOf = () => ({ rv: settings.rv | 0, xp: settings.xp || {}, unl: settings.unl || {}, codes: settings.codes || [], auraSel: settings.auraSel || {}, skin: charLockedReal(settings.skin) ? 0 : settings.skin | 0 });
 var ACC = { saving: false, last: '', at: 0, t: 0, err: '' };   // var : saveSettings peut l'appeler très tôt
 function mergeProgLocal(p) {
   if (!p || typeof p !== 'object') return;
+  const rv = Number.isInteger(p.rv) ? p.rv : 0;
+  if (rv < (settings.rv | 0)) return;
+  if (rv > (settings.rv | 0)) { settings.rv = rv; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0; }
   if (p.xp && typeof p.xp === 'object') for (const k in p.xp) { const v = Number(p.xp[k]); if (Number.isFinite(v) && v > (Number(settings.xp[k]) || 0)) settings.xp[k] = v; }
   if (p.unl && typeof p.unl === 'object') for (const k in p.unl) if (p.unl[k] === true) settings.unl[k] = true;
   if (Array.isArray(p.codes)) { if (!Array.isArray(settings.codes)) settings.codes = []; for (const c of p.codes) if (typeof c === 'string' && !settings.codes.includes(c)) settings.codes.push(c); }
@@ -3719,6 +3730,7 @@ async function submitAccount(e) {
     } else {
       const r = await rpc('mc_login', { p_login: login, p_password: pass });
       settings.account = { id: r.id, secret: r.secret, login: r.login };
+      if (r.prog && (r.prog.rv | 0) < (settings.rv | 0)) settings.rv = r.prog.rv | 0; // rv propre à l'ancien compte : on repart de celui-ci
       settings.srvName = r.name; settings.name = r.name;
       mergeProgLocal(r.prog); saveSettings();
       ELO.me = { id: r.id, name: r.name, elo: r.elo, games: r.games, wins: r.wins, rank: r.rank };
@@ -3737,7 +3749,7 @@ function logout() {
   if (!logoutArmed) { logoutArmed = true; b.textContent = 'Confirmer la déconnexion'; setTimeout(() => { logoutArmed = false; b.textContent = 'Se déconnecter'; }, 4000); $('#acc-msg').textContent = "Ta progression reste sur ton compte ; cet appareil repartira de zéro jusqu'à ta prochaine connexion."; $('#acc-msg').className = 'rule secret-msg'; return; }
   logoutArmed = false; b.textContent = 'Se déconnecter';
   if (JSON.stringify(progOf()) !== ACC.last) saveProg(true);
-  settings.account = null; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0;
+  settings.account = null; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0; settings.rv = 0;
   ACC.last = ''; ACC.at = 0; ACC.err = ''; ELO.me = null; saveSettings();
   syncCharPicker(); renderEloBadge(); refreshMe();
   setAccMode('log'); renderAccount();
@@ -3882,13 +3894,20 @@ $('#btn-ranks').addEventListener('click', openRanks);
 const SECRET_CODES = {
   // code administrateur : tous les persos débloqués et tous au niveau 100 (toutes les auras)
   dc12cb5f23b794f151d80bfcbcf4435d840f561e1edd36f1fd89db303347054d: {
-    id: 'admin', once: false,
+    id: 'admin', once: false, keep: false,
     apply() {
-      for (const ch of CHARS) { settings.xp[ch.key] = Math.max(Number(settings.xp[ch.key]) || 0, XP_TOTAL[LV_MAX]); if (ch.elo) settings.unl[ch.key] = true; }
-      return 'Code administrateur accepté : tous les persos sont débloqués, niveau 100, toutes les auras.';
+      setAdmin(!settings.admin);
+      return settings.admin ? 'Mode admin activé : tous les persos et toutes les auras, sans toucher à ta progression. Retape le code (ou clique sur « Mode admin » à l\'accueil) pour l\'enlever.'
+        : 'Mode admin désactivé : retour à ta vraie progression.';
     },
   },
 };
+function setAdmin(on) {
+  settings.admin = !!on;
+  if (!settings.admin && charLocked(settings.skin)) settings.skin = 0;
+  saveSettings(); syncCharPicker(); renderAdminPill();
+}
+function renderAdminPill() { const b = document.getElementById('admin-pill'); if (b) b.hidden = !settings.admin; }
 async function sha256Hex(txt) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -3899,6 +3918,7 @@ function openSecret() {
 }
 function closeSecret() { secretEl.hidden = true; menuEl.hidden = false; try { $('#btn-secret').focus({ preventScroll: true }); } catch (e) {} }
 $('#btn-secret').addEventListener('click', openSecret);
+$('#admin-pill').addEventListener('click', () => setAdmin(false));
 $('#btn-account').addEventListener('click', openAccount);
 $('#acc-close').addEventListener('click', closeAccount);
 $('#acc-tab-new').addEventListener('click', () => { setAccMode('new'); renderAccount(); });
@@ -3919,7 +3939,7 @@ $('#secret-form').addEventListener('submit', async e => {
   if (!Array.isArray(settings.codes)) settings.codes = [];
   if (c.once && settings.codes.includes(c.id)) { say('Tu as déjà utilisé ce code.', false); return; }
   const text = c.apply();
-  if (!settings.codes.includes(c.id)) settings.codes.push(c.id);
+  if (c.keep !== false && !settings.codes.includes(c.id)) settings.codes.push(c.id);
   saveSettings(); syncCharPicker(); Sfx.play('pickup');
   say(text, true); $('#secret-in').value = '';
 });
@@ -4907,7 +4927,7 @@ function boot(data) {
     im.src = 'assets/perso-' + ch.key + '.png';
   }
   resize(); toMenu();
-  refreshMe(); renderAccount(); pullProg();
+  refreshMe(); renderAccount(); renderAdminPill(); pullProg();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (pc.length === 4) openJoin(pc);
   if (document.fonts && document.fonts.load) {
