@@ -3485,9 +3485,13 @@ function drawSilhouette(c, cv, draw) {
   s.setTransform(c.getTransform()); draw.call(null, s);
   s.setTransform(1, 0, 0, 1, 0, 0);
   // seuil sur la transparence : les halos et lueurs disparaissent, il reste une ombre nette
-  const id = s.getImageData(0, 0, silCv.width, silCv.height), d = id.data;
-  for (let k = 0; k < d.length; k += 4) { const on = d[k + 3] > 150; d[k] = 52; d[k + 1] = 46; d[k + 2] = 76; d[k + 3] = on ? 242 : 0; }
-  s.putImageData(id, 0, 0);
+  try {
+    const id = s.getImageData(0, 0, silCv.width, silCv.height), d = id.data;
+    for (let k = 0; k < d.length; k += 4) { const on = d[k + 3] > 150; d[k] = 52; d[k + 1] = 46; d[k + 2] = 76; d[k + 3] = on ? 242 : 0; }
+    s.putImageData(id, 0, 0);
+  } catch (e) { // page ouverte en fichier local : images « d'une autre origine », pas de lecture des pixels
+    s.globalCompositeOperation = 'source-in'; s.fillStyle = 'rgba(52,46,76,.95)'; s.fillRect(0, 0, silCv.width, silCv.height); s.globalCompositeOperation = 'source-over';
+  }
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(silCv, 0, 0); c.restore();
 }
 // Aura pas encore débloquée : une brume grise et un point d'interrogation, pareils pour toutes (pas de spoil)
