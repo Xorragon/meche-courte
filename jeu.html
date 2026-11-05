@@ -210,6 +210,18 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .char-xp .gain{grid-column:1/-1;font-weight:800;color:var(--gold);font-size:15px}
 .xp-toast{top:46px;z-index:3;border:1px solid rgba(255,214,110,.35)}
 .secretbox{max-width:440px}
+.accbox{max-width:480px}
+.acc-tabs{display:flex;gap:6px;justify-content:center;margin:12px 0 4px}
+.acc-tabs button{flex:1;padding:9px 10px;border-radius:12px;border:2px solid rgba(243,229,192,.18);background:rgba(10,16,10,.45);color:var(--parchment);font:800 14px/1.1 var(--font-body);cursor:pointer}
+.acc-tabs button[aria-selected="true"]{border-color:var(--gold);background:rgba(255,214,110,.12);color:var(--gold)}
+.acc-form{display:flex;flex-direction:column;gap:10px;margin:10px auto 4px;width:min(340px,100%);text-align:left}
+.acc-form label{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:13px;color:rgba(243,229,192,.8)}
+.acc-form input{padding:10px 12px;border-radius:12px;border:1px solid rgba(243,229,192,.35);background:rgba(10,16,10,.55);color:var(--parchment);font:700 17px/1 var(--font-body)}
+.acc-form input:focus{outline:2px solid var(--gold);outline-offset:2px}
+.acc-form label[hidden]{display:none}
+.acc-form .cta{margin-top:4px}
+.acc-who{font-size:18px;margin:14px 0 4px}.acc-who b{color:var(--gold)}
+.acc-btn.on{border-color:rgba(255,214,110,.5);color:var(--gold)}
 .secret-form{display:flex;gap:10px;justify-content:center;margin:14px 0 6px}
 .secret-form input{width:min(240px,60vw);padding:10px 14px;border-radius:12px;border:1px solid rgba(243,229,192,.35);background:rgba(10,16,10,.55);color:var(--parchment);font:800 20px/1 var(--font-body);letter-spacing:.18em;text-align:center;text-transform:uppercase}
 .secret-form input:focus{outline:2px solid var(--gold);outline-offset:2px}
@@ -455,6 +467,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="ghost tiny" type="button" id="btn-ranks">Classement</button>
       <button class="ghost tiny" type="button" id="btn-help">Comment jouer</button>
       <button class="ghost tiny" type="button" id="btn-secret">Secret</button>
+      <button class="ghost tiny acc-btn" type="button" id="btn-account">Créer un compte</button>
     </div>
   </div>
 </div>
@@ -509,6 +522,32 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </div>
 </div>
 
+<div id="account" class="overlay" hidden>
+  <div class="box accbox">
+    <p class="kicker" id="acc-kicker">Ta progression</p>
+    <h2 id="acc-title">Ton compte</h2>
+    <div id="acc-out">
+      <div class="acc-tabs" role="tablist">
+        <button type="button" role="tab" id="acc-tab-new" aria-selected="true">Créer un compte</button>
+        <button type="button" role="tab" id="acc-tab-log" aria-selected="false">J'ai déjà un compte</button>
+      </div>
+      <p class="rule small" id="acc-help"></p>
+      <form id="acc-form" class="acc-form" autocomplete="on">
+        <label>Identifiant <input id="acc-login" type="text" name="username" autocomplete="username" maxlength="24" spellcheck="false" autocapitalize="none" placeholder="3 à 24 caractères"></label>
+        <label>Mot de passe <input id="acc-pass" type="password" name="password" autocomplete="new-password" maxlength="72" placeholder="6 caractères au moins"></label>
+        <label id="acc-pass2-l">Confirme le mot de passe <input id="acc-pass2" type="password" autocomplete="new-password" maxlength="72"></label>
+        <button class="cta" type="submit" id="acc-submit">Créer mon compte</button>
+      </form>
+    </div>
+    <div id="acc-in" hidden>
+      <p class="acc-who">Connecté en tant que <b id="acc-name"></b></p>
+      <p class="rule small" id="acc-sync"></p>
+      <div class="row"><button class="ghost" type="button" id="acc-save">Sauvegarder maintenant</button><button class="ghost" type="button" id="acc-logout">Se déconnecter</button></div>
+    </div>
+    <p class="rule secret-msg" id="acc-msg" role="status"></p>
+    <div class="row" style="margin-top:12px"><button class="ghost" type="button" id="acc-close">Retour <kbd>Échap</kbd></button></div>
+  </div>
+</div>
 <div id="secret" class="overlay" hidden>
   <div class="box secretbox">
     <p class="kicker">Chut…</p>
@@ -742,7 +781,7 @@ function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let 
 
 const settings = { mode: 'cpu', bots: 1, diff: 1, wins: 3, rumble: true, keys: null, keyLabels: {}, pad: null };
 try { const s = JSON.parse(localStorage.getItem('meche-courte') || 'null'); if (s) Object.assign(settings, s); } catch (e) {}
-function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} }
+function saveSettings() { try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} if (typeof progChanged === 'function') progChanged(); }
 // Pseudo (16 caractères max) et identifiant de joueur stable, gardé pour le futur classement en ligne
 const cleanNick = (v, def) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f-\u009f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || def;
 if (typeof settings.pid !== 'string' || !/^[a-z0-9]{12,32}$/.test(settings.pid)) settings.pid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
@@ -3485,7 +3524,7 @@ function toMenu() {
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
   G.round = 1; G.winsNeeded = 3;
   newRound(); setupHud(); syncMenu();
-  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; secretEl.hidden = true;
+  menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; secretEl.hidden = true; accEl().hidden = true;
   clearTimeout(reportT); $('#end-elo').textContent = ''; if (settings.account) refreshMe();
   try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -3584,6 +3623,125 @@ async function rpc(fn, args) {
     if (j && j.error) { const e = new Error(j.error); e.code = j.error; e.status = j.error === 'unknown' ? 404 : 400; throw e; }
     return j;
   } catch (e) { if (!e.status) ELO.down = true; throw e; } finally { clearTimeout(t); }
+}
+// ---------- Comptes : identifiant + mot de passe ; la progression (XP, auras, persos débloqués, codes) est gardée sur le compte
+// Créer un compte transforme le compte anonyme de ce navigateur (même Elo) et y envoie la progression actuelle.
+// Se connecter ailleurs : la progression du compte est fusionnée avec celle de l'appareil (XP max par perso, déblocages cumulés).
+const progOf = () => ({ xp: settings.xp || {}, unl: settings.unl || {}, codes: settings.codes || [], auraSel: settings.auraSel || {}, skin: settings.skin | 0 });
+var ACC = { saving: false, last: '', at: 0, t: 0, err: '' };   // var : saveSettings peut l'appeler très tôt
+function mergeProgLocal(p) {
+  if (!p || typeof p !== 'object') return;
+  if (p.xp && typeof p.xp === 'object') for (const k in p.xp) { const v = Number(p.xp[k]); if (Number.isFinite(v) && v > (Number(settings.xp[k]) || 0)) settings.xp[k] = v; }
+  if (p.unl && typeof p.unl === 'object') for (const k in p.unl) if (p.unl[k] === true) settings.unl[k] = true;
+  if (Array.isArray(p.codes)) { if (!Array.isArray(settings.codes)) settings.codes = []; for (const c of p.codes) if (typeof c === 'string' && !settings.codes.includes(c)) settings.codes.push(c); }
+  if (p.auraSel && typeof p.auraSel === 'object') for (const k in p.auraSel) if (Number.isInteger(p.auraSel[k])) settings.auraSel[k] = p.auraSel[k];
+  if (Number.isInteger(p.skin) && p.skin >= 0 && p.skin < CHARS.length && !charLocked(p.skin)) settings.skin = p.skin;
+}
+function progChanged() {
+  if (!ACC || !settings.account || !settings.account.login) return;
+  const sig = JSON.stringify(progOf()); if (sig === ACC.last) return;
+  clearTimeout(ACC.t); ACC.t = setTimeout(() => saveProg(), 4000);
+}
+async function saveProg(keepalive) {
+  const a = settings.account; if (!a || !a.login) return;
+  const prog = progOf(), sig = JSON.stringify(prog);
+  if (sig === ACC.last && !keepalive) return;
+  try {
+    if (keepalive) { fetch(`${SB_URL}/rest/v1/rpc/mc_save`, { method: 'POST', keepalive: true, headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ p_id: a.id, p_secret: a.secret, p_prog: prog }) }).catch(() => {}); ACC.last = sig; return; }
+    ACC.saving = true; renderAccount();
+    await rpc('mc_save', { p_id: a.id, p_secret: a.secret, p_prog: prog });
+    ACC.last = sig; ACC.at = Date.now(); ACC.err = '';
+  } catch (e) { ACC.err = e.code === 'auth' ? 'auth' : 'net'; clearTimeout(ACC.t); ACC.t = setTimeout(() => saveProg(), 30000); }
+  finally { ACC.saving = false; renderAccount(); }
+}
+window.addEventListener('pagehide', () => { if (settings.account && settings.account.login && JSON.stringify(progOf()) !== ACC.last) saveProg(true); });
+// au lancement (compte connecté) : récupérer la progression du compte et la fusionner
+async function pullProg() {
+  const a = settings.account; if (!a || !a.login) return;
+  try {
+    const r = await rpc('mc_me', { p_id: a.id, p_secret: a.secret });
+    mergeProgLocal(r.prog); try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {}
+    syncCharPicker(); progChanged(); ACC.at = r.prog_at ? Date.parse(r.prog_at) : ACC.at;
+  } catch (e) {
+    if (e.code === 'auth') { ACC.err = 'auth'; }
+  }
+  renderAccount();
+}
+const accEl = () => document.getElementById('account');
+let accMode = 'new';
+function setAccMode(m) {
+  accMode = m;
+  $('#acc-tab-new').setAttribute('aria-selected', String(m === 'new')); $('#acc-tab-log').setAttribute('aria-selected', String(m === 'log'));
+  $('#acc-pass2-l').hidden = m !== 'new';
+  $('#acc-pass').setAttribute('autocomplete', m === 'new' ? 'new-password' : 'current-password');
+  $('#acc-submit').textContent = m === 'new' ? 'Créer mon compte' : 'Me connecter';
+  $('#acc-help').textContent = m === 'new'
+    ? "Ton compte garde ta progression actuelle (XP et niveaux de chaque perso, auras, persos débloqués, codes) et ton Elo. Tu pourras la retrouver sur n'importe quel appareil. Pas d'e-mail : retiens bien ton mot de passe, il ne peut pas être récupéré."
+    : "Connecte-toi pour retrouver ta progression. Celle de cet appareil s'y ajoute (on garde le meilleur niveau de chaque perso). L'Elo devient celui du compte.";
+  $('#acc-msg').textContent = '';
+}
+function renderAccount() {
+  const a = settings.account, logged = !!(a && a.login), btn = document.getElementById('btn-account');
+  if (btn) { btn.textContent = logged ? `Compte : ${a.login}` : 'Créer un compte'; btn.classList.toggle('on', logged); }
+  const el = accEl(); if (!el || el.hidden) return;
+  $('#acc-out').hidden = logged; $('#acc-in').hidden = !logged;
+  $('#acc-title').textContent = logged ? 'Ton compte' : accMode === 'new' ? 'Créer un compte' : 'Se connecter';
+  if (logged) {
+    $('#acc-name').textContent = a.login;
+    const sy = $('#acc-sync');
+    sy.textContent = ACC.saving ? 'Sauvegarde…' : ACC.err === 'net' ? "Sauvegarde impossible pour l'instant (pas de connexion) : nouvel essai bientôt. Ta progression reste aussi sur cet appareil."
+      : ACC.err === 'auth' ? "Cet appareil n'est plus reconnu par le compte : déconnecte-toi puis reconnecte-toi."
+      : ACC.at ? `Progression sauvegardée sur ton compte (${new Date(ACC.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}). Elle se sauvegarde toute seule pendant que tu joues.` : 'Ta progression se sauvegarde toute seule sur ton compte pendant que tu joues.';
+  }
+}
+function openAccount() {
+  menuEl.hidden = true; accEl().hidden = false; setAccMode(accMode); renderAccount(); $('#acc-msg').textContent = '';
+  const logged = settings.account && settings.account.login;
+  try { (logged ? $('#acc-save') : $('#acc-login')).focus({ preventScroll: true }); } catch (e) {}
+}
+function closeAccount() { accEl().hidden = true; menuEl.hidden = false; try { $('#btn-account').focus({ preventScroll: true }); } catch (e) {} }
+const ACC_ERR = { login: "L'identifiant doit faire 3 à 24 caractères : lettres sans accent, chiffres, point, tiret ou tiret bas.", password: 'Le mot de passe doit faire au moins 6 caractères.', taken: 'Cet identifiant est déjà pris.', already: 'Cet appareil a déjà un compte.', auth: 'Identifiant ou mot de passe incorrect.', locked: 'Trop d\'essais : réessaie dans 5 minutes.', big: 'Progression trop volumineuse.' };
+async function submitAccount(e) {
+  e.preventDefault();
+  const msg = $('#acc-msg'), say = (t, ok) => { msg.textContent = t; msg.className = 'rule secret-msg ' + (ok ? 'ok' : 'bad'); };
+  const login = $('#acc-login').value.trim().toLowerCase(), pass = $('#acc-pass').value;
+  if (!/^[a-z0-9._-]{3,24}$/.test(login)) { say(ACC_ERR.login); return; }
+  if (pass.length < 6) { say(ACC_ERR.password); return; }
+  if (accMode === 'new' && pass !== $('#acc-pass2').value) { say('Les deux mots de passe ne sont pas les mêmes.'); return; }
+  $('#acc-submit').disabled = true; say(accMode === 'new' ? 'Création du compte…' : 'Connexion…', true);
+  try {
+    if (accMode === 'new') {
+      const acc = await ensureAccount();
+      const r = await rpc('mc_claim', { p_id: acc.id, p_secret: acc.secret, p_login: login, p_password: pass, p_prog: progOf() });
+      settings.account.login = r.login; mergeProgLocal(r.prog);
+      ACC.last = JSON.stringify(progOf()); ACC.at = Date.now(); saveSettings();
+      say(`Compte « ${r.login} » créé : ta progression est sauvegardée.`, true);
+    } else {
+      const r = await rpc('mc_login', { p_login: login, p_password: pass });
+      settings.account = { id: r.id, secret: r.secret, login: r.login };
+      settings.srvName = r.name; settings.name = r.name;
+      mergeProgLocal(r.prog); saveSettings();
+      ELO.me = { id: r.id, name: r.name, elo: r.elo, games: r.games, wins: r.wins, rank: r.rank };
+      syncMenu(); renderEloBadge(); syncCharPicker();
+      saveProg();
+      say(`Connecté : bon retour, ${r.name} !`, true);
+    }
+    $('#acc-pass').value = ''; $('#acc-pass2').value = '';
+  } catch (err) {
+    say(ACC_ERR[err.code] || (err.status ? 'Erreur du serveur, réessaie plus tard.' : "Le serveur n'est pas joignable pour l'instant. Réessaie dans un moment."));
+  } finally { $('#acc-submit').disabled = false; renderAccount(); }
+}
+let logoutArmed = false;
+function logout() {
+  const b = $('#acc-logout');
+  if (!logoutArmed) { logoutArmed = true; b.textContent = 'Confirmer la déconnexion'; setTimeout(() => { logoutArmed = false; b.textContent = 'Se déconnecter'; }, 4000); $('#acc-msg').textContent = "Ta progression reste sur ton compte ; cet appareil repartira de zéro jusqu'à ta prochaine connexion."; $('#acc-msg').className = 'rule secret-msg'; return; }
+  logoutArmed = false; b.textContent = 'Se déconnecter';
+  if (JSON.stringify(progOf()) !== ACC.last) saveProg(true);
+  settings.account = null; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0;
+  ACC.last = ''; ACC.at = 0; ACC.err = ''; ELO.me = null; saveSettings();
+  syncCharPicker(); renderEloBadge(); refreshMe();
+  setAccMode('log'); renderAccount();
+  $('#acc-msg').textContent = 'Déconnecté.'; $('#acc-msg').className = 'rule secret-msg ok';
 }
 // Même interface qu'avant : chemins « à la REST » traduits en appels de fonctions
 function api(method, path, body) {
@@ -3741,6 +3899,13 @@ function openSecret() {
 }
 function closeSecret() { secretEl.hidden = true; menuEl.hidden = false; try { $('#btn-secret').focus({ preventScroll: true }); } catch (e) {} }
 $('#btn-secret').addEventListener('click', openSecret);
+$('#btn-account').addEventListener('click', openAccount);
+$('#acc-close').addEventListener('click', closeAccount);
+$('#acc-tab-new').addEventListener('click', () => { setAccMode('new'); renderAccount(); });
+$('#acc-tab-log').addEventListener('click', () => { setAccMode('log'); renderAccount(); });
+$('#acc-form').addEventListener('submit', submitAccount);
+$('#acc-save').addEventListener('click', () => { ACC.last = ''; saveProg(); });
+$('#acc-logout').addEventListener('click', logout);
 $('#secret-close').addEventListener('click', closeSecret);
 $('#secret-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -3779,8 +3944,9 @@ window.addEventListener('keydown', e => {
   const code = e.code;
   if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
-  if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else toMenu(); } return; }
+  if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
+  if (!accEl().hidden) { if (code === 'Escape') closeAccount(); return; }
   const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
   if (!onlineEl.hidden) { if (code === 'Escape') toMenu(); return; }
@@ -4491,7 +4657,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, secretEl, ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, onlineEl, secretEl, accEl(), ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -4524,6 +4690,7 @@ function navBack(root) {
   else if (root === helpEl) closeHelp();
   else if (root === ranksEl) closeRanks();
   else if (root === secretEl) closeSecret();
+  else if (root === accEl()) closeAccount();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
@@ -4740,7 +4907,7 @@ function boot(data) {
     im.src = 'assets/perso-' + ch.key + '.png';
   }
   resize(); toMenu();
-  refreshMe();
+  refreshMe(); renderAccount(); pullProg();
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (pc.length === 4) openJoin(pc);
   if (document.fonts && document.fonts.load) {
