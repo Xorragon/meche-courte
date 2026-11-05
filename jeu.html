@@ -2980,7 +2980,7 @@ function drawCharBomb(c, x, y, b, t, im, fr) {
   const left = Math.max(0, b.timer), u = 1 - left / FUSE;
   const pulse = 1 + Math.sin(t * (7 + u * 22)) * (0.035 + u * 0.07);
   // K : agrandie pour que la boule ait la taille de la bombe de base (≈ 28 px), sinon un gros perso peut la cacher
-  const [sx, sy, w, h, ax, bot] = fr, S = 40 / 72, K = 1.4;
+  const [sx, sy, w, h, ax, bot] = fr, S = 40 / 72, K = 1.2;
   c.save(); c.translate(x, y + 3);
   c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 12, 14, 4.6); c.fill();
   c.translate(0, 14); c.scale(pulse * K, (2 - pulse) * K);
@@ -3517,10 +3517,9 @@ function drawCharPicker(t) {
     const k = cv.width / 52; c.setTransform(k, 0, 0, k, 0, 0);
     const lk = a > auraMaxOf(settings.skin);
     if (lk) {
-      drawMysteryAura(c, 26, 33, t); c.globalAlpha = 0.4;
-      drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false });
-      c.globalAlpha = 1; c.font = '900 22px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,4,.85)'; c.strokeText('?', 26, 20); c.fillStyle = '#e8e2f2'; c.fillText('?', 26, 20); c.textAlign = 'start';
+      // aura verrouillée : rien qu'un point d'interrogation (ni perso ni aperçu)
+      c.font = '900 30px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,4,.85)'; c.strokeText('?', 26, 26); c.fillStyle = 'rgba(232,226,242,.8)'; c.fillText('?', 26, 26); c.textAlign = 'start';
       continue;
     }
     if (a) drawAura(c, 26, 33, a, t, false, a);
