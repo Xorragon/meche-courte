@@ -399,8 +399,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </header>
   <main id="stage"><div id="frame"><canvas id="game" aria-label="Arène de jeu"></canvas>
     <div id="br-ui" hidden>
-      <div class="br-board" aria-label="Classement : les 10 joueurs qui ont le plus de bonus">
-        <p class="br-title">Le plus de bonus</p>
+      <div class="br-board" aria-label="Classement : les 10 joueurs qui ont le plus de points">
+        <p class="br-title">Le plus de points</p>
         <ol id="br-list"></ol>
         <p class="br-meta" id="br-meta"></p>
       </div>
@@ -585,7 +585,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
-      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Le classement montre les 10 joueurs qui ont le plus de bonus. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
+      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 5 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 1 point, plus grosses de 3, 10 ou 30 quand tu en avais beaucoup), et certaines caisses cachent aussi une orbe de 1 point. Le classement montre les 10 joueurs qui ont le plus de points. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -729,6 +729,17 @@ const EMPTY = 0, WALL = 1, PILLAR = 2, CRATE = 3, STONE = 4;
 const FUSE = 3.5, FLAME_DUR = 0.55, CHAIN_DELAY = 0.07, KICK_SPEED = 3.2; // bombe poussée : vitesse constante, plus lente que le perso de base
 const ROUND_TIME = 120, SD_STEP = 0.24, FALL_TIME = 0.5, SD_RINGS = 2, RAIN_EVERY = 7, RAIN_FALL = 0.9;
 const BASE_SPEED = 4, SPEED_STEP = 0.4, MAX_SPEED_LV = 5, MAX_BOMBS = 8, MAX_RANGE = 8;
+// Battle royale : vitesse 5 au plus (base comprise, donc 4 bonus), portée 6 cases, 8 bombes
+const BR_MAX_SPEED_LV = 4, BR_MAX_RANGE = 6, BR_MAX_BOMBS = 8;
+const capSpeed = () => G.mode === 'br' ? BR_MAX_SPEED_LV : MAX_SPEED_LV, capRange = () => G.mode === 'br' ? BR_MAX_RANGE : MAX_RANGE, capBombs = () => G.mode === 'br' ? BR_MAX_BOMBS : MAX_BOMBS;
+const ORB0 = 5, isOrb = it => it >= ORB0, ORB_VALS = [1, 3, 10, 30];
+// points d'un mort en orbes : < 10 pts → orbes de 1 ; 10 à 29 → de 3 (reste en 1) ; 30 à 99 → de 10 ; 100 et plus → de 30
+function orbsFor(pts) {
+  const out = []; let left = pts | 0;
+  const top = left >= 100 ? 3 : left >= 30 ? 2 : left >= 10 ? 1 : 0;
+  for (let d = top; d >= 0 && out.length < 24; d--) while (left >= ORB_VALS[d] && out.length < 24) { out.push(ORB0 + d); left -= ORB_VALS[d]; }
+  return out;
+}
 const SKIN = '#f2c79d';
 // Persos jouables : l'artificier dessiné en code, puis 11 persos en images (assets/perso-*.png).
 // Chaque image de marche est donnée par [x, y, largeur, hauteur, axe du corps, bas des pieds].
@@ -759,6 +770,11 @@ const ITEMS = [
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
   { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête.', c1: '#ffd66e', c2: '#c4860c' },
   { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde E (B à la manette) enfoncé et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
+  // orbes de points (battle royale) : pas dans la légende des bonus
+  { name: 'Orbe', short: '+1', orb: 1, c1: '#ffe27a', c2: '#d99a1a' },
+  { name: 'Orbe', short: '+3', orb: 3, c1: '#7dffb0', c2: '#18a85a' },
+  { name: 'Orbe', short: '+10', orb: 10, c1: '#7cc4ff', c2: '#2a62d8' },
+  { name: 'Orbe', short: '+30', orb: 30, c1: '#f19bff', c2: '#9a2fd8' },
 ];
 const PALS = [
   { name: 'Mèche',  coat: '#2a9d8f', coatDark: '#1c6e64', scarf: '#ffcf5a', scarfDark: '#dfa327', helm: '#b86a2e', helmLight: '#e8a05a', helmDark: '#7d4318', ui: '#3cc7b5' },
@@ -1329,7 +1345,7 @@ function explode(b) {
       if (g === WALL || g === PILLAR || g === STONE) break;
       igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who);
       if (g === CRATE) { if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } break; }
-      if (G.items[k] >= 0) { fx('poof', x, y, G.items[k]); G.items[k] = -1; break; }
+      if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; break; }
       const ob = G.bombAt[k]; if (ob) { ob.timer = Math.min(ob.timer, CHAIN_DELAY); break; }
       prev = k;
     }
@@ -1412,14 +1428,16 @@ function land(k) {
 }
 function kill(p, by) {
   if (!p.alive || p.shield > 0) return;
-  if (by >= 0 && by !== p.id && G.players[by]) G.players[by].kills = (G.players[by].kills | 0) + 1;
+  if (by >= 0 && by !== p.id && G.players[by]) { G.players[by].kills = (G.players[by].kills | 0) + 1; if (G.mode === 'br') G.players[by].pts = (G.players[by].pts | 0) + BR_KILL_PTS; }
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
+const BR_KILL_PTS = 5;
 function scatterLoot(p) {
   const loot = [];
+  if (G.mode === 'br' && p.pts > 0) { loot.push(...orbsFor(p.pts)); p.pts = 0; } // ses points partent en orbes
   for (let i = 1; i < p.maxBombs; i++) loot.push(0);
   for (let i = 2; i < p.range; i++) loot.push(1);
   for (let i = 0; i < p.speedLv; i++) loot.push(2);
@@ -1451,9 +1469,10 @@ function updateFlying(dt, apply) {
 }
 function pickup(p, k) {
   const it = G.items[k]; G.items[k] = -1;
-  if (it === 0) p.maxBombs = Math.min(MAX_BOMBS, p.maxBombs + 1);
-  else if (it === 1) p.range = Math.min(MAX_RANGE, p.range + 1);
-  else if (it === 2) p.speedLv = Math.min(MAX_SPEED_LV, p.speedLv + 1);
+  if (isOrb(it)) p.pts = (p.pts | 0) + ORB_VALS[it - ORB0];
+  else if (it === 0) p.maxBombs = Math.min(capBombs(), p.maxBombs + 1);
+  else if (it === 1) p.range = Math.min(capRange(), p.range + 1);
+  else if (it === 2) p.speedLv = Math.min(capSpeed(), p.speedLv + 1);
   else if (it === 3) p.kick = true;
   else if (it === 4) p.throw = true;
   fx('pickup', k, it);
@@ -1660,9 +1679,10 @@ function findEscape(sx, sy, t0, step, m, D, extraK, requireSafe, nbs, avoid) {
   return pathTo(prev, fb);
 }
 function itemWant(p, it) {
-  if (it === 0) return p.maxBombs < MAX_BOMBS ? 1 : 0;
-  if (it === 1) return p.range < MAX_RANGE ? 1 : 0;
-  if (it === 2) return p.speedLv < MAX_SPEED_LV ? 0.9 : 0;
+  if (isOrb(it)) return 0.6 + Math.min(1.4, ORB_VALS[it - ORB0] * 0.08);
+  if (it === 0) return p.maxBombs < capBombs() ? 1 : 0;
+  if (it === 1) return p.range < capRange() ? 1 : 0;
+  if (it === 2) return p.speedLv < capSpeed() ? 0.9 : 0;
   return p.kick ? 0 : 0.5;
 }
 function bombValue(p, x, y, D, eks, bset) {
@@ -2025,7 +2045,7 @@ function update(dt) {
    Battle royale : carte 45 × 39, 30 joueurs, partie sans fin
    ========================================================= */
 const BR_COLS = 45, BR_ROWS = 39, BR_SIZE = 30, BR_MAX_HUMANS = 8, BR_SHIELD = 2.5;
-const BR_BAG = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4];
+const BR_BAG = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4], BR_CRATE_ORB = 0.3; // 30 % des caisses sans bonus cachent une orbe de 1 point
 const BR_NAMES = ['Pétard', 'Fusée', 'Grisou', 'Bengale', 'Salpêtre', 'Étincelle', 'Poudrière', 'Tonnerre', 'Kaboum', 'Brasier', 'Pyro', 'Flammèche',
   'Boutefeu', 'Mortier', 'Dynamite', 'Allumette', 'Cracker', 'Tison', 'Cendre', 'Braisette', 'Comète', 'Feu-Follet', 'Boulet', 'Vulcain',
   'Charbon', 'Fumerolle', 'Bombinette', 'Torche', 'Pétoche', 'Fulmi', 'Volcan', 'Zébulon'];
@@ -2059,7 +2079,7 @@ function genBrMap(seed) {
     const k = idx(x, y);
     if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) g[k] = WALL;
     else if (x % 2 === 0 && y % 2 === 0 && !inPlaza(x, y)) g[k] = PILLAR;
-    else if (!inPlaza(x, y) && r() < 0.42) { g[k] = CRATE; crates++; if (r() < 0.2) G.hidden[k] = BR_BAG[(r() * BR_BAG.length) | 0]; }
+    else if (!inPlaza(x, y) && r() < 0.42) { g[k] = CRATE; crates++; if (r() < 0.2) G.hidden[k] = BR_BAG[(r() * BR_BAG.length) | 0]; else if (r() < BR_CRATE_ORB) G.hidden[k] = ORB0; }
     else g[k] = EMPTY;
   }
   G.brCrates = crates; G.sdOrder = []; G.brMini = null;
@@ -2123,7 +2143,7 @@ function brTick(dt) {
     let around = 0;
     for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) if (xx > 0 && yy > 0 && xx < COLS - 1 && yy < ROWS - 1 && G.grid[idx(xx, yy)] === CRATE) around++;
     if (around > 6) continue;   // il y en a encore dans le coin
-    G.grid[k] = CRATE; G.grow[k] = 1; G.hidden[k] = Math.random() < 0.18 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : -1;
+    G.grid[k] = CRATE; G.grow[k] = 1; G.hidden[k] = Math.random() < 0.18 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : Math.random() < BR_CRATE_ORB ? ORB0 : -1;
     made++;
   }
 }
@@ -2145,7 +2165,7 @@ function brWorld() {
   genBrMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
-  for (const p of G.players) { p.kills = 0; brSpawn(p); }
+  for (const p of G.players) { p.kills = 0; p.pts = 0; brSpawn(p); }
   G.camSnap = true; groundDirty = true;
   setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
 }
@@ -2213,7 +2233,7 @@ function drawBrOverlay(c, t) {
 // Classement (10 premiers au nombre de bonus) et mini-carte, rafraîchis quelques fois par seconde
 let brHudT = 0, brMiniT = 0;
 function brRanking() {
-  return G.players.slice().sort((a, b) => boostsOf(b) - boostsOf(a) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+  return G.players.slice().sort((a, b) => (b.pts | 0) - (a.pts | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
 }
 function brHudTick(now, force) {
   if (G.mode !== 'br') return;
@@ -2223,9 +2243,9 @@ function brHudTick(now, force) {
     const top = rk.slice(0, 10);
     let html = '';
     top.forEach((p, i) => {
-      html += `<li class="${p === me ? 'me' : ''}" style="--pc:${p.pal.ui}"><span class="r">${i + 1}</span><span class="n">${esc(nameOf(p.id))}</span><b>${boostsOf(p)}</b></li>`;
+      html += `<li class="${p === me ? 'me' : ''}" style="--pc:${p.pal.ui}"><span class="r">${i + 1}</span><span class="n">${esc(nameOf(p.id))}</span><b>${p.pts | 0}</b></li>`;
     });
-    if (me && !top.includes(me)) html += `<li class="me sep" style="--pc:${me.pal.ui}"><span class="r">${rk.indexOf(me) + 1}</span><span class="n">${esc(nameOf(me.id))}</span><b>${boostsOf(me)}</b></li>`;
+    if (me && !top.includes(me)) html += `<li class="me sep" style="--pc:${me.pal.ui}"><span class="r">${rk.indexOf(me) + 1}</span><span class="n">${esc(nameOf(me.id))}</span><b>${me.pts | 0}</b></li>`;
     if (list.dataset.h !== html) { list.innerHTML = html; list.dataset.h = html; }
     const humans = G.players.filter(p => !p.ai && !p.isBot).length;
     $('#br-meta').textContent = `${G.players.length} artificiers · ${humans} joueur${humans > 1 ? 's' : ''}`;
@@ -2311,7 +2331,7 @@ function brAddHuman(L) {
   bots.sort((a, b) => (a.alive - b.alive) || boostsOf(a) - boostsOf(b));
   const p = bots[0];
   if (p.alive) scatterLoot(p);
-  p.ai = null; p.remote = true; p.isBot = false; p.kills = 0;
+  p.ai = null; p.remote = true; p.isBot = false; p.kills = 0; p.pts = 0;
   p.nick = L.nick || 'Joueur'; if (Number.isInteger(L.skin)) p.skin = L.skin; p.aid = L.aid || '';
   L.slot = p.id; L.lastBomb = L.gin ? L.gin.b : 0; L.lastKick = L.gin && L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin ? L.gin.st : 0; L.lastThrow = L.gin && L.gin.tw ? L.gin.tw[0] : 0;
   brSpawn(p);
@@ -2629,8 +2649,20 @@ function drawIcon(c, type) {
     c.save(); c.translate(-5, 2); c.rotate(-0.4); bootPath(c, 0, 0, 0.95); c.fillStyle = cream; c.fill(); c.lineWidth = 1.5; c.strokeStyle = ink; c.stroke(); c.restore();
   }
 }
+function drawOrb(c, type, x, y, s, t) {
+  const it = ITEMS[type], r = [7, 9.5, 12, 14.5][type - ORB0] * s, p = 1 + 0.08 * Math.sin((t || 0) * 5 + x);
+  c.save(); c.translate(x, y); c.scale(p, p);
+  const g = c.createRadialGradient(0, 0, r * 0.3, 0, 0, r * 2.2); g.addColorStop(0, it.c1 + 'aa'); g.addColorStop(1, it.c1 + '00');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, r * 2.2, 0, TAU); c.fill();
+  const b = c.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r); b.addColorStop(0, '#ffffff'); b.addColorStop(0.35, it.c1); b.addColorStop(1, it.c2);
+  c.fillStyle = b; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill();
+  c.lineWidth = 1.5; c.strokeStyle = 'rgba(30,15,5,.55)'; c.stroke();
+  if (type > ORB0) { c.fillStyle = 'rgba(30,15,5,.75)'; c.font = `900 ${Math.round(r * 0.95)}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(ORB_VALS[type - ORB0]), 0, 1); c.textAlign = 'start'; }
+  c.restore();
+}
 function drawToken(c, type, x, y, s) {
   const it = ITEMS[type];
+  if (it.orb) { drawOrb(c, type, x, y, s, performance.now() / 1000); return; }
   c.save(); c.translate(x, y); c.scale(s, s);
   const g = c.createLinearGradient(0, -15, 0, 15); g.addColorStop(0, it.c1); g.addColorStop(1, it.c2);
   rr(c, -15, -15, 30, 30, 8); c.fillStyle = g; c.fill(); c.lineWidth = 2; c.strokeStyle = 'rgba(35,18,6,.6)'; c.stroke();
@@ -2644,6 +2676,7 @@ function drawFieldItem(c, k, t) {
   const a = Math.min(1, age * 5), pop = a < 1 ? a * (1 + 0.35 * Math.sin(a * Math.PI)) : 1;
   const bob = Math.sin(t * 3.2 + k) * 2;
   c.fillStyle = 'rgba(20,35,10,.25)'; ell(c, x, y + 16, 11 * pop, 3.5 * pop); c.fill();
+  if (isOrb(type)) { drawOrb(c, type, x, y + bob, pop, t); return; }
   const g = c.createRadialGradient(x, y, 3, x, y, 26);
   g.addColorStop(0, ITEMS[type].c1 + '88'); g.addColorStop(1, ITEMS[type].c1 + '00');
   c.fillStyle = g; c.fillRect(x - 26, y - 26, 52, 52);
@@ -3327,6 +3360,7 @@ function buildStatics() {
   }
   const lg = $('#legend'); lg.innerHTML = '';
   ITEMS.forEach((it, j) => {
+    if (it.orb) return;
     const li = document.createElement('li'); li.appendChild(iconCanvas(j, 80));
     const d = document.createElement('div'); d.innerHTML = `<b></b><span></span>`;
     d.querySelector('b').textContent = it.name; d.querySelector('span').textContent = it.desc;
@@ -3377,15 +3411,15 @@ function updateHud() {
     setTxt(sts[2].lastChild, String(p.speedLv + 1), 's' + i);
     const kk = p.kick ? 1 : 0; if (hudCache['k' + i] !== kk) { hudCache['k' + i] = kk; sts[3].classList.toggle('off', !p.kick); }
     const tw = p.throw ? 1 : 0; if (hudCache['w' + i] !== tw) { hudCache['w' + i] = tw; sts[4].classList.toggle('off', !p.throw); }
-    const sc = G.mode === 'br' ? boostsOf(p) : G.scores[i]; if (hudCache['p' + i] !== sc) {
+    const sc = G.mode === 'br' ? p.pts | 0 : G.scores[i]; if (hudCache['p' + i] !== sc) {
       hudCache['p' + i] = sc;
-      if (G.mode === 'br') { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} bonus`; }
+      if (G.mode === 'br') { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} pt${sc > 1 ? 's' : ''}`; }
       else if (G.pointsMode) { const el = cards[i].querySelector('.pts'); if (el) el.textContent = `${sc} pt${sc > 1 ? 's' : ''}`; }
       else cards[i].querySelectorAll('.pip').forEach((el, j) => el.classList.toggle('on', j < sc));
     }
   }
   if (G.mode === 'br') {
-    // ta place au classement des bonus
+    // ta place au classement des points
     const me = G.players[localIdx()];
     setTxt(timeEl, me ? `${ordinal(brRanking().indexOf(me) + 1)}` : '', 'time');
     setTxt(roundEl, 'Battle royale', 'round');
@@ -4497,7 +4531,7 @@ function buildSnap() {
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
     seed: G.seed, g, f, bu, b, fa, tw, p, e: NET.events.slice(), kw,
-    ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
+    ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
 }
 function applySnap(s) {
@@ -4542,7 +4576,7 @@ function decodeSnap(s) {
   const g = String(s.g || '');
   for (let k = 0; k < N; k++) {
     const ch = g.charCodeAt(k);
-    if (ch >= 97 && ch <= 101) { G.grid[k] = EMPTY; if (G.items[k] !== ch - 97) { G.items[k] = ch - 97; G.itemAge[k] = 0; } }
+    if (ch >= 97 && ch < 97 + ITEMS.length) { G.grid[k] = EMPTY; if (G.items[k] !== ch - 97) { G.items[k] = ch - 97; G.itemAge[k] = 0; } }
     else {
       const v = ch - 48, nv = v >= 0 && v <= 4 ? v : EMPTY;
       if (br && !first && nv === CRATE && G.grid[k] === EMPTY) G.grow[k] = 1;   // caisse qui repousse
@@ -4582,7 +4616,7 @@ function decodeSnap(s) {
     let respawned = false;
     if (br) {
       const lf = num(s.lf && s.lf[i]) | 0; respawned = lf !== p.life; p.life = lf;
-      p.shield = s.sh && s.sh[i] ? 1 : 0; p.kills = num(s.kl && s.kl[i]) | 0; p.killedBy = s.kb ? num(s.kb[i]) | 0 : -1;
+      p.shield = s.sh && s.sh[i] ? 1 : 0; p.kills = num(s.kl && s.kl[i]) | 0; p.pts = num(s.pt && s.pt[i]) | 0; p.killedBy = s.kb ? num(s.kb[i]) | 0 : -1;
     }
     if (i === localIdx()) {
       if (first || newRound || respawned || G.phase !== 'play' || !p.alive || Math.abs(p.x - x) + Math.abs(p.y - y) > 2.5) {
@@ -4967,7 +5001,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { orbsFor, pickup, kill, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
