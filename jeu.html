@@ -53,6 +53,15 @@ body.hudmany .stats{gap:4px}
 .pcard.right{flex-direction:row-reverse;text-align:right}
 #hud-b{width:min(100%, max(var(--arena-w,732px), 320px));display:flex;justify-content:space-between;align-items:center;gap:12px;flex:none}
 #hud-b[hidden]{display:none}
+#br-goal{display:flex;align-items:center;gap:10px;color:var(--parchment)}
+#br-goal[hidden]{display:none}
+#br-goal canvas{width:76px;height:76px;flex:none}
+#br-goal .bg-lb{font:800 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:rgba(243,229,192,.6);margin:0 0 3px}
+#br-goal .bg-pts{font:400 22px/1 var(--font-display);color:var(--gold);margin:0}
+#br-goal .bg-lead{font-size:12px;color:rgba(243,229,192,.75);margin:4px 0 0}
+body.hudside #br-goal{position:fixed;z-index:2;left:calc(50% + var(--arena-w) / 2 + 22px);top:50%;transform:translateY(-50%);flex-direction:column;text-align:center;width:max(170px, calc((100vw - var(--arena-w)) / 2 - 44px));max-width:260px}
+body.hudside #br-goal canvas{width:min(200px, calc((100vw - var(--arena-w)) / 2 - 44px));height:auto;aspect-ratio:1}
+body.hudside #br-goal .bg-pts{font-size:30px}
 .pwrap{position:relative;display:inline-block;flex:none;line-height:0}
 .pframe{position:absolute;left:50%;top:50%;width:162%;height:162%;transform:translate(-50%,-50%);pointer-events:none}
 /* Grand écran : les 4 joueurs dans les 4 coins, de part et d'autre de l'arène */
@@ -410,6 +419,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="br-toast xp-toast" id="xp-toast" role="status"></p>
   </div></main>
   <footer id="hud-b">
+    <div id="br-goal" hidden aria-live="polite"><canvas width="240" height="240" aria-hidden="true"></canvas><div class="bg-txt"><p class="bg-lb">Ta bombe</p><p class="bg-pts"></p><p class="bg-lead"></p></div></div>
     <div class="hside l">
       <div class="pcard bottom" id="card3" style="--pc:var(--p4)" hidden>
         <span class="pwrap"><canvas class="portrait" width="104" height="104"></canvas><canvas class="pframe" width="168" height="168" aria-hidden="true"></canvas></span>
@@ -585,7 +595,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
-      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 5 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 1 point, plus grosses de 3, 10 ou 30 quand tu en avais beaucoup), et certaines caisses cachent aussi une orbe de 1 point. Le classement montre les 10 joueurs qui ont le plus de points. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
+      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie ne s'arrête jamais. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 20 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 1 point, plus grosses de 3, 10 ou 30 quand tu en avais beaucoup), et certaines caisses cachent aussi une orbe de 1 point. Le classement montre les 10 joueurs qui ont le plus de points. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -916,7 +926,7 @@ function setMapSize(c, r) {
 }
 let touchDir = null, touchVec = null;
 const FACES = ['down', 'up', 'left', 'right'];
-const PH = ['intro', 'play', 'roundEnd', 'matchEnd'];
+const PH = ['intro', 'play', 'roundEnd', 'matchEnd', 'brEnd'];
 const NET = {
   role: null, peer: null, link: null, guestOn: false, lastSeen: 0, code: null, mi: 0,
   guestPeer: null, hostPeer: null, myPeer: null, gin: null, lastBomb: 0, lastKick: 0,
@@ -1428,13 +1438,15 @@ function land(k) {
 }
 function kill(p, by) {
   if (!p.alive || p.shield > 0) return;
-  if (by >= 0 && by !== p.id && G.players[by]) { G.players[by].kills = (G.players[by].kills | 0) + 1; if (G.mode === 'br') G.players[by].pts = (G.players[by].pts | 0) + BR_KILL_PTS; }
+  if (by >= 0 && by !== p.id && G.players[by]) { G.players[by].kills = (G.players[by].kills | 0) + 1; if (G.mode === 'br') addPts(G.players[by], BR_KILL_PTS); }
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
-const BR_KILL_PTS = 5;
+const BR_KILL_PTS = 20, BR_GOAL = 1000;
+// points gagnés : on retient aussi le meilleur score atteint pendant la partie (classement de fin)
+function addPts(p, n) { p.pts = (p.pts | 0) + n; if (p.pts > (p.peak | 0)) p.peak = p.pts; }
 function scatterLoot(p) {
   const loot = [];
   if (G.mode === 'br' && p.pts > 0) { loot.push(...orbsFor(p.pts)); p.pts = 0; } // ses points partent en orbes
@@ -1469,7 +1481,7 @@ function updateFlying(dt, apply) {
 }
 function pickup(p, k) {
   const it = G.items[k]; G.items[k] = -1;
-  if (isOrb(it)) p.pts = (p.pts | 0) + ORB_VALS[it - ORB0];
+  if (isOrb(it)) addPts(p, ORB_VALS[it - ORB0]);
   else if (it === 0) p.maxBombs = Math.min(capBombs(), p.maxBombs + 1);
   else if (it === 1) p.range = Math.min(capRange(), p.range + 1);
   else if (it === 2) p.speedLv = Math.min(capSpeed(), p.speedLv + 1);
@@ -1518,6 +1530,11 @@ const FX = {
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
   drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
+  mega(id) {
+    G.megaFlash = 1.6; Sfx.play('boom'); setTimeout(() => Sfx.play('boom'), 160); setTimeout(() => Sfx.play('boom'), 380);
+    if (!reduceMotion) G.shake = 16; rumble(0.9, 1, 700);
+    const p = G.players[id | 0]; if (p) brToast(`${nameOf(p.id)} atteint ${BR_GOAL} points : sa bombe souffle toute la carte !`);
+  },
   toss2(bx, by, dx, dy) {
     if (!nearView(bx, by)) return;
     Sfx.play('throw');
@@ -1972,11 +1989,18 @@ function update(dt) {
     smoothRemote(dt);
     return;
   }
+  if (G.phase === 'brEnd') {
+    G.phaseT += dt; updateFlames(dt); smoothRemote(dt);
+    if (G.phaseT > 2.4 && !G.brEndShown) { G.brEndShown = true; showBrEnd(); }
+    return;
+  }
   rebuildBombAt();
   if (G.phase === 'play' && G.mode === 'br') {
     brTick(dt);
     if (NET.role === 'host') applyGuestInput();
     for (const p of G.players) { if (!p.alive) continue; if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
+    const w = G.players.find(p => (p.pts | 0) >= BR_GOAL);
+    if (w) { brWin(w); return; }
   } else if (G.phase === 'play') {
     G.time -= dt;
     if (G.time <= 0) {
@@ -2079,7 +2103,7 @@ function genBrMap(seed) {
     const k = idx(x, y);
     if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) g[k] = WALL;
     else if (x % 2 === 0 && y % 2 === 0 && !inPlaza(x, y)) g[k] = PILLAR;
-    else if (!inPlaza(x, y) && r() < 0.42) { g[k] = CRATE; crates++; if (r() < 0.2) G.hidden[k] = BR_BAG[(r() * BR_BAG.length) | 0]; else if (r() < BR_CRATE_ORB) G.hidden[k] = ORB0; }
+    else if (!inPlaza(x, y) && r() < 0.42) { g[k] = CRATE; crates++; if (r() < 0.15) G.hidden[k] = BR_BAG[(r() * BR_BAG.length) | 0]; else if (r() < BR_CRATE_ORB) G.hidden[k] = ORB0; }
     else g[k] = EMPTY;
   }
   G.brCrates = crates; G.sdOrder = []; G.brMini = null;
@@ -2143,7 +2167,7 @@ function brTick(dt) {
     let around = 0;
     for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) if (xx > 0 && yy > 0 && xx < COLS - 1 && yy < ROWS - 1 && G.grid[idx(xx, yy)] === CRATE) around++;
     if (around > 6) continue;   // il y en a encore dans le coin
-    G.grid[k] = CRATE; G.grow[k] = 1; G.hidden[k] = Math.random() < 0.18 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : Math.random() < BR_CRATE_ORB ? ORB0 : -1;
+    G.grid[k] = CRATE; G.grow[k] = 1; G.hidden[k] = Math.random() < 0.135 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : Math.random() < BR_CRATE_ORB ? ORB0 : -1;
     made++;
   }
 }
@@ -2160,12 +2184,41 @@ function startBr() {
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; onlineEl.hidden = true;
   blurActive(); saveSettings();
 }
+function brWin(w) {
+  G.phase = 'brEnd'; G.phaseT = 0; G.brWinner = w.id; G.brEndShown = false;
+  G.bombs.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
+  for (let k = 0; k < N; k++) { const g = G.grid[k]; if (g === EMPTY || g === CRATE) { G.flameBits[k] = 31; G.flameT[k] = 2.2; G.flameOwner[k] = w.id; } }
+  fx('mega', w.id);
+}
+// Nouvelle partie de battle royale avec les mêmes joueurs (hors ligne ou hôte)
+function brReset() {
+  if (NET.role === 'guest') return;
+  endEl.hidden = true; brWorld(); blurActive();
+}
+// Classement de fin : meilleur score atteint pendant la partie
+function showBrEnd() {
+  const me = localIdx(), w = G.brWinner, rk = G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+  pauseEl.hidden = true;
+  $('#end-kicker').textContent = w === me ? 'Victoire !' : `Fin de la partie · ${ordinal(rk.indexOf(G.players[me]) + 1)} place`;
+  const title = $('#end-title'); title.textContent = `${nameOf(w)} atteint ${BR_GOAL} points !`; title.style.color = G.players[w] ? G.players[w].pal.ui : '#f3e5c0';
+  const lines = rk.slice(0, 10).map((p, i) => `${ordinal(i + 1)} ${nameOf(p.id)} · ${p.peak | 0} pts`);
+  const mi = rk.indexOf(G.players[me]); if (mi >= 10) lines.push(`…\n${ordinal(mi + 1)} ${nameOf(me)} · ${G.players[me].peak | 0} pts`);
+  const es = $('#end-score'); es.textContent = lines.join('\n'); es.style.fontSize = '18px'; es.style.whiteSpace = 'pre-line';
+  $('#end-note').textContent = 'Classement au meilleur score atteint pendant la partie.' + (NET.role === 'guest' ? " L'hôte peut relancer une partie." : '');
+  $('#end-elo').textContent = '';
+  $('#again').hidden = NET.role === 'guest';
+  $('#again').firstChild.textContent = 'Nouvelle partie ';
+  renderEndXp();
+  endEl.hidden = false;
+  try { $('#again').focus({ preventScroll: true }); } catch (e) {}
+}
 function brWorld() {
   G.seed = (Math.random() * 2147483647) | 0;
   genBrMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
-  for (const p of G.players) { p.kills = 0; p.pts = 0; brSpawn(p); }
+  for (const p of G.players) { p.kills = 0; p.pts = 0; p.peak = 0; brSpawn(p); }
+  G.brWinner = -1; G.brEndShown = false;
   G.camSnap = true; groundDirty = true;
   setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
 }
@@ -2224,6 +2277,12 @@ function updateCamera(dt) {
   G.cam.y = clamp(G.cam.y, clamp(py + my - H, 0, ROWS * T - H), clamp(py - my, 0, ROWS * T - H));
 }
 // Par-dessus l'arène : « Soufflé ! » quand tu es mort
+function drawMegaFlash(c, dt) {
+  if (!(G.megaFlash > 0)) return;
+  G.megaFlash = Math.max(0, G.megaFlash - dt);
+  const a = Math.min(1, G.megaFlash / 1.6);
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = `rgba(255,${Math.round(220 - (1 - a) * 80)},${Math.round(150 - (1 - a) * 100)},${(a * 0.85).toFixed(3)})`; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore();
+}
 function drawBrOverlay(c, t) {
   const me = G.players[localIdx()]; if (!me || me.alive) return;
   const left = Math.max(1, Math.ceil(3 - me.deathT)), by = me.killedBy;
@@ -2251,6 +2310,35 @@ function brHudTick(now, force) {
     $('#br-meta').textContent = `${G.players.length} artificiers · ${humans} joueur${humans > 1 ? 's' : ''}`;
   }
   if (force || now - brMiniT > 200) { brMiniT = now; drawBrMini(); }
+  drawBrGoal(now);
+}
+// La bombe de score : grossit avec tes points ; la mèche raccourcit ; à 1000 points, elle souffle toute la carte
+let brGoalT = 0;
+function drawBrGoal(now) {
+  const box = document.getElementById('br-goal'); if (!box || box.hidden || now - brGoalT < 33) return; brGoalT = now;
+  const me = G.players[localIdx()], pts = me ? me.pts | 0 : 0, u = Math.min(1, pts / BR_GOAL), t = now / 1000;
+  const cv = box.querySelector('canvas'), c = cv.getContext('2d'), S = cv.width / 120;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(S, 0, 0, S, 0, 0);
+  const r = 13 + 33 * Math.sqrt(u), pulse = 1 + Math.sin(t * (4 + u * 16)) * (0.02 + u * 0.05);
+  const shake = u > 0.8 ? (u - 0.8) * 8 : 0, cx = 60 + (Math.random() - 0.5) * shake, cy = 72 + (Math.random() - 0.5) * shake;
+  if (u > 0.5) { const g = c.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 1.9); g.addColorStop(0, `rgba(255,${Math.round(150 - u * 110)},40,${(u - 0.5) * (0.6 + 0.4 * Math.sin(t * 9))})`); g.addColorStop(1, 'rgba(255,80,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 120, 120); }
+  c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(60, 74 + r * 0.95, r * 0.85, r * 0.22, 0, 0, TAU); c.fill();
+  c.save(); c.translate(cx, cy); c.scale(pulse, 2 - pulse);
+  const g = c.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.05);
+  g.addColorStop(0, '#6c76a2'); g.addColorStop(0.5, '#2c3149'); g.addColorStop(1, '#101326');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.lineWidth = 1.6; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
+  if (me) { c.strokeStyle = me.pal.ui; c.lineWidth = 2 + r * 0.08; c.beginPath(); c.ellipse(0, r * 0.08, r * 0.96, r * 0.32, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke(); }
+  c.fillStyle = 'rgba(255,255,255,.32)'; c.beginPath(); c.ellipse(-r * 0.35, -r * 0.42, r * 0.28, r * 0.17, -0.5, 0, TAU); c.fill();
+  if (u > 0.7 && Math.sin(t * 20) > 0) { c.fillStyle = 'rgba(255,60,30,.3)'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); }
+  // bouchon et mèche (de plus en plus courte)
+  const cap = Math.max(3, r * 0.3); c.fillStyle = '#b8733a'; rr(c, -cap / 2, -r - cap * 0.55, cap, cap * 0.6, 1.5); c.fill();
+  const fl = 1 - u * 0.85, ex = r * 0.2 + 12 * fl, ey = -r - cap * 0.5 - 16 * fl;
+  c.strokeStyle = '#6b4a2b'; c.lineWidth = 2.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -r - cap * 0.5); c.quadraticCurveTo(1, -r - cap * 0.5 - 10 * fl, ex, ey); c.stroke();
+  c.restore();
+  c.save(); c.translate(cx + ex * pulse, cy + ey * (2 - pulse)); c.scale(1 + u * 1.2, 1 + u * 1.2); drawSpark(c, 0, 0); c.restore();
+  const lead = brRanking()[0];
+  box.querySelector('.bg-pts').textContent = `${pts} / ${BR_GOAL}`;
+  box.querySelector('.bg-lead').textContent = lead && lead !== me ? `Meneur : ${nameOf(lead.id)} (${lead.pts | 0})` : me && pts > 0 ? 'Tu mènes la partie !' : 'Récolte des points : 20 par victime';
 }
 function drawBrMini() {
   const cv = $('#br-mini'), dpr = Math.min(window.devicePixelRatio || 1, 2), S = 4;
@@ -2331,7 +2419,7 @@ function brAddHuman(L) {
   bots.sort((a, b) => (a.alive - b.alive) || boostsOf(a) - boostsOf(b));
   const p = bots[0];
   if (p.alive) scatterLoot(p);
-  p.ai = null; p.remote = true; p.isBot = false; p.kills = 0; p.pts = 0;
+  p.ai = null; p.remote = true; p.isBot = false; p.kills = 0; p.pts = 0; p.peak = 0;
   p.nick = L.nick || 'Joueur'; if (Number.isInteger(L.skin)) p.skin = L.skin; p.aid = L.aid || '';
   L.slot = p.id; L.lastBomb = L.gin ? L.gin.b : 0; L.lastKick = L.gin && L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin ? L.gin.st : 0; L.lastThrow = L.gin && L.gin.tw ? L.gin.tw[0] : 0;
   brSpawn(p);
@@ -3292,7 +3380,7 @@ function render() {
   }
   c.setTransform(K, 0, 0, K, 0, 0);
   c.drawImage(sprites.vignette.c, 0, 0, W, H);
-  if (G.mode === 'br') drawBrOverlay(c, t);
+  if (G.mode === 'br') { drawBrOverlay(c, t); drawMegaFlash(c, 1 / 60); }
 
   // bandeaux
   if (G.phase === 'intro') {
@@ -3383,7 +3471,8 @@ function setupHud() {
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
   }
   hudCache = {};
-  const hb = $('#hud-b'), hide = cards[1].hidden && cards[3].hidden;
+  $('#br-goal').hidden = G.mode !== 'br';
+  const hb = $('#hud-b'), hide = cards[1].hidden && cards[3].hidden && G.mode !== 'br';
   if (hb.hidden !== hide) { hb.hidden = hide; resize(); }
   hudCache.frames = null;
 }
@@ -3628,7 +3717,7 @@ function pause() {
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
-  renderEndXp();
+  renderEndXp(); $('#again').firstChild.textContent = 'Revanche ';
   if (G.pointsMode) { showEndPoints(); reportMatch(); return; }
   setTimeout(reportMatch, 0);
   $('#end-score').style.whiteSpace = '';
@@ -3669,7 +3758,7 @@ function showEndPoints() {
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
 function onPlay() { if (settings.mode === 'online') settings.mode = 'cpu'; startMatch(); }
-function onAgain() { if (NET.role === 'host') startOnlineMatch(); else if (!NET.role) startMatch(); }
+function onAgain() { if (G.mode === 'br') { brReset(); return; } if (NET.role === 'host') startOnlineMatch(); else if (!NET.role) startMatch(); }
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
@@ -4531,7 +4620,7 @@ function buildSnap() {
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
     seed: G.seed, g, f, bu, b, fa, tw, p, e: NET.events.slice(), kw,
-    ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), kb: G.players.map(o => o.killedBy ?? -1) } : {}),
+    ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), pk: G.players.map(o => o.peak | 0), bw: G.brWinner ?? -1, kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
 }
 function applySnap(s) {
@@ -4616,7 +4705,7 @@ function decodeSnap(s) {
     let respawned = false;
     if (br) {
       const lf = num(s.lf && s.lf[i]) | 0; respawned = lf !== p.life; p.life = lf;
-      p.shield = s.sh && s.sh[i] ? 1 : 0; p.kills = num(s.kl && s.kl[i]) | 0; p.pts = num(s.pt && s.pt[i]) | 0; p.killedBy = s.kb ? num(s.kb[i]) | 0 : -1;
+      p.shield = s.sh && s.sh[i] ? 1 : 0; p.kills = num(s.kl && s.kl[i]) | 0; p.pts = num(s.pt && s.pt[i]) | 0; p.peak = num(s.pk && s.pk[i]) | 0; p.killedBy = s.kb ? num(s.kb[i]) | 0 : -1;
     }
     if (i === localIdx()) {
       if (first || newRound || respawned || G.phase !== 'play' || !p.alive || Math.abs(p.x - x) + Math.abs(p.y - y) > 2.5) {
@@ -4643,6 +4732,11 @@ function decodeSnap(s) {
   if (newMatch && !first) { endEl.hidden = true; }
   if (typeof s.md === 'string' && /^[a-z0-9]{10,24}$/.test(s.md)) NET.mid = s.md;
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
+  if (br) {
+    G.brWinner = num(s.bw) | 0;
+    if (G.phase === 'brEnd' && prevPhase !== 'brEnd') { clearTimeout(NET.brEndT); NET.brEndT = setTimeout(() => { if (G.phase === 'brEnd') showBrEnd(); }, first ? 0 : 2400); }
+    if (G.phase !== 'brEnd' && prevPhase === 'brEnd') { clearTimeout(NET.brEndT); endEl.hidden = true; G.camSnap = true; }
+  }
 }
 function updateGuest(dt) {
   G.t += dt; updateParticles(dt);
