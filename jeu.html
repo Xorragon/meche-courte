@@ -477,8 +477,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </header>
   <main id="stage"><div id="frame"><canvas id="game" aria-label="Arène de jeu"></canvas>
     <div id="br-ui" hidden>
-      <div class="br-board" aria-label="Classement : les 10 joueurs qui ont le plus de points">
-        <p class="br-title">Le plus de points</p>
+      <div class="br-board" aria-label="Classement : les 10 meilleurs scores atteints">
+        <p class="br-title">Meilleurs scores</p>
         <ol id="br-list"></ol>
         <p class="br-meta" id="br-meta"></p>
       </div>
@@ -705,7 +705,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Jusqu'à 4 artificiers dans l'arène, humains ou ordis. Fais sauter les caisses, ramasse les bonus et attrape tes adversaires dans le souffle d'une explosion. Ta bombe explose au bout de 3,5 secondes.</p>
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
-      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie dure jusqu'à ce qu'un joueur atteigne 1000 points. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 40 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 2 points, plus grosses de 6, 20 ou 60 quand tu en avais beaucoup), et certaines caisses cachent aussi une petite orbe. Le classement montre les 10 joueurs qui ont le plus de points. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. De temps en temps, un contrat te désigne une cible : souffle-la dans les 45 secondes pour 100 points de plus (une flèche rouge t'indique où elle est). Toutes les 2 minutes, un coffre au trésor apparaît au centre de la carte : il faut 3 explosions pour l'ouvrir, et il lâche un gros butin d'orbes et de bonus. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
+      <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie dure jusqu'à ce qu'un joueur atteigne 1000 points. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 40 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 2 points, plus grosses de 6, 20 ou 60 quand tu en avais beaucoup), et certaines caisses cachent aussi une petite orbe. Le classement montre les 10 meilleurs scores atteints pendant la partie (ton record reste affiché même si tu meurs), et les 3 joueurs qui ont le plus de points en ce moment portent une couronne ou une médaille sur la carte. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. De temps en temps, un contrat te désigne une cible : souffle-la dans les 45 secondes pour 100 points de plus (une flèche rouge t'indique où elle est). Toutes les 2 minutes, un coffre au trésor apparaît au centre de la carte : il faut 3 explosions pour l'ouvrir, et il lâche un gros butin d'orbes et de bonus. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
       <p class="rule">Personnaliser (à l'accueil) : skins de bombe, couleurs de flammes, emotes et carte de victime, à débloquer en jouant (parties, victimes, victoires et niveaux de tes persos). Tout le monde les voit, en ligne aussi. En partie, les touches 1 à 4 (boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone) lancent tes emotes.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
@@ -2848,6 +2848,26 @@ function drawChest(c, px, py, t) {
   const sp = (t * 0.9) % 3; if (sp < 1) { const sx = x - 16 + sp * 32, sy = y - 24 + Math.sin(sp * Math.PI) * -4, k2 = 5 * Math.sin(sp * Math.PI);
     c.fillStyle = 'rgba(255,255,230,.9)'; c.beginPath(); c.moveTo(sx, sy - k2); c.lineTo(sx + k2 * 0.25, sy); c.lineTo(sx, sy + k2); c.lineTo(sx - k2 * 0.25, sy); c.closePath(); c.fill(); }
 }
+// Meneurs du battle royale : anneau au sol et couronne (1er) ou médaille (2e, 3e) au-dessus de la tête
+const TOP_COL = ['', '#ffd36e', '#d9e2ec', '#e09a5a'];
+function drawTopRing(c, x, y, r, t) {
+  const a = 0.45 + 0.25 * Math.sin(t * 5 + r);
+  c.save(); c.strokeStyle = TOP_COL[r]; c.globalAlpha = a; c.lineWidth = 3; ell(c, x, y + 14, 19, 7); c.stroke(); c.restore();
+}
+function drawTopMark(c, x, y, r, t) {
+  const by = y - 58 + Math.sin(t * 4 + r) * 2.5;
+  c.save();
+  const g = c.createRadialGradient(x, by, 2, x, by, 20); g.addColorStop(0, TOP_COL[r] + 'aa'); g.addColorStop(1, TOP_COL[r] + '00');
+  c.fillStyle = g; c.beginPath(); c.arc(x, by, 20, 0, TAU); c.fill();
+  if (r === 1) drawCrown(c, x, by + 2, 0.95);
+  else {
+    c.fillStyle = r === 2 ? '#3d5a8c' : '#8c3d3d'; c.beginPath(); c.moveTo(x - 6, by - 14); c.lineTo(x - 2, by - 4); c.lineTo(x + 2, by - 4); c.lineTo(x + 6, by - 14); c.closePath(); c.fill();
+    const mg = c.createRadialGradient(x - 3, by - 2, 1, x, by + 2, 10); mg.addColorStop(0, '#ffffff'); mg.addColorStop(0.4, TOP_COL[r]); mg.addColorStop(1, r === 2 ? '#7d8a99' : '#8a4a1c');
+    c.fillStyle = mg; c.beginPath(); c.arc(x, by + 2, 8.5, 0, TAU); c.fill(); c.lineWidth = 1.5; c.strokeStyle = 'rgba(40,24,8,.7)'; c.stroke();
+    c.fillStyle = '#3a2206'; c.font = '13px "Bagel Fat One", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(r), x, by + 3);
+  }
+  c.restore();
+}
 function drawReticle(c, x, y, t) {
   c.save(); c.translate(x, y - 12); c.rotate(t * 1.6);
   c.strokeStyle = 'rgba(255,70,60,.95)'; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, 21, 0, TAU); c.stroke();
@@ -2861,7 +2881,7 @@ function edgeArrow(c, wx, wy, col, kind, t) {
   const dx = vx - W / 2, dy = vy - H / 2, s = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(dx)), (H / 2 - m) / Math.max(1e-6, Math.abs(dy)));
   let ax = W / 2 + dx * s, ay = H / 2 + dy * s; const ang = Math.atan2(dy, dx), pulse = 1 + 0.08 * Math.sin(t * 6);
   // pas sous les bandeaux du haut, le classement (en haut à droite) ni la mini-carte (en bas à droite)
-  ay = Math.max(ay, 96);
+  ay = Math.max(ay, 60);
   if (ax > W - 190) { if (ay < 240) { if (ax > W - 40) ay = 240; else ax = W - 190; } else if (ay > 476) { if (ax > W - 40) ay = 476; else ax = W - 190; } }
   c.save(); c.translate(ax, ay); c.scale(pulse, pulse);
   c.save(); c.rotate(ang); c.fillStyle = col; c.beginPath(); c.moveTo(25, 0); c.lineTo(14, -8); c.lineTo(14, 8); c.closePath(); c.fill(); c.restore();
@@ -2880,10 +2900,6 @@ function drawBrTargets(c, t) {
   const me = G.players[localIdx()]; if (!me || !me.ct) return;
   const tg = G.players[me.ct.tg]; if (!tg) return;
   if (tg.alive) edgeArrow(c, ((tg.rx ?? tg.x) + 0.5) * T, ((tg.ry ?? tg.y) + 0.5) * T, '#ff5a4a', 'target', t);
-  const left = Math.max(0, Math.ceil(ctLeft(me))), txt = `🎯 Contrat : souffle ${nameOf(tg.id)} · +${BR_CONTRACT_PTS} · ${left} s`;
-  c.save(); c.font = '800 15px "Alegreya Sans", sans-serif'; const w = c.measureText(txt).width + 26, x = W / 2 - w / 2, y = 44;
-  c.fillStyle = 'rgba(60,8,8,.82)'; rr(c, x, y, w, 28, 14); c.fill(); c.lineWidth = 2; c.strokeStyle = left <= 10 && Math.sin(t * 10) > 0 ? '#ffd36e' : '#ff6a5a'; c.stroke();
-  c.fillStyle = '#fff2e6'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, W / 2, y + 15); c.restore();
 }
 function drawBrOverlay(c, t) {
   const me = G.players[localIdx()]; if (!me || me.alive || G.phase === 'brEnd') return;
@@ -2894,8 +2910,15 @@ function drawBrOverlay(c, t) {
 }
 // Classement (10 premiers au nombre de bonus) et mini-carte, rafraîchis quelques fois par seconde
 let brHudT = 0, brMiniT = 0;
+// classement au meilleur score atteint (il reste affiché même après une mort)
 function brRanking() {
-  return G.players.slice().sort((a, b) => (b.pts | 0) - (a.pts | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+  return G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.pts | 0) - (a.pts | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+}
+// les 3 joueurs qui ont le plus de points en ce moment (marqués sur la carte) : id -> place
+function brTop3() {
+  const m = new Map();
+  G.players.filter(p => p.alive && (p.pts | 0) > 0).sort((a, b) => (b.pts | 0) - (a.pts | 0) || a.id - b.id).slice(0, 3).forEach((p, i) => m.set(p.id, i + 1));
+  return m;
 }
 function brHudTick(now, force) {
   if (G.mode !== 'br') return;
@@ -2905,9 +2928,9 @@ function brHudTick(now, force) {
     const top = rk.slice(0, 10);
     let html = '';
     top.forEach((p, i) => {
-      html += `<li class="${p === me ? 'me' : ''}" style="--pc:${p.pal.ui}"><span class="r">${i + 1}</span><span class="n">${esc(nameOf(p.id))}</span><b>${p.pts | 0}</b></li>`;
+      html += `<li class="${p === me ? 'me' : ''}" style="--pc:${p.pal.ui}"><span class="r">${i + 1}</span><span class="n">${esc(nameOf(p.id))}</span><b>${p.peak | 0}</b></li>`;
     });
-    if (me && !top.includes(me)) html += `<li class="me sep" style="--pc:${me.pal.ui}"><span class="r">${rk.indexOf(me) + 1}</span><span class="n">${esc(nameOf(me.id))}</span><b>${me.pts | 0}</b></li>`;
+    if (me && !top.includes(me)) html += `<li class="me sep" style="--pc:${me.pal.ui}"><span class="r">${rk.indexOf(me) + 1}</span><span class="n">${esc(nameOf(me.id))}</span><b>${me.peak | 0}</b></li>`;
     if (list.dataset.h !== html) { list.innerHTML = html; list.dataset.h = html; }
     const humans = G.players.filter(p => !p.ai && !p.isBot).length;
     $('#br-meta').textContent = `${G.players.length} artificiers · ${humans} joueur${humans > 1 ? 's' : ''}`;
@@ -2976,6 +2999,7 @@ function drawBrMini() {
     c.fillStyle = p.pal.ui; c.beginPath(); c.arc((p.x + 0.5) * S, (p.y + 0.5) * S, (!p.ai && !p.isBot) ? 2.6 : 1.9, 0, TAU); c.fill();
   }
   if (G.chestK >= 0 && Math.sin(performance.now() / 160) > -0.4) { const x = (G.chestK % COLS) * S, y = ((G.chestK / COLS) | 0) * S; c.fillStyle = '#ffd36e'; c.fillRect(x - 2, y - 2, S + 4, S + 4); c.strokeStyle = '#5a2e0e'; c.lineWidth = 1; c.strokeRect(x - 2, y - 2, S + 4, S + 4); }
+  if (G.phase === 'play') for (const [id, r] of brTop3()) { const p = G.players[id]; c.strokeStyle = TOP_COL[r]; c.lineWidth = 1.5; c.beginPath(); c.arc((p.x + 0.5) * S, (p.y + 0.5) * S, 4.5, 0, TAU); c.stroke(); }
   if (me && me.ct && G.players[me.ct.tg] && G.players[me.ct.tg].alive) { const tg = G.players[me.ct.tg]; c.strokeStyle = '#ff4f4f'; c.lineWidth = 1.5; c.beginPath(); c.arc((tg.x + 0.5) * S, (tg.y + 0.5) * S, 5, 0, TAU); c.stroke(); }
   c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 1;
   c.strokeRect(G.cam.x / T * S + 0.5, G.cam.y / T * S + 0.5, W / T * S - 1, H / T * S - 1);
@@ -4061,7 +4085,8 @@ function render() {
     c.fillStyle = `rgba(20,10,5,${(0.15 + p * 0.35).toFixed(3)})`; ell(c, x, y + 8, 8 + p * 16, 4 + p * 9); c.fill();
   }
 
-  const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [];
+  const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [], topB = [];
+  const top3 = G.mode === 'br' && G.phase === 'play' ? brTop3() : null;
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
   for (const p of G.players) { if (p.alive || p.deathT < 1) heroRows[clamp(Math.round(p.y), 0, ROWS - 1)].push(p); }
 
@@ -4096,6 +4121,8 @@ function render() {
       const face = dz || ((!p.alive || o.hop) ? 'down' : p.face);
       const hx = ((p.rx ?? p.x) + 0.5) * T, hy = ((p.ry ?? p.y) + 0.5) * T, au = p.alive && !p.ai ? p.aura | 0 : 0;
       if (p.emote && G.t - p.emote.at < 2.6) emoB.push([hx, hy - (o.hop || 0), p]);
+      const tr = top3 && top3.get(p.id);
+      if (tr) { drawTopRing(c, hx, hy, tr, t); topB.push([hx, hy - (o.hop || 0), tr]); }
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, false, p.id);
       if (p.alive && p.shield > 0 && Math.sin(t * 22) > 0) { c.save(); c.globalAlpha = 0.45; drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o); c.restore(); }
       else drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o);
@@ -4116,6 +4143,7 @@ function render() {
     c.save(); c.translate(gx, gy - h * T); c.rotate((f.dx || f.dy) * f.t * 9); drawBomb(c, 0, 0, f.b, t); c.restore();
   }
   drawParticles(c);
+  for (const [mx, my, r] of topB) drawTopMark(c, mx, my, r, t);
   for (const [ex, ey, p] of emoB) drawEmoteBubble(c, ex, ey, p.emote.n, G.t - p.emote.at, p.pal.ui);
   for (const f of G.flying) {
     const q = Math.min(1, f.t / f.dur), tx = f.k % COLS, ty = (f.k / COLS) | 0;
