@@ -227,6 +227,26 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .char-xp .gain{grid-column:1/-1;font-weight:800;color:var(--gold);font-size:15px}
 .xp-toast{top:46px;z-index:3;border:1px solid rgba(255,214,110,.35)}
 .secretbox{max-width:440px}
+#spec-bar{position:fixed;z-index:30;left:50%;top:6px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:999px;background:rgba(10,16,10,.88);border:1px solid rgba(243,229,192,.3);color:var(--parchment);font:800 14px/1 var(--font-body);white-space:nowrap;max-width:calc(100vw - 16px)}
+#spec-bar[hidden]{display:none}
+#replay-bar{position:fixed;z-index:31;left:50%;bottom:10px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:8px 12px;border-radius:18px;background:rgba(10,16,10,.9);border:1px solid rgba(243,229,192,.3);color:var(--parchment);font:800 14px/1 var(--font-body);max-width:calc(100vw - 16px)}
+#replay-bar[hidden]{display:none}
+#replay-bar b{color:#ff6a5a;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+#replay-bar .rp-badge{color:#ff4f4f;animation:rpblink 1s steps(2) infinite}
+@keyframes rpblink{50%{opacity:.25}}
+#replay-bar button,#replay-bar .rp-link{padding:7px 11px;border-radius:999px;border:1px solid rgba(243,229,192,.3);background:rgba(243,229,192,.08);color:var(--parchment);font:800 13px/1 var(--font-body);cursor:pointer;text-decoration:none}
+#replay-bar button:disabled{opacity:.4;cursor:default}
+#replay-bar [hidden]{display:none}
+#replay-bar .rp-link{border-color:var(--gold);color:var(--gold)}
+#rp-prog{width:min(220px,40vw);height:10px;border-radius:5px;background:rgba(243,229,192,.15);overflow:hidden;cursor:pointer}
+#rp-prog i{display:block;height:100%;width:0;background:#ff6a5a}
+#rp-msg{flex-basis:100%;text-align:center;font-weight:700;font-size:12px;opacity:.85}
+#rp-msg:empty{display:none}
+#spec-bar b{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+#spec-who{overflow:hidden;text-overflow:ellipsis}
+#spec-bar button{padding:6px 10px;border-radius:999px;border:1px solid rgba(243,229,192,.3);background:rgba(243,229,192,.08);color:var(--parchment);font:800 13px/1 var(--font-body);cursor:pointer}
+#spec-bar button[hidden]{display:none}
+#spec-bar kbd{font-size:10px}
 .cos-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff6a2a;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px #ff6a2a}
 .cos-dot[hidden]{display:none}
 .custombox{max-width:720px;width:min(720px,100%)}
@@ -707,6 +727,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
       <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie dure jusqu'à ce qu'un joueur atteigne 1000 points. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 40 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 2 points, plus grosses de 6, 20 ou 60 quand tu en avais beaucoup), et certaines caisses cachent aussi une petite orbe. Le classement montre les 10 meilleurs scores atteints pendant la partie (ton record reste affiché même si tu meurs), et les 3 joueurs qui ont le plus de points en ce moment portent une couronne ou une médaille sur la carte. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. De temps en temps, un contrat te désigne une cible : souffle-la dans les 45 secondes pour 100 points de plus (une flèche rouge t'indique où elle est). Toutes les 2 minutes, un coffre au trésor apparaît au centre de la carte : il faut 3 explosions pour l'ouvrir, et il lâche un gros butin d'orbes et de bonus. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
       <p class="rule">Personnaliser (à l'accueil) : skins de bombe, couleurs de flammes, emotes et carte de victime, à débloquer en jouant (parties, victimes, victoires et niveaux de tes persos). Tout le monde les voit, en ligne aussi. En partie, les touches 1 à 4 (boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone) lancent tes emotes.</p>
+      <p class="rule">Spectateur : si une partie est pleine ou déjà lancée, « Regarder une partie en cours » (dans Rejoindre avec un code, ou après une recherche) te la montre sans jouer ; en battle royale, ← et → changent le joueur suivi. Replay : à la fin d'une partie, « Revoir la manche » (touche R) rejoue la dernière manche en ×2 (les 30 dernières secondes en battle royale) ; le bouton Vidéo l'enregistre pour la partager.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -761,6 +782,22 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </div>
 </div>
 
+<div id="replay-bar" hidden>
+  <span class="rp-badge" aria-hidden="true">●</span><b>Replay</b><span id="rp-label"></span>
+  <button type="button" id="rp-play" aria-label="Pause">⏸</button>
+  <button type="button" id="rp-speed" title="Vitesse">×2</button>
+  <div id="rp-prog" title="Aller à…"><i></i></div>
+  <button type="button" id="rp-video" title="Rejouer depuis le début en enregistrant une vidéo">🎬 Vidéo</button>
+  <a id="rp-dl" class="rp-link" hidden>Télécharger</a>
+  <button type="button" id="rp-share" hidden>Partager</button>
+  <button type="button" id="rp-quit">Quitter <kbd>Échap</kbd></button>
+  <span id="rp-msg" role="status"></span>
+</div>
+<div id="spec-bar" hidden>
+  <span class="spec-eye" aria-hidden="true">👁</span><b>Spectateur</b><span id="spec-who"></span>
+  <button type="button" id="spec-prev" aria-label="Joueur précédent">◀</button><button type="button" id="spec-next" aria-label="Joueur suivant">▶</button>
+  <button type="button" id="spec-quit">Quitter <kbd>Échap</kbd></button>
+</div>
 <div id="end" class="overlay" hidden>
   <div class="box">
     <p class="kicker" id="end-kicker">Fin de la partie</p>
@@ -774,6 +811,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="pick-hint" role="status"></p>
     <div class="row">
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
+      <button class="ghost" id="replay-btn" type="button" hidden>Revoir la manche <kbd>R</kbd></button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
     </div>
   </div>
@@ -784,7 +822,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="kicker" id="net-kicker">Jouer en ligne</p>
     <h2 id="net-title">Rejoindre un lobby</h2>
     <p class="rule" id="net-status" role="status"></p>
-    <div class="row" style="margin-top:14px"><button class="cta" id="net-retry" type="button" hidden>Réessayer</button></div>
+    <div class="row" style="margin-top:14px"><button class="cta" id="net-retry" type="button" hidden>Réessayer</button><button class="ghost" id="net-watch" type="button" hidden>Regarder une partie en cours</button></div>
     <div id="net-home" style="display:flex;flex-direction:column;align-items:center">
       <form class="join" id="net-join" autocomplete="off">
         <label class="opt-label" for="net-code-in">Code du lobby</label>
@@ -1058,10 +1096,10 @@ function cosCheckNew(quiet) {
   setTimeout(() => { xpToast(`Débloqué : ${names.join(', ')} ! (à choisir dans Personnaliser)`, true); Sfx.play('pickup'); }, 1900);
 }
 function statAdd(k, n) {
-  if (settings.admin || !(n > 0)) return;
+  if (settings.admin || !(n > 0) || REPLAY.on) return;
   settings.st[k] = statOf(k) + n; saveSettings(); cosCheckNew();
 }
-function statMax(k, v) { if (settings.admin || !(v > statOf(k))) return; settings.st[k] = v; saveSettings(); cosCheckNew(); }
+function statMax(k, v) { if (settings.admin || !(v > statOf(k)) || REPLAY.on) return; settings.st[k] = v; saveSettings(); cosCheckNew(); }
 cosCheckNew(true);
 saveSettings();
 
@@ -1155,6 +1193,8 @@ const NET = {
   bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, throwSeq: 0, throwReq: null, throwT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : 0;
+// spectateur : personne n'est « toi » ; la caméra et la carte du joueur suivent NET.follow
+const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : localIdx();
 const inGame = () => G.mode === 'match' || G.mode === 'br';
 // À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
 const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
@@ -1837,7 +1877,7 @@ const FX = {
   joined(slot) { if (G.mode === 'br') brToast(`${nameOf(slot)} rejoint la partie`); },
 };
 function fx(n, a, b, c, d) {
-  FX[n](a, b, c, d);
+  FX[n](a, b, c, d); recEvent(n, a, b, c, d);
   if (NET.role === 'host') {
     NET.events.push([++NET.fxSeq, n, a ?? 0, b ?? 0, c ?? 0, d ?? 0]);
     if (NET.events.length > (G.mode === 'br' ? 80 : 14)) NET.events.shift();
@@ -2624,6 +2664,188 @@ function emoteTick() {
     doEmote(p, ok[(Math.random() * ok.length) | 0]);
   }
 }
+/* ---------- Replay : la dernière manche (ou les 30 dernières secondes du battle royale), rejouée en ×2 ----------
+   On enregistre 20 images par seconde de l'état affiché (pas les entrées : le jeu utilise du hasard) et les effets ;
+   le replay remplace temporairement les conteneurs de G par des copies, puis rend la vraie partie intacte. */
+const REC = { frames: [], ev: [], t: 0, acc: 0, ph: '', mode: '', endT: 0, meta: null, metaSig: '', metaN: 0 };
+const REPLAY = { on: false, speed: 2 };
+const REPLAY_SKIP = new Set(['left', 'joined']);
+function recReset() { Object.assign(REC, { frames: [], ev: [], t: 0, acc: 0, endT: 0, meta: null, metaSig: '', metaN: 0 }); }
+function recEvent(n, a, b, c, d) { if (REPLAY.on || !inGame() || !REC.frames.length) return; REC.ev.push([REC.t, n, a, b, c, d]); }
+const sameArr = (a, b) => { if (!a || a.length !== b.length) return false; for (let k = 0; k < b.length; k++) if (a[k] !== b[k]) return false; return true; };
+function recFrame() {
+  const prev = REC.frames[REC.frames.length - 1];
+  const g = prev && sameArr(prev.g, G.grid) ? prev.g : G.grid.slice(), it = prev && sameArr(prev.it, G.items) ? prev.it : G.items.slice();
+  const fl = [], bu = [], gr = [];
+  for (let k = 0; k < N; k++) {
+    if (G.flameT[k] > 0 && G.flameBits[k]) fl.push(k, G.flameBits[k], Math.round(G.flameT[k] * 100), G.flameOwner[k]);
+    if (G.burn[k] > 0) bu.push(k, Math.round(G.burn[k] * 1000));
+    if (G.grow[k] > 0) gr.push(k, Math.round(G.grow[k] * 1000));
+  }
+  const b = []; for (const o of G.bombs) b.push(o.x, o.y, o.mdx, o.mdy, o.prog, Math.max(0, o.timer), o.owner.id);
+  const tw = []; for (const o of G.thrown) tw.push(o.sx, o.sy, o.dx, o.dy, o.n, o.t, o.b.owner.id, Math.max(0, o.b.timer));
+  const fa = []; for (const o of G.falling) fa.push(o.k, o.t);
+  const p = G.players.map(o => [o.rx ?? o.x, o.ry ?? o.y, Math.max(0, FACES.indexOf(o.face)), o.alive ? 1 : 0, o.deathT || 0, o.moving ? 1 : 0, o.maxBombs, o.range, o.speedLv, (o.kick ? 1 : 0) | (o.throw ? 2 : 0), o.pts | 0, o.shield > 0 ? 1 : 0, o.peak | 0, o.kills | 0, o.ct ? o.ct.tg : -1, o.killedBy ?? -1]);
+  // infos fixes des joueurs (perso, pseudo, cosmétiques) : vérifiées une fois par seconde
+  if (!REC.meta || ++REC.metaN >= 20 || REC.meta.length !== G.players.length) {
+    REC.metaN = 0;
+    const m = G.players.map(o => ({ skin: o.skin | 0, nick: o.nick, ai: !!(o.ai || o.isBot), bot: !!o.isBot, aura: o.ai ? 0 : o.aura | 0, cs: csOf(o).slice(), elo: o.elo | 0, aid: o.aid || '' })), sig = JSON.stringify(m);
+    if (sig !== REC.metaSig) { REC.meta = m; REC.metaSig = sig; }
+  }
+  return { t: REC.t, g, it, fl, bu, gr, b, tw, fa, p, m: REC.meta,
+    s: [G.phase, G.phaseT, G.time, G.sudden ? 1 : 0, G.suddenFlash, G.round, G.scores.slice(), G.lastWinner, (G.places || []).slice(), (G.gains || []).slice(), G.chestK ?? -1, G.chestHp | 0, G.brWinner ?? -1, G.pointsMode ? 1 : 0, G.winsNeeded, G.specN | 0] };
+}
+function recTick(dt) {
+  if (REPLAY.on || !inGame()) return;
+  if (G.paused && !NET.role) return;
+  if (NET.role === 'guest' && !NET.gotSnap) return;
+  const ph = G.phase;
+  if (REC.mode !== G.mode) { recReset(); REC.mode = G.mode; }
+  if (G.mode === 'match' && ph === 'intro' && REC.ph !== 'intro') recReset();     // nouvelle manche
+  if (G.mode === 'br' && ph === 'play' && REC.ph === 'brEnd') recReset();         // nouvelle partie de battle royale
+  REC.ph = ph;
+  if (ph === 'matchEnd' || ph === 'brEnd') { REC.endT += dt; if (REC.endT > (ph === 'brEnd' ? MEGA_END + 0.6 : 2.5)) return; } else REC.endT = 0;
+  REC.t += dt; REC.acc += dt;
+  if (REC.acc >= 0.05 || !REC.frames.length) { REC.acc = 0; REC.frames.push(recFrame()); }
+  const keep = G.mode === 'br' ? 30 : 300;
+  while (REC.frames.length > 2 && REC.frames[0].t < REC.t - keep) REC.frames.shift();
+  while (REC.ev.length && REC.ev[0][0] < REC.frames[0].t) REC.ev.shift();
+}
+const replayReady = () => REC.frames.length >= 20;
+function startReplay() {
+  if (REPLAY.on || !replayReady()) return;
+  const R = REPLAY, saved = {}; for (const k of Object.keys(G)) saved[k] = G[k];
+  Object.assign(R, { saved, frames: REC.frames.slice(), ev: REC.ev.slice(), i: 0, ei: 0, paused: false, endT: 0, metaRef: null, lg: null, li: null, rec: null, vidKeep: false, mode: G.mode, round: G.round });
+  R.t0 = R.frames[0].t; R.t1 = R.frames[R.frames.length - 1].t; R.t = R.t0;
+  R.on = true;
+  // conteneurs neufs : la vraie partie n'est pas touchée
+  G.grid = new Uint8Array(N); G.items = new Int8Array(N).fill(-1); G.itemAge = new Float32Array(N); G.hidden = new Int8Array(N).fill(-1);
+  G.burn = new Float32Array(N); G.grow = new Float32Array(N); G.flameT = new Float32Array(N); G.flameBits = new Uint8Array(N); G.flameOwner = new Int8Array(N).fill(-1);
+  G.bombAt = new Array(N).fill(null); G.bombs = []; G.thrown = []; G.falling = []; G.flying = []; G.particles = []; G.players = [];
+  G.cam = { x: G.cam.x, y: G.cam.y }; G.camF = undefined; G.camV = undefined; G.camP = undefined; G.camL = undefined; G.camSnap = true;
+  G.megaOn = false; G.megaRing = null; G.megaFlash = 0; G.vcard = null; G.shake = 0; G.paused = false;
+  endEl.hidden = true; pauseEl.hidden = true; $('#replay-bar').hidden = false; $('#rp-dl').hidden = true; $('#rp-share').hidden = true; $('#rp-msg').textContent = '';
+  $('#rp-label').textContent = R.mode === 'br' ? 'Les 30 dernières secondes' : `Manche ${R.round}`;
+  replaySeek(R.t0); syncReplayBar(true);
+  try { $('#rp-play').focus({ preventScroll: true }); } catch (e) {}
+}
+function replayMeta(m) {
+  const R = REPLAY; if (m === R.metaRef) return; R.metaRef = m;
+  G.players = m.map((q, i) => { const p = makePlayer(i, null); Object.assign(p, { skin: q.skin, nick: q.nick, ai: q.ai ? {} : null, isBot: q.bot, aura: q.aura, cs: q.cs.slice(), elo: q.elo, aid: q.aid, remote: false }); return p; });
+  hudCache = {}; setupHud();
+}
+function replayApply(f, f2, a) {
+  const R = REPLAY, dtF = f2 ? f2.t - f.t : 0, P = (replayMeta(f.m), G.players);
+  if (R.lg !== f.g) { G.grid.set(f.g); R.lg = f.g; }
+  if (R.li !== f.it) { for (let k = 0; k < N; k++) if (f.it[k] >= 0 && G.items[k] !== f.it[k]) G.itemAge[k] = 0; G.items.set(f.it); R.li = f.it; }
+  G.flameT.fill(0); G.flameBits.fill(0); G.flameOwner.fill(-1);
+  for (let j = 0; j < f.fl.length; j += 4) { const k = f.fl[j]; G.flameBits[k] = f.fl[j + 1]; G.flameT[k] = Math.max(0.001, f.fl[j + 2] / 100 - a * dtF); G.flameOwner[k] = f.fl[j + 3]; }
+  G.burn.fill(0); for (let j = 0; j < f.bu.length; j += 2) G.burn[f.bu[j]] = Math.max(0.001, f.bu[j + 1] / 1000 - a * dtF);
+  G.grow.fill(0); for (let j = 0; j < f.gr.length; j += 2) G.grow[f.gr[j]] = f.gr[j + 1] / 1000;
+  G.bombs = [];
+  for (let j = 0; j < f.b.length; j += 7) {
+    let prog = f.b[j + 4];
+    if (f2 && f2.b[j] === f.b[j] && f2.b[j + 1] === f.b[j + 1] && f2.b[j + 2] === f.b[j + 2] && f2.b[j + 3] === f.b[j + 3]) prog += (f2.b[j + 4] - prog) * a;
+    G.bombs.push({ x: f.b[j], y: f.b[j + 1], mdx: f.b[j + 2], mdy: f.b[j + 3], prog, timer: Math.max(0, f.b[j + 5] - a * dtF), owner: P[f.b[j + 6]] || P[0], passers: new Set(), range: 2 });
+  }
+  G.thrown = []; for (let j = 0; j < f.tw.length; j += 8) G.thrown.push({ sx: f.tw[j], sy: f.tw[j + 1], dx: f.tw[j + 2], dy: f.tw[j + 3], n: f.tw[j + 4], t: f.tw[j + 5] + a * dtF, b: { owner: P[f.tw[j + 6]] || P[0], timer: f.tw[j + 7], passers: new Set() } });
+  G.falling = []; for (let j = 0; j < f.fa.length; j += 2) G.falling.push({ k: f.fa[j], t: f.fa[j + 1] });
+  f.p.forEach((q, i) => {
+    const p = P[i]; if (!p) return;
+    const q2 = f2 && f2.p[i]; let x = q[0], y = q[1];
+    if (q2 && q2[3] && q[3] && Math.abs(q2[0] - x) < 1.5 && Math.abs(q2[1] - y) < 1.5) { x += (q2[0] - x) * a; y += (q2[1] - y) * a; }
+    Object.assign(p, { x, y, rx: x, ry: y, face: FACES[q[2]] || 'down', alive: !!q[3], deathT: q[4] + (q[3] ? 0 : a * dtF), moving: !!q[5], maxBombs: q[6], range: q[7], speedLv: q[8], kick: !!(q[9] & 1), throw: !!(q[9] & 2), pts: q[10], shield: q[11], peak: q[12], kills: q[13], ct: q[14] >= 0 ? { tg: q[14], until: 1e9 } : null, killedBy: q[15] });
+  });
+  const S = f.s;
+  Object.assign(G, { phase: S[0], phaseT: S[1], time: S[2], sudden: !!S[3], suddenFlash: S[4], round: S[5], scores: S[6], lastWinner: S[7], places: S[8], gains: S[9], chestK: S[10], chestHp: S[11], brWinner: S[12], pointsMode: !!S[13], winsNeeded: S[14], specN: S[15] });
+}
+function replaySeek(t) {
+  const R = REPLAY; R.t = clamp(t, R.t0, R.t1); R.i = 0; R.endT = 0;
+  while (R.i < R.frames.length - 2 && R.frames[R.i + 1].t <= R.t) R.i++;
+  R.ei = 0; while (R.ei < R.ev.length && R.ev[R.ei][0] < R.t) R.ei++;
+  G.particles = []; G.flying = []; G.megaOn = false; G.megaRing = null; G.megaFlash = 0; G.camSnap = true;
+  // en sautant au milieu de la cinématique de victoire, on la reprend où elle en est
+  for (let j = R.ei - 1; j >= 0; j--) { const e = R.ev[j]; if (e[1] === 'megaGo') { const f = R.frames[R.i]; replayApply(f, null, 0); megaStart(e[2] | 0, R.t - e[0]); break; } }
+  const f = R.frames[R.i]; replayApply(f, R.frames[R.i + 1], 0);
+}
+function replayTick(dt) {
+  const R = REPLAY; if (!R.on) return;
+  const d = R.paused ? 0 : dt * R.speed;
+  R.t = Math.min(R.t1, R.t + d);
+  while (R.ei < R.ev.length && R.ev[R.ei][0] <= R.t) { const e = R.ev[R.ei++]; if (FX[e[1]] && !REPLAY_SKIP.has(e[1])) { try { FX[e[1]](e[2], e[3], e[4], e[5]); } catch (err) {} } }
+  while (R.i < R.frames.length - 2 && R.frames[R.i + 1].t <= R.t) R.i++;
+  const f = R.frames[R.i], f2 = R.frames[R.i + 1], a = f2 ? clamp((R.t - f.t) / Math.max(1e-6, f2.t - f.t), 0, 1) : 0;
+  replayApply(f, f2, a);
+  G.t += d; updateParticles(d); updateFlying(d, false); megaTick(d);
+  for (const p of G.players) if (p.alive && p.moving) p.phase += d * speedOf(p) * 3.3;
+  G.shake = Math.max(0, G.shake - d * 30);
+  if (R.t >= R.t1 && !R.paused) { R.endT += dt; if (R.endT > 0.8) { if (R.rec) finishVideo(); else stopReplay(); } }
+  syncReplayBar();
+}
+function stopReplay() {
+  const R = REPLAY; if (!R.on) return;
+  if (R.rec) { R.vidKeep = false; try { R.rec.stop(); } catch (e) {} R.rec = null; }
+  R.on = false;
+  for (const k of Object.keys(G)) if (!(k in R.saved)) delete G[k];
+  Object.assign(G, R.saved); R.saved = null; R.frames = []; R.ev = [];
+  $('#replay-bar').hidden = true; endEl.hidden = false; hudCache = {}; setupHud();
+  if (G.mode === 'br') brHudTick(0, true);
+  try { $('#replay-btn').focus({ preventScroll: true }); } catch (e) {}
+}
+function replayTogglePause() { const R = REPLAY; if (!R.on || R.rec) return; if (R.t >= R.t1) replaySeek(R.t0); R.paused = !R.paused; syncReplayBar(true); }
+function replaySpeed() { const R = REPLAY; if (!R.on || R.rec) return; R.speed = R.speed === 2 ? 1 : R.speed === 1 ? 0.5 : 2; syncReplayBar(true); }
+let rpBarT = 0;
+function syncReplayBar(force) {
+  const R = REPLAY, now = performance.now(); if (!force && now - rpBarT < 100) return; rpBarT = now;
+  $('#rp-play').textContent = R.paused ? '▶' : '⏸'; $('#rp-play').setAttribute('aria-label', R.paused ? 'Lecture' : 'Pause');
+  $('#rp-speed').textContent = R.speed === 0.5 ? '×½' : '×' + R.speed;
+  const u = R.t1 > R.t0 ? (R.t - R.t0) / (R.t1 - R.t0) : 0; $('#rp-prog i').style.width = (u * 100).toFixed(1) + '%';
+  const rec = !!R.rec; $('#rp-play').disabled = rec; $('#rp-speed').disabled = rec; $('#rp-video').disabled = rec;
+}
+// Vidéo : on rejoue depuis le début en filmant l'arène (canvas), puis on propose le fichier
+function replayVideo() {
+  const R = REPLAY, cv = ctx.canvas; if (!R.on || R.rec) return;
+  if (!cv.captureStream || !window.MediaRecorder) { $('#rp-msg').textContent = "Ton navigateur ne sait pas enregistrer de vidéo."; return; }
+  const mime = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } });
+  if (!mime) { $('#rp-msg').textContent = "Ton navigateur ne sait pas enregistrer de vidéo."; return; }
+  let stream, mr; const chunks = [];
+  try { stream = cv.captureStream(30); mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5000000 }); } catch (e) { $('#rp-msg').textContent = "L'enregistrement vidéo n'a pas pu démarrer."; return; }
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  mr.onstop = () => {
+    stream.getTracks().forEach(tr => tr.stop());
+    if (!R.vidKeep || !chunks.length) return;
+    offerVideo(new Blob(chunks, { type: mime.split(';')[0] }), mime.includes('mp4') ? 'mp4' : 'webm');
+  };
+  replaySeek(R.t0); R.paused = false; R.vidKeep = true; R.rec = mr; mr.start(250);
+  $('#rp-msg').textContent = 'Enregistrement de la vidéo…'; $('#rp-dl').hidden = true; $('#rp-share').hidden = true; syncReplayBar(true);
+}
+function finishVideo() { const R = REPLAY, mr = R.rec; R.rec = null; R.paused = true; try { mr.stop(); } catch (e) {} syncReplayBar(true); }
+function offerVideo(blob, ext) {
+  const R = REPLAY; if (!R.on) return;
+  const name = `meche-courte-replay.${ext}`, url = URL.createObjectURL(blob), dl = $('#rp-dl');
+  if (R.vidUrl) URL.revokeObjectURL(R.vidUrl); R.vidUrl = url;
+  dl.href = url; dl.download = name; dl.hidden = false;
+  $('#rp-msg').textContent = `Vidéo prête (${Math.max(1, Math.round(blob.size / 1e5) / 10)} Mo).`;
+  let file = null; try { file = new File([blob], name, { type: blob.type }); } catch (e) {}
+  const sh = $('#rp-share'); sh.hidden = !(file && navigator.canShare && navigator.canShare({ files: [file] }));
+  sh.onclick = () => { navigator.share({ files: [file], title: 'Mèche Courte', text: 'Regarde cette action sur Mèche Courte !' }).catch(() => {}); };
+  try { dl.click(); } catch (e) {}
+}
+function drawReplayMark(c, t) {
+  if (!REPLAY.on) return;
+  c.save(); c.font = '800 14px "Alegreya Sans", sans-serif';
+  const sp = REPLAY.speed === 0.5 ? '×½' : '×' + REPLAY.speed, tx = `REPLAY ${sp}`, w = c.measureText(tx).width + 30;
+  c.fillStyle = 'rgba(10,16,10,.65)'; rr(c, 10, 10, w, 26, 13); c.fill();
+  c.fillStyle = Math.sin(t * 6) > -0.3 ? '#ff4f4f' : 'rgba(255,79,79,.35)'; c.beginPath(); c.arc(23, 23, 5, 0, TAU); c.fill();
+  c.fillStyle = '#f3e5c0'; c.textBaseline = 'middle'; c.fillText(tx, 33, 24);
+  c.font = '14px "Bagel Fat One", sans-serif'; c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.55)'; c.fillText('Mèche Courte', W - 12, H - 16);
+  c.restore();
+}
+function syncReplayBtn() {
+  const b = document.getElementById('replay-btn'); if (!b) return;
+  b.hidden = !replayReady();
+  b.firstChild.textContent = (G.mode === 'br' ? 'Revoir la fin' : 'Revoir la manche') + ' ';
+}
 function brWin(w) {
   G.phase = 'brEnd'; G.phaseT = 0; G.brWinner = w.id; G.brEndShown = false; G.megaBoom = false;
   G.bombs.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
@@ -2689,6 +2911,7 @@ function smoothDamp(cur, target, v, key, st, dt) {
 }
 function updateCamera(dt) {
   if (!BIG_MAP()) { G.cam.x = 0; G.cam.y = 0; return; }
+  if (NET.spec && NET.role === 'guest') { const f = G.players[viewIdx()]; if (f && G.camF && f !== G.camFol) { G.camFol = f; G.camSnap = Math.abs(f.x * T - G.cam.x - W / 2) > W; } }
   if (G.phase === 'brEnd' && G.megaOn && G.players[G.megaW]) {
     // cinématique : la caméra file vers le gagnant (et un peu vers le point de chute)
     const w = G.players[G.megaW], fx0 = ((w.rx ?? w.x) * 0.7 + G.megaTx * 0.3 + 0.5) * T, fy0 = ((w.ry ?? w.y) * 0.7 + G.megaTy * 0.3 + 0.5) * T;
@@ -2696,7 +2919,7 @@ function updateCamera(dt) {
     G.cam.x += (tx - G.cam.x) * k; G.cam.y += (ty - G.cam.y) * k; G.camSnap = false;
     return;
   }
-  const me = G.players[localIdx()]; if (!me) return;
+  const me = G.players[viewIdx()]; if (!me) return;
   const cfg = CAMS[settings.cam] || CAMS.reactive, DX = cfg.dx * T, DY = cfg.dy * T;
   let px = (me.x + 0.5) * T, py = (me.y + 0.5) * T;
   // anticipation : la caméra regarde un peu devant, dans le sens du déplacement (vitesse lissée)
@@ -2926,7 +3149,7 @@ function brHudTick(now, force) {
   if (G.mode !== 'br') return;
   if (force || now - brHudT > 250) {
     brHudT = now;
-    const rk = brRanking(), me = G.players[localIdx()], list = $('#br-list');
+    const rk = brRanking(), me = G.players[viewIdx()], list = $('#br-list');
     const top = rk.slice(0, 10);
     let html = '';
     top.forEach((p, i) => {
@@ -2995,7 +3218,7 @@ function drawBrMini() {
   c.clearRect(0, 0, w, h); c.drawImage(G.brMini, 0, 0);
   c.fillStyle = 'rgba(176,122,62,.75)';
   for (let k = 0; k < N; k++) if (G.grid[k] === CRATE) c.fillRect((k % COLS) * S + 0.5, ((k / COLS) | 0) * S + 0.5, S - 1, S - 1);
-  const me = G.players[localIdx()];
+  const me = G.players[viewIdx()];
   for (const p of G.players) {
     if (!p.alive || p === me) continue;
     c.fillStyle = p.pal.ui; c.beginPath(); c.arc((p.x + 0.5) * S, (p.y + 0.5) * S, (!p.ai && !p.isBot) ? 2.6 : 1.9, 0, TAU); c.fill();
@@ -3035,10 +3258,11 @@ function brSeekEnd() {
   if (slot < 0) { brToast('Tous les battle royale sont pleins : partie hors ligne'); return; }
   let peer;
   try { peer = new window.Peer(brId(slot), peerOptions()); } catch (err) { return; }
-  Object.assign(NET, { role: 'host', peer, links: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0, pubN: 0 });
+  Object.assign(NET, { role: 'host', peer, links: [], specs: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0, pubN: 0 });
   NET.mi++;
   peer.on('connection', conn => {
     if (NET.peer !== peer) return;
+    if (conn.metadata && conn.metadata.spec) { addSpec(conn); return; }
     const humans = G.players.filter(p => !p.ai).length;
     if (G.mode !== 'br' || humans >= BR_MAX_HUMANS) { conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 300); }); return; }
     const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastThrow: 0, lastSeen: performance.now(), slot: -1 };
@@ -3126,7 +3350,7 @@ function syncAuraPick() {
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
 function addXp(skin, amount) {
-  if (!(amount > 0) || !CHARS[skin]) return;
+  if (!(amount > 0) || !CHARS[skin] || REPLAY.on) return;
   if (settings.admin) { xpToast(`+${amount} XP (mode admin : non compté)`); return; }
   const before = realXpOf(skin), L0 = levelOfXp(before), after = before + amount, L1 = levelOfXp(after);
   settings.xp[CHARS[skin].key] = after; saveSettings();
@@ -4172,7 +4396,8 @@ function render() {
   c.setTransform(K, 0, 0, K, 0, 0);
   c.drawImage(sprites.vignette.c, 0, 0, W, H);
   if (G.mode === 'br') { drawBrTargets(c, t); drawBrOverlay(c, t); drawMegaFlash(c, 1 / 60); }
-  drawMatchCard(c, t);
+  drawMatchCard(c, t); drawReplayMark(c, t);
+  if (inGame() && G.specN > 0) { c.save(); c.font = '800 13px "Alegreya Sans", sans-serif'; const tx = `👁 ${G.specN} spectateur${G.specN > 1 ? 's' : ''}`, w = c.measureText(tx).width + 16; c.fillStyle = 'rgba(10,16,10,.6)'; rr(c, 8, H - 30, w, 22, 11); c.fill(); c.fillStyle = 'rgba(243,229,192,.9)'; c.textBaseline = 'middle'; c.fillText(tx, 16, H - 19); c.restore(); }
 
   // bandeaux
   if (G.phase === 'intro') {
@@ -4248,7 +4473,7 @@ function buildStatics() {
   });
   const tb = $('#tbomb canvas'), c = tb.getContext('2d'); c.scale(112 / 48, 112 / 48); drawBomb(c, 24, 24, null, 0);
 }
-const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[localIdx()] : null) : G.players[i];
+const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[viewIdx()] : null) : G.players[i];
 function setupHud() {
   document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2);
   if (G.mode !== 'br') $('#br-ui').hidden = true;
@@ -4256,14 +4481,14 @@ function setupHud() {
     const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
-    card.querySelector('.ptag').textContent = G.mode === 'br' ? 'Toi' : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
   }
   hudCache = {};
-  $('#br-goal').hidden = G.mode !== 'br';
+  $('#br-goal').hidden = G.mode !== 'br' || !!NET.spec;
   const hb = $('#hud-b'), hide = cards[1].hidden && cards[3].hidden && G.mode !== 'br';
   if (hb.hidden !== hide) { hb.hidden = hide; resize(); }
   hudCache.frames = null;
@@ -4917,6 +5142,7 @@ let reportT = 0;
 function reportMatch() {
   const el = $('#end-elo'); el.textContent = '';
   clearTimeout(reportT);
+  if (NET.spec) return;
   if (!NET.role || !NET.mid || !settings.account) return;
   const ids = G.players.map(p => (!p.ai && !p.isBot) || p.aid ? (p.aid || null) : null);
   const humans = ids.filter(Boolean).length;
@@ -5119,6 +5345,27 @@ $('#btn-join').addEventListener('click', () => openJoin(''));
 $('#net-retry').addEventListener('click', () => { if (NET.view === 'search') searchGame(); else if (NET.view === 'create') createLobby(); });
 $('#net-start').addEventListener('click', startOnlineMatch);
 $('#net-back').addEventListener('click', toMenu);
+$('#net-watch').addEventListener('click', findWatch);
+new MutationObserver(() => {
+  if (endEl.hidden) return;
+  syncReplayBtn();
+  const pk = endEl.querySelector('.end-pick-lb');
+  if (!NET.spec) { if (endEl.dataset.spec) { delete endEl.dataset.spec; if (pk) pk.hidden = false; $('#end-charpick').hidden = false; } return; }
+  endEl.dataset.spec = '1';
+  $('#end-kicker').textContent = 'Spectateur · fin de la partie';
+  $('#again').hidden = true; $('#end-xp').hidden = true; $('#end-elo').textContent = '';
+  if (pk) pk.hidden = true; $('#end-charpick').hidden = true;
+  $('#end-note').textContent = "Tu regardes en spectateur : la partie suivante s'affichera si l'hôte la relance.";
+}).observe(endEl, { attributes: true, attributeFilter: ['hidden'] });
+$('#spec-prev').addEventListener('click', () => specCycle(-1));
+$('#spec-next').addEventListener('click', () => specCycle(1));
+$('#spec-quit').addEventListener('click', toMenu);
+$('#replay-btn').addEventListener('click', startReplay);
+$('#rp-play').addEventListener('click', replayTogglePause);
+$('#rp-speed').addEventListener('click', replaySpeed);
+$('#rp-video').addEventListener('click', replayVideo);
+$('#rp-quit').addEventListener('click', stopReplay);
+$('#rp-prog').addEventListener('click', e => { const R = REPLAY; if (!R.on || R.rec) return; const r = e.currentTarget.getBoundingClientRect(); replaySeek(R.t0 + clamp((e.clientX - r.left) / r.width, 0, 1) * (R.t1 - R.t0)); syncReplayBar(true); });
 $('#tomenu').addEventListener('click', toMenu);
 $('#resume').addEventListener('click', resume);
 $('#quit').addEventListener('click', toMenu);
@@ -5130,6 +5377,14 @@ function removeFrom(a, v) { const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); 
 window.addEventListener('keydown', e => {
   const code = e.code;
   if (capture) { e.preventDefault(); e.stopPropagation(); if (capture.set === 2 && e.code !== 'Escape') return; finishCapture(e); return; }
+  if (REPLAY.on) {
+    if (code === 'Escape') { e.preventDefault(); stopReplay(); }
+    else if (code === 'Space' || code === 'KeyP') { e.preventDefault(); replayTogglePause(); }
+    else if (code === 'KeyS') replaySpeed();
+    else if (code === 'ArrowLeft' && !REPLAY.rec) replaySeek(REPLAY.t - 3);
+    else if (code === 'ArrowRight' && !REPLAY.rec) replaySeek(REPLAY.t + 3);
+    return;
+  }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
@@ -5152,11 +5407,19 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (!endEl.hidden) {
+    if (code === 'KeyR' && !e.repeat && replayReady() && !(e.target && e.target.tagName === 'INPUT')) { startReplay(); return; }
     if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (!$('#again').hidden) onAgain(); }
     else if (code === 'Escape') toMenu();
     return;
   }
   if (!pauseEl.hidden) { if (code === 'Escape' || code === 'KeyP') resume(); return; }
+  if (NET.spec && NET.role === 'guest') {
+    if (code === 'Escape') toMenu();
+    else if ((code === 'ArrowLeft' || code === 'KeyA') && !e.repeat) specCycle(-1);
+    else if ((code === 'ArrowRight' || code === 'KeyD') && !e.repeat) specCycle(1);
+    else if (code === 'KeyM') toggleMute();
+    return;
+  }
   if (code === 'Escape') { pause(); return; }
   const kb = keyMap[code];
   if (!kb) {
@@ -5249,7 +5512,7 @@ const pubId = i => PEER_PREFIX + 'pub-' + i;
 const BR_SLOTS = 4, brId = i => PEER_PREFIX + 'br-' + i;
 const LV_NAMES = ['Distrait', 'Rusé', 'Redoutable'];
 function showOnline(view) {
-  NET.view = view;
+  NET.view = view; NET.watchId = '';
   const [k, t] = NET_VIEWS[view]; $('#net-kicker').textContent = k; $('#net-title').textContent = t;
   menuEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; onlineEl.hidden = false;
 }
@@ -5258,6 +5521,7 @@ function setNetView(wait, code, text) {
   $('#net-home').style.display = !wait && v === 'join' ? 'flex' : 'none';
   $('#net-retry').hidden = wait || v === 'join';
   $('#net-retry').textContent = v === 'search' ? 'Chercher à nouveau' : 'Réessayer';
+  syncWatchBtn();
   $('#net-wait').hidden = !wait;
   const priv = NET.role === 'host' && !NET.pub;
   $('#net-invite').hidden = !(wait && priv);
@@ -5304,7 +5568,8 @@ function dropPeer() {
 function failOnline(msg) {
   dropPeer();
   if (NET.seek) clearTimeout(NET.seek.timer);
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0 });
+  if (NET.wseek) clearTimeout(NET.wseek.timer);
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, spec: false, wseek: null });
   setNetView(false); renderLobby(msg); syncMenu();
   try { (NET.view === 'join' ? $('#net-code-in') : $('#net-retry')).focus({ preventScroll: true }); } catch (e) {}
 }
@@ -5365,7 +5630,7 @@ function hostGame(e, attempt = 0, pub = null) {
   const code = pub ? 'pub-' + pub.slot : makeCode();
   let peer;
   try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'host', peer, links: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
+  Object.assign(NET, { role: 'host', peer, links: [], specs: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Lobby créé.';
@@ -5373,6 +5638,7 @@ function hostGame(e, attempt = 0, pub = null) {
   });
   peer.on('connection', conn => {
     if (NET.peer !== peer) return;
+    if (conn.metadata && conn.metadata.spec) { addSpec(conn); return; }
     const refuse = t => conn.on('open', () => { try { conn.send({ t }); } catch (err) {} setTimeout(() => { try { conn.close(); } catch (err) {} }, 300); });
     if (NET.started) { refuse('started'); return; }
     if (NET.links.length >= 3) { refuse('full'); return; }
@@ -5396,6 +5662,18 @@ function hostGame(e, attempt = 0, pub = null) {
     failOnline(peerErrorText(err));
   });
 }
+/* ---------- Spectateurs : connexion en lecture seule, ils reçoivent l'état de la partie (6 au plus) ---------- */
+const SPEC_MAX = 6;
+function addSpec(conn) {
+  if (!NET.specs) NET.specs = [];
+  if (NET.specs.length >= SPEC_MAX) { conn.on('open', () => { try { conn.send({ t: 'specfull' }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 300); }); return; }
+  const S = { conn, lastSeen: performance.now() }; NET.specs.push(S);
+  conn.on('open', () => { S.lastSeen = performance.now(); if (!NET.started) { try { conn.send({ t: 'specwait' }); } catch (e) {} } G.specN = specCount(); });
+  conn.on('data', d => { S.lastSeen = performance.now(); if (d && d.t === 'bye') dropSpec(S); });
+  conn.on('close', () => dropSpec(S)); conn.on('error', () => dropSpec(S));
+}
+function dropSpec(S) { const i = NET.specs ? NET.specs.indexOf(S) : -1; if (i < 0) return; NET.specs.splice(i, 1); try { S.conn.close(); } catch (e) {} G.specN = specCount(); }
+const specCount = () => (NET.specs || []).filter(S => S.conn.open).length;
 function onHostData(L, d) {
   if (!d || typeof d !== 'object' || NET.links.indexOf(L) < 0) return;
   L.lastSeen = performance.now();
@@ -5460,7 +5738,7 @@ function startOnlineMatch() {
 }
 /* ---------- Invité ---------- */
 function guestInit(peer, code, pub) {
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
+  Object.assign(NET, { spec: false, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -5555,9 +5833,77 @@ function adoptPublic(conn, i, d) {
 }
 function hostPublic() {
   const S = NET.seek;
-  if (S.free < 0) { failOnline("Toutes les parties publiques sont pleines pour l'instant. Réessaie dans un moment, ou crée un lobby pour jouer avec tes potes."); return; }
+  if (S.free < 0) { failOnline("Toutes les parties publiques sont pleines pour l'instant. Tu peux en regarder une en spectateur, réessayer dans un moment, ou créer un lobby pour jouer avec tes potes."); syncWatchBtn(); return; }
   dropPeer(); NET.role = null; NET.seek = null;
   hostGame(null, 0, { slot: S.free, attempt: S.attempt });
+}
+// Regarder une partie : une précise (code refusé) ou la première en cours trouvée (battle royale puis parties publiques)
+function watchGame(id) {
+  if (NET.role || !peerReady()) return;
+  let peer; try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { renderLobby(peerErrorText(err)); return; }
+  guestInit(peer, id, false); Object.assign(NET, { spec: true, me: -1, follow: 0, followSet: false });
+  setNetView(true, '', 'Connexion à la partie…'); $('#net-status').textContent = 'Mode spectateur'; syncWatchBtn();
+  peer.on('open', () => {
+    if (NET.peer !== peer) return;
+    const conn = peer.connect(id, { serialization: 'json', metadata: { spec: 1 } });
+    attachGuestConn(conn);
+    conn.on('open', () => { if (NET.link === conn) { NET.lastSeen = performance.now(); $('#net-wait-text').textContent = 'Connecté : la partie va s’afficher.'; sendGuest(); } });
+  });
+  peer.on('error', err => guestPeerError(peer, err));
+  setTimeout(() => { if (NET.peer === peer && NET.role === 'guest' && !NET.gotSnap && !(NET.link && NET.link.open)) backToLobby('Cette partie est introuvable : elle vient peut-être de se terminer.'); }, 15000);
+}
+function findWatch() {
+  if (NET.role || !peerReady()) return;
+  if (NET.watchId) { const id = NET.watchId; NET.watchId = ''; watchGame(id); return; }
+  setNetView(true, '', ''); $('#net-status').textContent = "Recherche d'une partie en cours à regarder…"; $('#net-wait-text').textContent = ''; syncWatchBtn();
+  let peer; try { peer = new window.Peer(undefined, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
+  const ids = [...Array(BR_SLOTS)].map((_, i) => brId(i)).concat([...Array(PUB_SLOTS)].map((_, i) => pubId(i)));
+  Object.assign(NET, { role: 'watchseek', peer, wseek: { ids, i: -1, conn: null, timer: 0 } });
+  peer.on('open', () => { if (NET.peer === peer && NET.role === 'watchseek') watchNext(); });
+  peer.on('error', err => {
+    if (NET.peer !== peer) return;
+    if (NET.role === 'watchseek') { const W = NET.wseek, m = String((err && err.message) || ''); if (err && err.type === 'peer-unavailable') { if (W && (!m || m.includes(W.ids[W.i]))) watchSkip(); return; } failOnline(peerErrorText(err)); return; }
+    guestPeerError(peer, err);
+  });
+}
+function watchNext() {
+  const W = NET.wseek; if (!W) return;
+  W.i++;
+  if (W.i >= W.ids.length) { failOnline("Aucune partie en cours à regarder pour l'instant. Réessaie dans un moment."); return; }
+  const id = W.ids[W.i], conn = NET.peer.connect(id, { serialization: 'json', metadata: { spec: 1 } }); W.conn = conn;
+  W.timer = setTimeout(() => { if (NET.wseek === W && W.conn === conn) watchSkip(); }, 5000);
+  conn.on('data', d => {
+    if (NET.wseek !== W || W.conn !== conn || !d) return;
+    if (d.t === 's') { clearTimeout(W.timer); NET.wseek = null; const peer = NET.peer; guestInit(peer, id, false); Object.assign(NET, { spec: true, me: -1, follow: 0, followSet: false }); attachGuestConn(conn); NET.lastSeen = performance.now(); onGuestData(d); }
+    else if (d.t === 'specwait' || d.t === 'specfull' || d.t === 'full') watchSkip();
+  });
+  conn.on('close', () => { if (NET.wseek === W && W.conn === conn) watchSkip(); });
+}
+function watchSkip() { const W = NET.wseek; if (!W) return; clearTimeout(W.timer); const c = W.conn; W.conn = null; if (c) { try { c.close(); } catch (e) {} } watchNext(); }
+function syncWatchBtn() {
+  const b = document.getElementById('net-watch'); if (!b) return;
+  const v = NET.view || 'join';
+  b.hidden = !!NET.role || !(v === 'join' || v === 'search');
+  b.textContent = NET.watchId ? 'Regarder cette partie' : 'Regarder une partie en cours';
+}
+// suivre un autre joueur (battle royale)
+function specCycle(d) {
+  if (!NET.spec || !G.players.length) return;
+  const n = G.players.length; let i = NET.follow | 0;
+  for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (G.players[i] && G.players[i].alive) break; }
+  NET.follow = i; NET.followSet = true; setupHud(); syncSpecBar(true);
+}
+let specBarTxt = '';
+function syncSpecBar(force) {
+  const bar = document.getElementById('spec-bar'); if (!bar) return;
+  const on = NET.role === 'guest' && !!NET.spec && NET.gotSnap && inGame() && !REPLAY.on;
+  if (bar.hidden === on) bar.hidden = !on;
+  if (!on) return;
+  if (G.mode === 'br' && !NET.followSet && G.players.length > 2) { let best = 0; G.players.forEach((p, i) => { if ((p.pts | 0) > (G.players[best].pts | 0)) best = i; }); NET.follow = best; NET.followSet = true; setupHud(); }
+  const f = G.players[viewIdx()];
+  const txt = G.mode === 'br' ? `Tu suis ${f ? nameOf(f.id) : '…'}` : `Partie de ${nameOf(0)}`;
+  if (force || txt !== specBarTxt) { specBarTxt = txt; $('#spec-who').textContent = txt; }
+  const arrows = G.mode === 'br'; $('#spec-prev').hidden = !arrows; $('#spec-next').hidden = !arrows;
 }
 function backToLobby(msg) {
   failOnline(msg);
@@ -5585,16 +5931,22 @@ function onGuestData(d) {
     const me = num(d.me) | 0; if (me >= 1 && me <= 31) NET.me = me;
     applySnap(d.s);
   }
-  else if (d.t === 'full') backToLobby('Cette partie est déjà complète (4 artificiers au maximum).');
-  else if (d.t === 'started') backToLobby("Cette partie a déjà commencé. Demande à l'hôte de créer un nouveau lobby.");
+  else if (d.t === 'full' || d.t === 'started') {
+    const id = PEER_PREFIX + (NET.code || '');
+    backToLobby(d.t === 'full' ? 'Cette partie est déjà complète (4 artificiers au maximum). Tu peux la regarder en spectateur.' : "Cette partie a déjà commencé. Tu peux la regarder en spectateur, ou demander à l'hôte de créer un nouveau lobby.");
+    NET.watchId = id; syncWatchBtn();
+  }
+  else if (d.t === 'specwait') $('#net-wait-text').textContent = "La partie n'a pas encore commencé : elle s'affichera dès son lancement.";
+  else if (d.t === 'specfull') backToLobby('Il y a déjà trop de spectateurs sur cette partie.');
   else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
 }
 function leaveOnline() {
-  if (NET.role === 'host') { for (const L of NET.links) if (L.conn.open) { try { L.conn.send({ t: 'bye' }); } catch (e) {} } }
+  if (NET.role === 'host') { for (const L of [...NET.links, ...(NET.specs || [])]) if (L.conn.open) { try { L.conn.send({ t: 'bye' }); } catch (e) {} } }
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false });
+  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '' });
+  G.specN = 0; syncSpecBar();
 }
 function opponentLeft(msg) {
   leaveOnline();
@@ -5654,7 +6006,7 @@ function buildSnap() {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
-    seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw,
+    seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw, sn: G.specN | 0,
     cs: G.players.map(o => csOf(o)), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1),
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), pk: G.players.map(o => o.peak | 0), bw: G.brWinner ?? -1, kb: G.players.map(o => o.killedBy ?? -1),
       ct: G.players.map(o => o.ct ? [o.ct.tg, Math.max(0, Math.round((o.ct.until - G.brT) * 10))] : 0), ck: G.chestK ?? -1, chp: G.chestHp | 0 } : {}),
@@ -5662,6 +6014,7 @@ function buildSnap() {
 }
 function applySnap(s) {
   if (!s || typeof s !== 'object' || typeof s.q !== 'number' || s.q <= NET.lastQ) return;
+  if (REPLAY.on) { if (PH[s.ph] !== REPLAY.saved.phase || s.mi !== NET.mi) stopReplay(); else return; }
   try { decodeSnap(s); } catch (e) {}
 }
 function decodeSnap(s) {
@@ -5763,7 +6116,7 @@ function decodeSnap(s) {
     if (!Array.isArray(e) || num(e[0]) <= NET.lastFx) continue;
     NET.lastFx = num(e[0]);
     if (first || !Object.prototype.hasOwnProperty.call(FX, e[1])) continue;
-    try { FX[e[1]](e[1] === 'snd' ? String(e[2]) : num(e[2]), num(e[3]), num(e[4]), num(e[5])); } catch (err) {}
+    try { const a0 = e[1] === 'snd' ? String(e[2]) : num(e[2]); FX[e[1]](a0, num(e[3]), num(e[4]), num(e[5])); recEvent(e[1], a0, num(e[3]), num(e[4]), num(e[5])); } catch (err) {}
   }
   if (num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); hudDirty = true; }
   if (hudDirty) setupHud();
@@ -5773,6 +6126,7 @@ function decodeSnap(s) {
   if (newMatch && !first) { endEl.hidden = true; }
   if (typeof s.md === 'string' && /^[a-z0-9]{10,24}$/.test(s.md)) NET.mid = s.md;
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
+  G.specN = num(s.sn) | 0;
   if (br) {
     G.brWinner = num(s.bw) | 0;
     G.chestK = typeof s.ck === 'number' ? s.ck | 0 : -1; G.chestHp = num(s.chp) | 0;
@@ -5808,7 +6162,9 @@ function updateGuest(dt) {
   smoothRemote(dt);
 }
 function sendGuest() {
-  const l = NET.link, me = G.players[NET.me]; if (!l || !l.open || !me) return;
+  const l = NET.link;
+  if (NET.spec) { const now = performance.now(); if (l && l.open && now - (NET.kaT || 0) > 2000) { NET.kaT = now; try { l.send({ t: 'k' }); } catch (e) {} } return; }
+  const me = G.players[NET.me]; if (!l || !l.open || !me) return;
   try {
     l.send({
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
@@ -5824,8 +6180,10 @@ function netTick() {
     if (NET.started) {
       if (now - NET.sendT > (G.mode === 'br' ? 66 : 50)) {
         NET.sendT = now;
-        const s = buildSnap();
+        const s = REPLAY.on ? NET.lastSnap : (NET.lastSnap = buildSnap());
+        if (!s) return;
         for (const L of NET.links) if (L.conn.open && L.slot >= 0) { try { L.conn.send({ t: 's', s, me: L.slot }); } catch (e) {} }
+        for (const S of NET.specs || []) if (S.conn.open) { try { S.conn.send({ t: 's', s, me: -1 }); } catch (e) {} }
       }
     } else {
       if (NET.pub) {
@@ -5843,6 +6201,7 @@ function netTick() {
       if (now - NET.sendT > (NET.pub ? 1000 : 1500)) { NET.sendT = now; refreshHostLobby(); }
     }
     for (const L of NET.links.slice()) if (now - L.lastSeen > 10000) dropLink(L);
+    for (const S of (NET.specs || []).slice()) if (now - S.lastSeen > 15000) dropSpec(S);
   } else if (NET.role === 'guest') {
     const l = NET.link; if (!l || !l.open) return;
     if (!NET.gotSnap && NET.lastSeen && now - NET.lastSeen > 10000) { backToLobby("La connexion avec l'hôte a été perdue."); return; }
@@ -5964,6 +6323,13 @@ function pollPads() {
         else navMove(root, 'down');
       } else if (hit(1)) navBack(root);
       else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); }
+    } else if (REPLAY.on) {
+      if (hit(1) || hit(pb.pause)) stopReplay(); else if (hit(0)) replayTogglePause(); else if (hit(3)) replaySpeed();
+      else if (hit(pb.left)) replaySeek(REPLAY.t - 3); else if (hit(pb.right)) replaySeek(REPLAY.t + 3);
+    } else if (inGame() && NET.spec && NET.role === 'guest') {
+      if (hit(1) || hit(pb.pause)) toMenu();
+      else if (hit(pb.left) || hit(4)) specCycle(-1);
+      else if (hit(pb.right) || hit(5)) specCycle(1);
     } else if (inGame()) {
       if (hit(pb.pause)) { pause(); releasePad(code, st); document.body.classList.add('pad-nav'); }
       else {
@@ -6122,7 +6488,11 @@ else window.addEventListener('resize', resize);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  pollPads(); update(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); if (G.mode === 'br') brHudTick(now);
+  if (REPLAY.on) {
+    pollPads(); replayTick(dt); updateCamera(dt); render(); updateHud(); netTick(); if (G.mode === 'br') brHudTick(now);
+    requestAnimationFrame(loop); return;
+  }
+  pollPads(); update(dt); recTick(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); syncSpecBar(); if (G.mode === 'br') brHudTick(now);
   requestAnimationFrame(loop);
 }
 function boot(data) {
@@ -6144,7 +6514,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
