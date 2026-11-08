@@ -1006,7 +1006,9 @@ const ACH = [
   { name: 'Touche-à-tout', desc: 'Monter 5 persos au niveau 10', need: ['p10', 5] },
   { name: 'Fidèle', desc: 'Monter un perso au niveau 100', need: ['p100', 1] },
 ];
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw'];
+// pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po'];
+function statPlace(place, n) { if (place === 1) statAdd('pa', 1); if (place >= 1 && place <= 3 && n > 3) statAdd('po', 1); }
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
 const presOfXp = x => Math.max(0, Math.min(PRES_MAX, Math.floor((x - XP_TOTAL[LV_MAX]) / PRES_XP)));
@@ -3170,6 +3172,7 @@ function statTick(dt, me, i) {
   if (G.mode === 'match' && G.phase === 'matchEnd' && stPrevPhase && stPrevPhase !== 'matchEnd') {
     statAdd('g', 1);
     if (G.pointsMode ? (G.matchWin || []).includes(i) : G.lastWinner === i) { statAdd('w', 1); if (!stDeaths) statAdd('fl', 1); }
+    statPlace(G.pointsMode ? (G.ranking && G.ranking[i]) | 0 : G.lastWinner === i ? 1 : 2, G.players.length);
     stDeaths = 0;
   }
   if (G.mode === 'br') {
@@ -3177,6 +3180,8 @@ function statTick(dt, me, i) {
     if (G.phase === 'brEnd' && stPrevPhase && stPrevPhase !== 'brEnd') {
       if (!stBrCounted) statAdd('g', 1);
       stBrCounted = true; if (G.brWinner === i) { statAdd('w', 1); statAdd('bw', 1); }
+      const rk = G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
+      statPlace(rk.indexOf(me) + 1, G.players.length);
     }
     if (G.phase === 'play' && stPrevPhase === 'brEnd') { stBrCounted = false; stBrT = 0; }
   }
@@ -4874,7 +4879,7 @@ function renderProfile(d) {
   const sec = (title, cls) => { const h = document.createElement('h3'); h.textContent = title; const div = document.createElement('div'); div.className = cls; body.append(h, div); return div; };
   // statistiques
   const sv = sec('Statistiques', 'prof-stats');
-  for (const [k, l] of [['g', 'Parties'], ['w', 'Victoires'], ['k', 'Victimes'], ['bw', 'Battle royale gagnés'], ['ct', 'Contrats remplis'], ['ch', 'Coffres ouverts'], ['o', "Points d'orbes"], ['mk', 'Meilleure série']]) {
+  for (const [k, l] of [['g', 'Parties'], ['w', 'Victoires'], ['pa', 'Top 1'], ['po', 'Top 3'], ['k', 'Victimes'], ['bw', 'Battle royale gagnés'], ['ct', 'Contrats remplis'], ['ch', 'Coffres ouverts'], ['o', "Points d'orbes"], ['mk', 'Meilleure série']]) {
     const div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.textContent = (Number(st[k]) | 0).toLocaleString('fr-FR'); sp.textContent = l; div.append(b, sp); sv.appendChild(div);
   }
   // persos
