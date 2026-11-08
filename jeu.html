@@ -55,7 +55,7 @@ body.hudmany .stats{gap:4px}
 #hud-b[hidden]{display:none}
 #br-goal{display:flex;align-items:center;justify-content:center;flex:1;pointer-events:none}
 #br-goal[hidden]{display:none}
-#br-goal canvas{flex:none;width:60px;height:60px}
+#br-goal canvas{flex:none;width:60px;height:60px;transition:opacity .35s}
 /* grand écran : toute la place à droite de l'arène */
 body.hudside #br-goal{position:fixed;z-index:1;left:calc(50% + var(--arena-w) / 2 + 6px);right:4px;top:0;bottom:0}
 .pwrap{position:relative;display:inline-block;flex:none;line-height:0}
@@ -123,6 +123,8 @@ body.hudmany .pts{font-size:13px}
 #br-mini{position:absolute;right:8px;bottom:8px;width:160px;border-radius:8px;border:2px solid rgba(243,229,192,.35);box-shadow:0 6px 18px rgba(0,0,0,.45);opacity:.92}
 .br-toast{position:absolute;left:50%;top:10px;transform:translate(-50%,-8px);margin:0;padding:6px 12px;border-radius:999px;background:rgba(10,16,10,.7);color:var(--parchment);font-weight:700;font-size:14px;opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap}
 .br-toast.on{opacity:1;transform:translate(-50%,0)}
+.br-board,#br-mini{transition:opacity .4s}
+body.br-mega .br-board,body.br-mega #br-mini{opacity:0}
 @media (max-width:560px){.br-board{width:116px;font-size:10px;padding:4px 6px;top:4px;right:4px}.br-title{font-size:9px}#br-list li:nth-child(n+6):not(.me){display:none}.br-meta{display:none}#br-mini{width:84px;right:4px;bottom:4px}}
 #stage{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
 #frame{position:relative;border-radius:16px;padding:6px;background:linear-gradient(#61412a,#3a2616);box-shadow:inset 0 2px 0 rgba(255,220,170,.22),0 0 0 2px #1a0f08,0 22px 50px rgba(0,0,0,.55)}
@@ -1526,10 +1528,16 @@ const FX = {
     for (let i = 0; i < 4; i++) addP({ kind: 'smoke', x: (bx + 0.5) * T - dx * 14, y: (by + 0.5) * T + 10 - dy * 10, vx: -dx * 40 + (Math.random() - 0.5) * 30, vy: -dy * 40 - 10, life: 0.4, max: 0.4, size: 5, color: '210,200,170' });
   },
   drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
+  megaGo(id) { if (!G.megaOn) megaStart(id | 0, 0); },
   mega(id) {
+    if (!G.megaOn) megaStart(id | 0, MEGA_HIT);
+    G.megaBoomFx = true;
     G.megaFlash = 1.6; Sfx.play('boom'); setTimeout(() => Sfx.play('boom'), 160); setTimeout(() => Sfx.play('boom'), 380);
-    if (!reduceMotion) G.shake = 16; rumble(0.9, 1, 700);
-    const p = G.players[id | 0]; if (p) brToast(`${nameOf(p.id)} atteint ${BR_GOAL} points : sa bombe souffle toute la carte !`);
+    if (!reduceMotion) G.shake = 22; rumble(0.9, 1, 900);
+    G.megaRing = { x: (G.megaTx + 0.5) * T, y: (G.megaTy + 0.5) * T, t: 0 };
+    const x = (G.megaTx + 0.5) * T, y = (G.megaTy + 0.5) * T;
+    for (let i = 0; i < 26; i++) addP({ kind: 'smoke', x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 220, vy: -40 - Math.random() * 140, life: 1.4, max: 1.4, size: 14, color: '90,70,60' });
+    for (let i = 0; i < 60; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.8, max: 0.8, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
   },
   toss2(bx, by, dx, dy) {
     if (!nearView(bx, by)) return;
@@ -1986,8 +1994,9 @@ function update(dt) {
     return;
   }
   if (G.phase === 'brEnd') {
-    G.phaseT += dt; updateFlames(dt); smoothRemote(dt);
-    if (G.phaseT > 2.4 && !G.brEndShown) { G.brEndShown = true; showBrEnd(); }
+    G.phaseT += dt; megaTick(dt); updateFlames(dt); smoothRemote(dt);
+    if (!G.megaBoom && G.phaseT >= MEGA_HIT) { G.megaBoom = true; megaFlames(G.brWinner); fx('mega', G.brWinner); }
+    if (G.phaseT > MEGA_END && !G.brEndShown) { G.brEndShown = true; showBrEnd(); }
     return;
   }
   rebuildBombAt();
@@ -2180,11 +2189,100 @@ function startBr() {
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; onlineEl.hidden = true;
   blurActive(); saveSettings();
 }
+/* Cinématique de victoire à 1000 points :
+   0 s : la caméra file vers le gagnant, qui saute de joie ;
+   0,5 s : sa giga bombe grossit au-dessus de sa tête ;
+   1,55 s : il la lance, elle monte très haut puis retombe un peu plus loin ;
+   2,3 s (MEGA_HIT) : impact, onde de choc et flammes sur toute la carte ;
+   4,7 s (MEGA_END) : écran de fin. */
+const MEGA_GROW = 0.5, MEGA_THROW = 1.55, MEGA_HIT = 2.3, MEGA_END = 4.7;
+function megaStart(id, t0) {
+  const w = G.players[id]; if (!w) return;
+  G.megaOn = true; G.megaW = id; G.megaT = t0; G.megaBoomFx = t0 >= MEGA_HIT; G.megaRing = null;
+  // point de chute : 3,5 cases vers le centre de la carte
+  const wx = w.rx ?? w.x, wy = w.ry ?? w.y;
+  let dx = (COLS - 1) / 2 - wx, dy = (ROWS - 1) / 2 - wy; const d = Math.hypot(dx, dy);
+  if (d < 1) { dx = 0; dy = 1; } else { dx /= d; dy /= d; }
+  G.megaSx = wx; G.megaSy = wy;
+  G.megaTx = clamp(wx + dx * 3.5, 1, COLS - 2); G.megaTy = clamp(wy + dy * 3.5, 1, ROWS - 2);
+  if (t0 === 0) {
+    brToast(`${nameOf(id)} atteint ${BR_GOAL} points et lance sa giga bombe !`); Sfx.play('pickup');
+    const x = (wx + 0.5) * T, y = (wy + 0.5) * T, col = w.pal ? w.pal.ui : '#ffd166';
+    addP({ kind: 'text', x, y: y - 46, vx: 0, vy: -26, life: 1.6, max: 1.6, size: 22, color: col, text: BR_GOAL + ' !' });
+    for (let i = 0; i < 28; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 160; addP({ kind: 'spark', x, y: y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.9, max: 0.9, size: 2.6, color: i % 2 ? col : '#ffe7a0' }); }
+  }
+}
+function megaTick(dt) {
+  if (G.megaRing) { G.megaRing.t += dt; if (G.megaRing.t > 1.3) G.megaRing = null; }
+  if (!G.megaOn) return;
+  const t0 = G.megaT; G.megaT += dt;
+  if (t0 < MEGA_THROW && G.megaT >= MEGA_THROW) Sfx.play('throw');
+}
+function megaFlames(id) {
+  for (let k = 0; k < N; k++) { const g = G.grid[k]; if (g === EMPTY || g === CRATE) { G.flameBits[k] = 31; G.flameT[k] = 2.2; G.flameOwner[k] = id; } }
+}
+// saut du gagnant pendant la cinématique
+function megaHop(t) {
+  if (t < 0.6) return Math.abs(Math.sin(t * Math.PI / 0.3)) * 9;
+  if (t >= MEGA_THROW - 0.15 && t < MEGA_THROW + 0.3) return Math.sin((t - MEGA_THROW + 0.15) / 0.45 * Math.PI) * 11;
+  return 0;
+}
+// la giga bombe : portée au-dessus de la tête, puis en vol
+function drawMegaBomb(c, t) {
+  if (!G.megaOn || G.megaT < MEGA_GROW || G.megaT >= MEGA_HIT) return;
+  const w = G.players[G.megaW]; if (!w) return;
+  const m = G.megaT, col = w.pal ? w.pal.ui : '#ffcf5a';
+  const hx = ((w.rx ?? w.x) + 0.5) * T, hy = ((w.ry ?? w.y) + 0.5) * T;
+  const g0 = Math.min(1, (m - MEGA_GROW) / 0.8), back = g0 < 1 ? 1 + 2.2 * Math.pow(g0 - 1, 3) + 1.2 * Math.pow(g0 - 1, 2) : 1;
+  const R = 5 + 29 * back;
+  let x, y, h, sc = 1, rot = 0, q = 0;
+  if (m < MEGA_THROW) {
+    // au-dessus de la tête ; recul juste avant le lancer
+    const wind = m > MEGA_THROW - 0.2 ? Math.sin((m - (MEGA_THROW - 0.2)) / 0.2 * Math.PI / 2) : 0;
+    x = hx; y = hy; h = 40 + R + megaHop(m) - wind * 8; rot = Math.sin(m * 9) * 0.05;
+  } else {
+    q = Math.min(1, (m - MEGA_THROW) / (MEGA_HIT - MEGA_THROW));
+    const e = q * q * (3 - 2 * q);
+    x = hx + ((G.megaTx + 0.5) * T - hx) * e; y = hy + ((G.megaTy + 0.5) * T - hy) * e;
+    h = (40 + R) * (1 - q) + Math.sin(q * Math.PI) * 5 * T; sc = 1 + 0.7 * Math.sin(q * Math.PI); rot = q * 7;
+  }
+  // ombre au sol
+  const sh = Math.max(0.15, 1 - h / (6 * T));
+  c.fillStyle = `rgba(15,20,10,${(0.38 * sh).toFixed(3)})`; ell(c, x, y + 14, R * 1.1 * sh + 4, R * 0.35 * sh + 2); c.fill();
+  c.save(); c.translate(x, y - h); c.scale(sc, sc); c.rotate(rot);
+  const pulse = 1 + Math.sin(t * 18) * 0.04;
+  // halo
+  const gl = c.createRadialGradient(0, 0, R * 0.6, 0, 0, R * 2.1);
+  gl.addColorStop(0, `rgba(255,150,50,${(0.35 + 0.25 * Math.sin(t * 12)).toFixed(3)})`); gl.addColorStop(1, 'rgba(255,90,30,0)');
+  c.fillStyle = gl; c.beginPath(); c.arc(0, 0, R * 2.1, 0, TAU); c.fill();
+  c.scale(pulse, 2 - pulse);
+  const g = c.createRadialGradient(-R * 0.35, -R * 0.4, R * 0.1, 0, 0, R * 1.05);
+  g.addColorStop(0, '#6c76a2'); g.addColorStop(0.5, '#2c3149'); g.addColorStop(1, '#101326');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); c.lineWidth = 1.5; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
+  c.strokeStyle = col; c.lineWidth = 2 + R * 0.09; c.beginPath(); c.ellipse(0, R * 0.08, R * 0.96, R * 0.32, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.32)'; c.beginPath(); c.ellipse(-R * 0.35, -R * 0.42, R * 0.28, R * 0.17, -0.5, 0, TAU); c.fill();
+  if (Math.sin(t * 22) > 0.2) { c.fillStyle = 'rgba(255,60,30,.28)'; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); }
+  const cap = R * 0.3; c.fillStyle = '#b8733a'; rr(c, -cap / 2, -R - cap * 0.55, cap, cap * 0.6, 1.5); c.fill();
+  c.strokeStyle = '#6b4a2b'; c.lineWidth = 2.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -R - cap * 0.5); c.quadraticCurveTo(1, -R - cap * 0.5 - 5, R * 0.18, -R - cap * 0.5 - 7); c.stroke();
+  c.save(); c.translate(R * 0.18, -R - cap * 0.5 - 7); c.scale(1.8, 1.8); drawSpark(c, 0, 0); c.restore();
+  c.restore();
+  // étincelles qui s'échappent
+  if (Math.random() < 0.5) addP({ kind: 'spark', x: x + (Math.random() - 0.5) * R, y: y - h - R * sc, vx: (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 60, life: 0.4, max: 0.4, size: 2.2, color: Math.random() < 0.5 ? '#ffd166' : '#ff8a3d' });
+}
+// onde de choc de l'impact
+function drawMegaRing(c) {
+  const r = G.megaRing; if (!r) return;
+  const q = Math.min(1, r.t / 1.1), rad = 20 + q * 1500;
+  c.save(); c.globalCompositeOperation = 'lighter';
+  c.strokeStyle = `rgba(255,${Math.round(230 - q * 120)},${Math.round(160 - q * 120)},${(0.9 * (1 - q)).toFixed(3)})`;
+  c.lineWidth = 40 * (1 - q) + 4; c.beginPath(); c.ellipse(r.x, r.y, rad, rad * 0.8, 0, 0, TAU); c.stroke();
+  if (q < 0.35) { const a = 1 - q / 0.35, g = c.createRadialGradient(r.x, r.y, 0, r.x, r.y, 120 + q * 500); g.addColorStop(0, `rgba(255,255,230,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.beginPath(); c.arc(r.x, r.y, 120 + q * 500, 0, TAU); c.fill(); }
+  c.restore();
+}
 function brWin(w) {
-  G.phase = 'brEnd'; G.phaseT = 0; G.brWinner = w.id; G.brEndShown = false;
+  G.phase = 'brEnd'; G.phaseT = 0; G.brWinner = w.id; G.brEndShown = false; G.megaBoom = false;
   G.bombs.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
-  for (let k = 0; k < N; k++) { const g = G.grid[k]; if (g === EMPTY || g === CRATE) { G.flameBits[k] = 31; G.flameT[k] = 2.2; G.flameOwner[k] = w.id; } }
-  fx('mega', w.id);
+  fx('megaGo', w.id);
 }
 // Nouvelle partie de battle royale avec les mêmes joueurs (hors ligne ou hôte)
 function brReset() {
@@ -2214,7 +2312,7 @@ function brWorld() {
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
   for (const p of G.players) { p.kills = 0; p.pts = 0; p.peak = 0; brSpawn(p); }
-  G.brWinner = -1; G.brEndShown = false;
+  G.brWinner = -1; G.brEndShown = false; G.megaOn = false; G.megaBoom = false; G.megaRing = null;
   G.camSnap = true; groundDirty = true;
   setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
 }
@@ -2245,6 +2343,13 @@ function smoothDamp(cur, target, v, key, st, dt) {
 }
 function updateCamera(dt) {
   if (!BIG_MAP()) { G.cam.x = 0; G.cam.y = 0; return; }
+  if (G.phase === 'brEnd' && G.megaOn && G.players[G.megaW]) {
+    // cinématique : la caméra file vers le gagnant (et un peu vers le point de chute)
+    const w = G.players[G.megaW], fx0 = ((w.rx ?? w.x) * 0.7 + G.megaTx * 0.3 + 0.5) * T, fy0 = ((w.ry ?? w.y) * 0.7 + G.megaTy * 0.3 + 0.5) * T;
+    const tx = clamp(fx0 - W / 2, 0, COLS * T - W), ty = clamp(fy0 - H / 2, 0, ROWS * T - H), k = 1 - Math.exp(-dt / 0.22);
+    G.cam.x += (tx - G.cam.x) * k; G.cam.y += (ty - G.cam.y) * k; G.camSnap = false;
+    return;
+  }
   const me = G.players[localIdx()]; if (!me) return;
   const cfg = CAMS[settings.cam] || CAMS.reactive, DX = cfg.dx * T, DY = cfg.dy * T;
   let px = (me.x + 0.5) * T, py = (me.y + 0.5) * T;
@@ -2280,7 +2385,7 @@ function drawMegaFlash(c, dt) {
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = `rgba(255,${Math.round(220 - (1 - a) * 80)},${Math.round(150 - (1 - a) * 100)},${(a * 0.85).toFixed(3)})`; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore();
 }
 function drawBrOverlay(c, t) {
-  const me = G.players[localIdx()]; if (!me || me.alive) return;
+  const me = G.players[localIdx()]; if (!me || me.alive || G.phase === 'brEnd') return;
   const left = Math.max(1, Math.ceil(3 - me.deathT)), by = me.killedBy;
   const who = by === me.id ? 'Ta propre bombe' : by >= 0 && G.players[by] ? `Soufflé par ${nameOf(by)}` : 'Soufflé';
   drawBanner(c, 'Soufflé !', `${who} · retour dans ${left} s, sans bonus`, '#ff7a2f', Math.min(1, me.deathT * 3));
@@ -2314,6 +2419,10 @@ function drawBrGoal(now) {
   const box = document.getElementById('br-goal'); if (!box || box.hidden || now - brGoalT < 33) return; brGoalT = now;
   const me = G.players[localIdx()], pts = me ? me.pts | 0 : 0, u = Math.min(1, pts / BR_GOAL), t = now / 1000;
   const cv = box.querySelector('canvas');
+  // le gagnant a lancé sa bombe : elle quitte le côté
+  const gone = G.phase === 'brEnd' && G.megaOn && G.megaW === localIdx() && G.megaT >= MEGA_GROW ? '0' : '';
+  if (cv.style.opacity !== gone) cv.style.opacity = gone;
+  document.body.classList.toggle('br-mega', G.phase === 'brEnd' && !!G.megaOn);
   // taille à l'écran : de petite à énorme (toute la place sur le côté près des 1000 points), vite au début
   const side = document.body.classList.contains('hudside');
   // sur le côté : près des 1000 points elle déborde même sur le bord de l'arène
@@ -3212,7 +3321,8 @@ function drawFlames(c) {
       const ft = G.flameT[k]; if (ft <= 0) continue;
       const bits = G.flameBits[k]; if (!bits) continue;
       if (V) { const fx_ = k % COLS, fy_ = (k / COLS) | 0; if (fx_ < V.x0 || fx_ > V.x1 || fy_ < V.y0 || fy_ > V.y1) continue; }
-      const f = ft / FLAME_DUR, age = 1 - f;
+      // flammes longues (souffle de la giga bombe) : pleine taille jusqu'à leurs dernières 0,55 s
+      const f = Math.min(1, ft / FLAME_DUR), age = ft > FLAME_DUR ? 0.5 : 1 - f;
       const s = age < 0.12 ? age / 0.12 : (f < 0.4 ? f / 0.4 : 1);
       const x = (k % COLS + 0.5) * T, y = (((k / COLS) | 0) + 0.5) * T;
       const w = 32 * s * (1 + 0.09 * Math.sin(G.t * 42 + k * 1.7)) * lw;
@@ -3350,6 +3460,7 @@ function render() {
       const o = {};
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
+      else if (G.phase === 'brEnd' && G.megaOn && G.megaW === p.id) { o.hop = megaHop(G.megaT); }
       const face = (!p.alive || o.hop) ? 'down' : p.face;
       const hx = ((p.rx ?? p.x) + 0.5) * T, hy = ((p.ry ?? p.y) + 0.5) * T, au = p.alive && !p.ai ? p.aura | 0 : 0;
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, false, p.id);
@@ -3360,6 +3471,7 @@ function render() {
   }
 
   drawFlames(c);
+  if (G.mode === 'br') { drawMegaRing(c); drawMegaBomb(c, t); }
   for (const f of G.thrown) {
     const [x, y, h] = thrownPos(f), gx = (x + 0.5) * T, gy = (y + 0.5) * T;
     if (x < vx0 - 2 || x > vx1 + 2 || y < vy0 - 2 || y > vy1 + 2) continue;
@@ -4742,12 +4854,15 @@ function decodeSnap(s) {
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
   if (br) {
     G.brWinner = num(s.bw) | 0;
-    if (G.phase === 'brEnd' && prevPhase !== 'brEnd') { clearTimeout(NET.brEndT); NET.brEndT = setTimeout(() => { if (G.phase === 'brEnd') showBrEnd(); }, first ? 0 : 2400); }
-    if (G.phase !== 'brEnd' && prevPhase === 'brEnd') { clearTimeout(NET.brEndT); endEl.hidden = true; G.camSnap = true; }
+    if (G.phase === 'brEnd' && prevPhase !== 'brEnd') {
+      if (!G.megaOn) megaStart(G.brWinner, first ? MEGA_END : 0);
+      clearTimeout(NET.brEndT); NET.brEndT = setTimeout(() => { if (G.phase === 'brEnd') showBrEnd(); }, first ? 0 : Math.max(0, (MEGA_END - G.megaT) * 1000));
+    }
+    if (G.phase !== 'brEnd' && prevPhase === 'brEnd') { clearTimeout(NET.brEndT); endEl.hidden = true; G.camSnap = true; G.megaOn = false; G.megaRing = null; }
   }
 }
 function updateGuest(dt) {
-  G.t += dt; updateParticles(dt);
+  G.t += dt; updateParticles(dt); megaTick(dt);
   G.shake = Math.max(0, G.shake - dt * 30);
   if (!NET.gotSnap) return;
   for (let k = 0; k < N; k++) {
