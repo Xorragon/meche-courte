@@ -143,6 +143,11 @@ body.touch #touch{display:flex}
 .tright{display:flex;align-items:center;gap:14px}
 #tstop{width:62px;height:62px;border-radius:50%;border:2px solid rgba(243,229,192,.45);background:rgba(243,229,192,.08);color:var(--parchment);font:800 14px/1 var(--font-body);letter-spacing:.06em;text-transform:uppercase;touch-action:none;cursor:pointer}
 #tstop:active{background:rgba(243,229,192,.25)}
+.tright{position:relative}
+#temote{width:46px;height:46px;padding:0;border-radius:50%;border:2px solid rgba(243,229,192,.35);background:rgba(243,229,192,.08);font-size:21px;line-height:1;touch-action:none;cursor:pointer}
+#emote-pop{position:absolute;right:0;bottom:calc(100% + 8px);display:flex;gap:6px;padding:6px;border-radius:16px;background:rgba(10,16,10,.9);border:1px solid rgba(243,229,192,.25);z-index:5}
+#emote-pop[hidden]{display:none}
+#emote-pop button{width:48px;height:48px;border-radius:12px;border:none;background:rgba(243,229,192,.12);color:var(--parchment);font:800 20px/1 var(--font-body);cursor:pointer;touch-action:manipulation}
 #tbomb{width:96px;height:96px;border-radius:50%;border:0;background:var(--ember);box-shadow:0 6px 0 #a3410f;display:grid;place-items:center;touch-action:none;cursor:pointer}
 #tbomb:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
 #tbomb canvas{width:56px;height:56px}
@@ -217,6 +222,32 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .char-xp .gain{grid-column:1/-1;font-weight:800;color:var(--gold);font-size:15px}
 .xp-toast{top:46px;z-index:3;border:1px solid rgba(255,214,110,.35)}
 .secretbox{max-width:440px}
+.cos-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff6a2a;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px #ff6a2a}
+.cos-dot[hidden]{display:none}
+.custombox{max-width:720px;width:min(720px,100%)}
+.cos-stats{opacity:.85}
+.cos-hint{min-height:2.6em;max-width:560px}
+.cos-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0 2px}
+.cos-tabs button{padding:8px 14px;border-radius:999px;border:2px solid rgba(243,229,192,.18);background:rgba(10,16,10,.45);color:var(--parchment);font:800 14px/1 var(--font-body);cursor:pointer}
+.cos-tabs button[aria-selected="true"]{border-color:var(--gold);background:rgba(255,214,110,.14)}
+.cos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;width:100%;margin:4px 0}
+.cos-grid.cards{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.cos-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:8px 4px 7px;border-radius:14px;border:2px solid rgba(243,229,192,.14);background:rgba(10,16,10,.45);color:var(--parchment);font:800 12px/1.15 var(--font-body);cursor:pointer}
+.cos-tile span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cos-tile canvas{width:64px;height:64px}
+.cos-grid.cards .cos-tile canvas{width:150px;height:44px}
+.cos-tile[aria-checked="true"]{border-color:var(--gold);background:rgba(255,214,110,.12)}
+.cos-tile.locked{opacity:.55}
+.cos-tile .slot{position:absolute;top:5px;right:6px;min-width:18px;padding:3px 5px;border-radius:999px;background:var(--gold);color:#2a1508;font:800 11px/1 var(--font-body)}
+.cos-tile .nw{position:absolute;top:5px;left:6px;padding:2px 5px;border-radius:999px;background:#ff6a2a;color:#fff;font:800 9px/1.2 var(--font-body);text-transform:uppercase}
+#cos-card{width:min(380px,100%);height:auto;aspect-ratio:380/112;margin:2px 0 4px}
+#cos-card[hidden]{display:none}
+.cos-sub{margin-top:6px}
+.cos-phr{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0;max-width:640px}
+.cos-phr[hidden]{display:none}
+.cos-phr button{padding:7px 12px;border-radius:999px;border:2px solid rgba(243,229,192,.16);background:rgba(10,16,10,.45);color:var(--parchment);font:700 13px/1.1 var(--font-body);cursor:pointer}
+.cos-phr button[aria-checked="true"]{border-color:var(--gold);background:rgba(255,214,110,.12)}
+.cos-phr button.locked{opacity:.5}
 .accbox{max-width:480px}
 .acc-tabs{display:flex;gap:6px;justify-content:center;margin:12px 0 4px}
 .acc-tabs button{flex:1;padding:9px 10px;border-radius:12px;border:2px solid rgba(243,229,192,.18);background:rgba(10,16,10,.45);color:var(--parchment);font:800 14px/1.1 var(--font-body);cursor:pointer}
@@ -442,6 +473,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <div id="touch" aria-hidden="true">
     <div id="pad"><span class="ar up"></span><span class="ar down"></span><span class="ar left"></span><span class="ar right"></span></div>
     <div class="tright">
+      <button id="temote" type="button" tabindex="-1" aria-label="Emotes">😀</button>
+      <div id="emote-pop" hidden></div>
       <button id="tstop" type="button" tabindex="-1" aria-label="Arrêter la bombe poussée, ou garder appuyé pour lancer sa bombe">Stop</button>
       <button id="tbomb" type="button" tabindex="-1"><canvas width="112" height="112"></canvas></button>
     </div>
@@ -471,6 +504,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="mbtn" id="btn-create" type="button"><b>Créer un lobby</b><span>Invite tes potes avec un code</span></button>
     </div>
     <div class="mlinks">
+      <button class="ghost tiny cos-btn" type="button" id="btn-custom">Personnaliser<i class="cos-dot" hidden></i></button>
       <button class="ghost tiny" type="button" id="btn-join">Rejoindre avec un code</button>
       <button class="ghost tiny" type="button" id="btn-keys">Touches et manette</button>
       <button class="ghost tiny" type="button" id="btn-ranks">Classement</button>
@@ -558,6 +592,25 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="row" style="margin-top:12px"><button class="ghost" type="button" id="acc-close">Retour <kbd>Échap</kbd></button></div>
   </div>
 </div>
+<div id="custom" class="overlay" hidden>
+  <div class="box custombox">
+    <p class="kicker">Ton style</p>
+    <h2>Personnaliser</h2>
+    <p class="rule small cos-stats" id="cos-stats"></p>
+    <div class="cos-tabs" role="tablist" aria-label="Catégories">
+      <button type="button" role="tab" data-k="b">Bombes</button>
+      <button type="button" role="tab" data-k="f">Flammes</button>
+      <button type="button" role="tab" data-k="e">Emotes</button>
+      <button type="button" role="tab" data-k="c">Carte de victime</button>
+    </div>
+    <p class="rule small cos-hint" id="cos-hint" role="status"></p>
+    <canvas id="cos-card" width="760" height="224" hidden aria-label="Aperçu de ta carte de victime"></canvas>
+    <div class="cos-grid" id="cos-grid"></div>
+    <p class="rule small cos-sub" id="cos-phr-lbl" hidden>Ta phrase</p>
+    <div class="cos-phr" id="cos-phr" role="radiogroup" aria-label="Ta phrase" hidden></div>
+    <div class="row" style="margin-top:12px"><button class="ghost" type="button" id="custom-close">Retour <kbd>Échap</kbd></button></div>
+  </div>
+</div>
 <div id="secret" class="overlay" hidden>
   <div class="box secretbox">
     <p class="kicker">Chut…</p>
@@ -594,6 +647,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
       <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie dure jusqu'à ce qu'un joueur atteigne 1000 points. Si tu meurs, tu reviens 3 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 40 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 2 points, plus grosses de 6, 20 ou 60 quand tu en avais beaucoup), et certaines caisses cachent aussi une petite orbe. Le classement montre les 10 joueurs qui ont le plus de points. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. Ici les bonus ont un plafond : vitesse 5, portée 6 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
+      <p class="rule">Personnaliser (à l'accueil) : skins de bombe, couleurs de flammes, emotes et carte de victime, à débloquer en jouant (parties, victimes, victoires et niveaux de tes persos). Tout le monde les voit, en ligne aussi. En partie, les touches 1 à 4 (boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone) lancent tes emotes.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
     </section>
@@ -840,6 +894,82 @@ if (!settings.auraSel || typeof settings.auraSel !== 'object') settings.auraSel 
 const auraMaxOf = i => auraOfLevel(levelOf(i));
 const auraSelMap = () => settings.admin ? (settings.adminAuraSel || (settings.adminAuraSel = {})) : settings.auraSel;
 const auraOf = i => { const mx = auraMaxOf(i), sel = auraSelMap()[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
+/* ---------- Cosmétiques : skins de bombe, flammes, emotes, cartes de victime ----------
+   Débloqués par les stats du joueur : g = parties jouées, k = victimes, w = victoires, l = niveaux gagnés (tous persos). */
+const COS_STAT = { g: ['partie', 'parties'], k: ['victime', 'victimes'], w: ['victoire', 'victoires'], l: ['niveau gagné', 'niveaux gagnés'] };
+const BOMB_SKINS = [
+  { name: 'Bombe du perso' }, { name: 'Classique' },
+  { name: 'Citrouille', need: ['g', 10] }, { name: 'Boule de neige', need: ['k', 25] },
+  { name: 'Rétro', need: ['l', 25] }, { name: 'Cristal', need: ['w', 10] },
+  { name: 'Lave', need: ['k', 150] }, { name: 'Dorée', need: ['l', 100] }, { name: 'Galaxie', need: ['w', 50] },
+];
+const FLAME_SKINS = [
+  { name: 'Classiques', L: ['rgba(255,92,24,.95)', '#ffb020', '#fff4c2'] },
+  { name: 'Glacées', need: ['g', 5], L: ['rgba(40,120,255,.92)', '#5cc8ff', '#e8fbff'] },
+  { name: 'Toxiques', need: ['k', 50], L: ['rgba(40,170,40,.92)', '#8cf03c', '#f2ffd0'] },
+  { name: 'Mystiques', need: ['l', 40], L: ['rgba(120,40,220,.92)', '#c070ff', '#f6e6ff'] },
+  { name: 'Bonbon', need: ['w', 25], L: ['rgba(240,60,150,.92)', '#ff8fd0', '#fff0f8'] },
+  { name: 'Dorées', need: ['k', 300], L: ['rgba(200,130,10,.95)', '#ffd84a', '#fffbe0'] },
+  { name: 'Arc-en-ciel', need: ['l', 200], rainbow: true },
+];
+const EMOTES = [
+  { name: 'Pouce', ic: '👍' }, { name: 'GG', tx: 'GG' }, { name: 'Ha ha', ic: '😂', need: ['g', 5] },
+  { name: 'Aïe', ic: '😱', need: ['k', 10] }, { name: 'Cœur', ic: '❤️', need: ['l', 10] },
+  { name: 'Danse', ic: '🎵', dance: true, need: ['w', 5] }, { name: 'Grr', ic: '😤', need: ['k', 75] },
+  { name: 'Le roi', ic: '👑', need: ['w', 20] },
+];
+const CARD_STYLES = [
+  { name: 'Simple' }, { name: 'Flammes', need: ['k', 10] }, { name: 'Étoiles', need: ['l', 20] },
+  { name: 'Éclair', need: ['w', 5] }, { name: 'Crâne', need: ['k', 100] }, { name: 'Couronne', need: ['w', 30] },
+];
+const CARD_PHRASES = [
+  { name: 'Boum !' }, { name: 'Trop facile !' }, { name: 'Au revoir !', need: ['g', 5] },
+  { name: 'Rien de personnel.', need: ['k', 20] }, { name: 'Bien essayé !', need: ['l', 30] },
+  { name: 'Encore toi ?', need: ['g', 40] }, { name: 'Mèche courte, vie courte.', need: ['k', 50] },
+  { name: "Retourne t'entraîner !", need: ['w', 15] },
+];
+const COS_KINDS = { b: BOMB_SKINS, f: FLAME_SKINS, e: EMOTES, c: CARD_STYLES, p: CARD_PHRASES };
+const COS_LABEL = { b: 'bombe', f: 'flammes', e: 'emote', c: 'carte', p: 'phrase' };
+const COS_DEF = () => ({ b: 0, f: 0, c: 0, p: 0, e: [0, 1, 2, 3] });
+if (!settings.st || typeof settings.st !== 'object' || Array.isArray(settings.st)) settings.st = {};
+if (!settings.cos || typeof settings.cos !== 'object' || Array.isArray(settings.cos)) settings.cos = COS_DEF();
+if (!Array.isArray(settings.cos.e)) settings.cos.e = [0, 1, 2, 3];
+const lvGained = () => CHARS.reduce((a, _, i) => a + levelOfXp(realXpOf(i)) - 1, 0);
+const statOf = k => k === 'l' ? lvGained() : Math.max(0, Math.floor(Number(settings.st[k]) || 0));
+const cosOkReal = (L, i) => { const it = L[i]; return !!it && (!it.need || statOf(it.need[0]) >= it.need[1]); };
+const cosOk = (L, i) => !!L[i] && (settings.admin || cosOkReal(L, i));
+const needTxt = n => `${n[1]} ${COS_STAT[n[0]][n[1] > 1 ? 1 : 0]}`;
+const cosMap = () => settings.admin ? (settings.adminCos || (settings.adminCos = COS_DEF())) : settings.cos;
+const cosIdx = (L, v) => { v = Number(v) | 0; return v >= 0 && v < L.length ? v : 0; };
+const cosClean = a => Array.isArray(a) ? [cosIdx(BOMB_SKINS, a[0]), cosIdx(FLAME_SKINS, a[1]), cosIdx(CARD_STYLES, a[2]), cosIdx(CARD_PHRASES, a[3])] : [0, 0, 0, 0];
+// [bombe, flammes, style de carte, phrase] portés par le joueur local
+function myCos() { const m = cosMap(); return [['b', BOMB_SKINS], ['f', FLAME_SKINS], ['c', CARD_STYLES], ['p', CARD_PHRASES]].map(([k, L]) => { const v = cosIdx(L, m[k]); return cosOk(L, v) ? v : 0; }); }
+const myEmotes = () => { const e = cosMap().e; return (Array.isArray(e) ? e : []).map(v => Number(v) | 0).filter((v, i, a) => cosOk(EMOTES, v) && a.indexOf(v) === i).slice(0, 4); };
+// ordis : un peu de tout ce qui est gratuit ou déjà débloqué (rien de mystère)
+function botCos(p) {
+  let h = (((p.id + 1) * 2654435761) ^ (G.seed | 0)) >>> 0;
+  const r = n => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return (h >>> 8) % n; };
+  const pick = L => { const ok = L.map((_, i) => i).filter(i => cosOkReal(L, i)); return ok[r(ok.length)] | 0; };
+  return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES)];
+}
+const csOf = p => p.cs || (p.cs = p.ai || p.isBot ? botCos(p) : [0, 0, 0, 0]);
+function cosAllKeys() { const out = []; for (const k in COS_KINDS) COS_KINDS[k].forEach((_, i) => { if (cosOkReal(COS_KINDS[k], i)) out.push(k + i); }); return out; }
+function syncCosBadge() { const d = document.querySelector('#btn-custom .cos-dot'); if (d) d.hidden = !(Array.isArray(settings.cosNew) && settings.cosNew.length); }
+// nouveaux déblocages : message et pastille sur « Personnaliser »
+function cosCheckNew(quiet) {
+  if (!Array.isArray(settings.cosKnown)) { settings.cosKnown = cosAllKeys(); return; }
+  const fresh = cosAllKeys().filter(x => !settings.cosKnown.includes(x)); if (!fresh.length) return;
+  settings.cosKnown.push(...fresh); settings.cosNew = [...new Set([...(Array.isArray(settings.cosNew) ? settings.cosNew : []), ...fresh])];
+  saveSettings(); syncCosBadge();
+  if (quiet) return;
+  const names = fresh.map(x => `${COS_LABEL[x[0]]} « ${COS_KINDS[x[0]][+x.slice(1)].name} »`);
+  setTimeout(() => { xpToast(`Débloqué : ${names.join(', ')} ! (à choisir dans Personnaliser)`, true); Sfx.play('pickup'); }, 1900);
+}
+function statAdd(k, n) {
+  if (settings.admin || !(n > 0)) return;
+  settings.st[k] = statOf(k) + n; saveSettings(); cosCheckNew();
+}
+cosCheckNew(true);
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
@@ -1436,7 +1566,10 @@ function land(k) {
 }
 function kill(p, by) {
   if (!p.alive || p.shield > 0) return;
-  if (by >= 0 && by !== p.id && G.players[by]) { G.players[by].kills = (G.players[by].kills | 0) + 1; if (G.mode === 'br') addPts(G.players[by], BR_KILL_PTS); }
+  if (by >= 0 && by !== p.id && G.players[by]) {
+    const kp = G.players[by]; kp.kills = (kp.kills | 0) + 1; if (G.mode === 'br') addPts(kp, BR_KILL_PTS);
+    if (kp.ai && Math.random() < 0.22) kp.emPend = G.t + 0.4 + Math.random() * 0.5;   // un ordi fanfaronne parfois
+  }
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
@@ -1529,6 +1662,11 @@ const FX = {
   },
   drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
   megaGo(id) { if (!G.megaOn) megaStart(id | 0, 0); },
+  emote(id, n) {
+    const p = G.players[id | 0]; if (!p || !EMOTES[n | 0]) return;
+    p.emote = { n: n | 0, at: G.t };
+    if (nearView(Math.round(p.x), Math.round(p.y))) Sfx.play('item');
+  },
   mega(id) {
     if (!G.megaOn) megaStart(id | 0, MEGA_HIT);
     G.megaBoomFx = true;
@@ -1983,6 +2121,7 @@ function update(dt) {
   G.t += dt;
   updateParticles(dt);
   if (G.paused) return;
+  emoteTick();
   G.tick = (G.tick || 0) + 1;
   G.shake = Math.max(0, G.shake - dt * 30);
   if (G.suddenFlash > 0) G.suddenFlash -= dt;
@@ -2256,11 +2395,7 @@ function drawMegaBomb(c, t) {
   gl.addColorStop(0, `rgba(255,150,50,${(0.35 + 0.25 * Math.sin(t * 12)).toFixed(3)})`); gl.addColorStop(1, 'rgba(255,90,30,0)');
   c.fillStyle = gl; c.beginPath(); c.arc(0, 0, R * 2.1, 0, TAU); c.fill();
   c.scale(pulse, 2 - pulse);
-  const g = c.createRadialGradient(-R * 0.35, -R * 0.4, R * 0.1, 0, 0, R * 1.05);
-  g.addColorStop(0, '#6c76a2'); g.addColorStop(0.5, '#2c3149'); g.addColorStop(1, '#101326');
-  c.fillStyle = g; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); c.lineWidth = 1.5; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
-  c.strokeStyle = col; c.lineWidth = 2 + R * 0.09; c.beginPath(); c.ellipse(0, R * 0.08, R * 0.96, R * 0.32, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke();
-  c.fillStyle = 'rgba(255,255,255,.32)'; c.beginPath(); c.ellipse(-R * 0.35, -R * 0.42, R * 0.28, R * 0.17, -0.5, 0, TAU); c.fill();
+  drawBombBody(c, csOf(w)[0] || 1, R, t, col);
   if (Math.sin(t * 22) > 0.2) { c.fillStyle = 'rgba(255,60,30,.28)'; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); }
   const cap = R * 0.3; c.fillStyle = '#b8733a'; rr(c, -cap / 2, -R - cap * 0.55, cap, cap * 0.6, 1.5); c.fill();
   c.strokeStyle = '#6b4a2b'; c.lineWidth = 2.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -R - cap * 0.5); c.quadraticCurveTo(1, -R - cap * 0.5 - 5, R * 0.18, -R - cap * 0.5 - 7); c.stroke();
@@ -2278,6 +2413,24 @@ function drawMegaRing(c) {
   c.lineWidth = 40 * (1 - q) + 4; c.beginPath(); c.ellipse(r.x, r.y, rad, rad * 0.8, 0, 0, TAU); c.stroke();
   if (q < 0.35) { const a = 1 - q / 0.35, g = c.createRadialGradient(r.x, r.y, 0, r.x, r.y, 120 + q * 500); g.addColorStop(0, `rgba(255,255,230,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.beginPath(); c.arc(r.x, r.y, 120 + q * 500, 0, TAU); c.fill(); }
   c.restore();
+}
+// Emotes : 1,5 s au moins entre deux emotes d'un même joueur
+function doEmote(p, n) {
+  if (!p || !EMOTES[n]) return;
+  if (G.t - (p.emAt ?? -9) < 1.5) return;
+  p.emAt = G.t; fx('emote', p.id, n);
+}
+function emoteSlot(p, slot) {
+  if (!p || p.ai || p.remote || !inGame() || G.paused) return;
+  const n = myEmotes()[slot]; if (n === undefined) return;
+  if (NET.role === 'guest') { if (G.t - (NET.emAt ?? -9) < 1.5) return; NET.emAt = G.t; NET.emSeq = (NET.emSeq | 0) + 1; NET.emN = n; return; }
+  doEmote(p, n);
+}
+function emoteTick() {
+  for (const p of G.players) if (p.emPend && G.t >= p.emPend) {
+    p.emPend = 0; const ok = EMOTES.map((_, i) => i).filter(i => cosOkReal(EMOTES, i));
+    doEmote(p, ok[(Math.random() * ok.length) | 0]);
+  }
 }
 function brWin(w) {
   G.phase = 'brEnd'; G.phaseT = 0; G.brWinner = w.id; G.brEndShown = false; G.megaBoom = false;
@@ -2384,9 +2537,102 @@ function drawMegaFlash(c, dt) {
   const a = Math.min(1, G.megaFlash / 1.6);
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = `rgba(255,${Math.round(220 - (1 - a) * 80)},${Math.round(150 - (1 - a) * 100)},${(a * 0.85).toFixed(3)})`; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore();
 }
+// Bulle d'emote au-dessus d'un perso
+function drawEmoteIcon(c, n, x, y, s, col) {
+  const E = EMOTES[n]; if (!E) return;
+  c.save(); c.translate(x, y); c.scale(s, s);
+  const w = E.tx ? 48 : 42, h = 36;
+  c.fillStyle = 'rgba(255,250,235,.96)'; rr(c, -w / 2, -h / 2, w, h, 12); c.fill();
+  c.beginPath(); c.moveTo(-6, h / 2 - 1); c.lineTo(6, h / 2 - 1); c.lineTo(0, h / 2 + 8); c.closePath(); c.fill();
+  c.lineWidth = 2.5; c.strokeStyle = col || '#ffcf5a'; rr(c, -w / 2, -h / 2, w, h, 12); c.stroke();
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  if (E.tx) { c.font = '20px "Bagel Fat One", sans-serif'; c.fillStyle = '#2a1508'; c.fillText(E.tx, 0, 1); }
+  else { c.font = '22px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; c.fillStyle = '#000'; c.fillText(E.ic, 0, 2); }
+  c.restore();
+}
+function drawEmoteBubble(c, x, y, n, age, col) {
+  const E = EMOTES[n]; if (!E) return;
+  const dur = E.dance ? 2.6 : 2.2; if (age >= dur || age < 0) return;
+  const s = age < 0.18 ? 0.55 + 0.55 * Math.sin(age / 0.18 * Math.PI / 2) : age < 0.3 ? 1.1 - (age - 0.18) / 0.12 * 0.1 : 1;
+  c.save(); c.globalAlpha = age > dur - 0.3 ? (dur - age) / 0.3 : 1;
+  drawEmoteIcon(c, n, x, y - 66 - Math.min(6, age * 20), s, col);
+  c.restore();
+  if (E.dance && Math.random() < 0.12) addP({ kind: 'text', x: x + (Math.random() - 0.5) * 34, y: y - 30, vx: (Math.random() - 0.5) * 30, vy: -40, life: 0.9, max: 0.9, size: 16, color: col, text: Math.random() < 0.5 ? '♪' : '♫' });
+}
+// Carte de victime : ce que voient ceux qu'un joueur a soufflés (style + phrase choisis par lui)
+const cardPortraits = {};
+function cardPortrait(p) {
+  const key = p.skin + ':' + p.id; let cv = cardPortraits[key];
+  if (!cv) {
+    cv = document.createElement('canvas'); cv.width = cv.height = 104; drawPortrait(cv, p.pal, p.skin);
+    const ch = CHARS[p.skin], im = ch && charImg[ch.key];
+    if (!p.skin || (im && im.complete && im.naturalWidth)) cardPortraits[key] = cv;
+  }
+  return cv;
+}
+function drawCrown(c, x, y, s) {
+  c.save(); c.translate(x, y); c.scale(s, s); c.fillStyle = '#ffd36e'; c.strokeStyle = '#7a4d08'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(-14, 6); c.lineTo(-16, -8); c.lineTo(-7, -1); c.lineTo(0, -12); c.lineTo(7, -1); c.lineTo(16, -8); c.lineTo(14, 6); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#ff4f6e'; c.beginPath(); c.arc(0, 1, 2.5, 0, TAU); c.fill(); c.restore();
+}
+function cardBg(c, st, x, y, w, h, t) {
+  const BG = [['rgba(14,20,14,.95)', 'rgba(26,36,24,.95)'], ['#3a0d06', '#7a2208'], ['#0b1640', '#23358a'], ['#260c46', '#52208e'], ['#121212', '#2e2e2e'], ['#3e2306', '#8a5a10']][st] || ['#111', '#222'];
+  const BD = ['rgba(243,229,192,.55)', '#ff8a3d', '#8fc4ff', '#ffe14a', '#e9e2cf', '#ffd36e'][st] || '#fff';
+  const gr = c.createLinearGradient(x, y, x + w * 0.4, y + h); gr.addColorStop(0, BG[0]); gr.addColorStop(1, BG[1]);
+  rr(c, x, y, w, h, 18); c.fillStyle = gr; c.fill();
+  c.save(); rr(c, x, y, w, h, 18); c.clip();
+  if (st === 1) {
+    for (let i = 0; i < 16; i++) {
+      const fx0 = x + i * w / 15, fh = 16 + 12 * Math.abs(Math.sin(t * 6 + i * 1.7));
+      for (const [k2, cl] of [[1, 'rgba(255,110,30,.55)'], [0.55, 'rgba(255,210,80,.6)']]) { c.fillStyle = cl; c.beginPath(); c.moveTo(fx0 - 14 * k2, y + h); c.quadraticCurveTo(fx0 - 4 * k2, y + h - fh * k2 * 0.6, fx0, y + h - fh * k2); c.quadraticCurveTo(fx0 + 4 * k2, y + h - fh * k2 * 0.6, fx0 + 14 * k2, y + h); c.fill(); }
+    }
+  } else if (st === 2) {
+    for (let i = 0; i < 26; i++) { const sx = x + ((i * 97) % 100) / 100 * w, sy = y + ((i * 61) % 100) / 100 * h, tw = 0.5 + 0.5 * Math.sin(t * 3 + i); c.fillStyle = `rgba(255,255,255,${(0.25 + 0.6 * tw).toFixed(2)})`; c.beginPath(); c.arc(sx, sy, 0.8 + tw * 1.2, 0, TAU); c.fill(); }
+  } else if (st === 3) {
+    const fl = Math.sin(t * 13) > -0.3 ? 1 : 0.35; c.strokeStyle = `rgba(255,225,74,${(0.8 * fl).toFixed(2)})`; c.lineWidth = 3; c.lineJoin = 'round';
+    for (const ox of [w - 70, w - 34]) { c.beginPath(); c.moveTo(x + ox, y + 8); c.lineTo(x + ox - 12, y + h * 0.45); c.lineTo(x + ox + 2, y + h * 0.45); c.lineTo(x + ox - 10, y + h - 8); c.stroke(); }
+  } else if (st === 4) {
+    const sx = x + w - 52, sy = y + h / 2 - 4; c.fillStyle = 'rgba(233,226,207,.16)'; c.beginPath(); c.arc(sx, sy - 6, 30, 0, TAU); c.fill(); c.fillRect(sx - 16, sy + 14, 32, 18);
+    c.fillStyle = 'rgba(0,0,0,.55)'; c.beginPath(); c.arc(sx - 11, sy - 6, 7, 0, TAU); c.arc(sx + 11, sy - 6, 7, 0, TAU); c.fill();
+  } else if (st === 5) {
+    const g2 = c.createLinearGradient(x, y, x + w, y + h), q = (t * 0.25) % 1.6 - 0.3;
+    g2.addColorStop(clamp(q - 0.1, 0, 1), 'rgba(255,255,255,0)'); g2.addColorStop(clamp(q, 0, 1), 'rgba(255,240,200,.25)'); g2.addColorStop(clamp(q + 0.1, 0, 1), 'rgba(255,255,255,0)');
+    c.fillStyle = g2; c.fillRect(x, y, w, h);
+  }
+  c.restore();
+  rr(c, x, y, w, h, 18); c.lineWidth = st === 5 ? 4 : 3; c.strokeStyle = BD; c.stroke();
+  if (st === 5) { rr(c, x + 6, y + 6, w - 12, h - 12, 13); c.lineWidth = 1.5; c.stroke(); }
+}
+function fitFont(c, txt, max, size, fam, pre) { pre = pre || ''; c.font = `${pre}${size}px ${fam}`; while (c.measureText(txt).width > max && size > 10) { size -= 1; c.font = `${pre}${size}px ${fam}`; } }
+function drawVictimCard(c, killer, name, cx, cy, alpha, sub, t, cs) {
+  if (alpha <= 0) return;
+  cs = cs || csOf(killer); const st = cs[2] | 0, phr = (CARD_PHRASES[cs[3] | 0] || CARD_PHRASES[0]).name;
+  const w = 380, h = 112, x = cx - w / 2, y = cy - h / 2, col = killer.pal.ui;
+  c.save(); c.globalAlpha = clamp(alpha, 0, 1);
+  cardBg(c, st, x, y, w, h, t);
+  const pr = 38, px = x + 18 + pr, py = cy + 2;
+  c.save(); c.beginPath(); c.arc(px, py, pr, 0, TAU); c.clip(); c.drawImage(cardPortrait(killer), px - pr, py - pr, pr * 2, pr * 2); c.restore();
+  c.lineWidth = 4; c.strokeStyle = col; c.beginPath(); c.arc(px, py, pr, 0, TAU); c.stroke();
+  if (st === 5) drawCrown(c, px, py - pr - 2, 1.1);
+  const tx = px + pr + 16, maxW = x + w - tx - 14;
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  c.font = '800 14px "Alegreya Sans", sans-serif'; c.fillStyle = 'rgba(243,229,192,.85)'; c.fillText('Soufflé par', tx, y + 30);
+  fitFont(c, name, maxW, 24, '"Bagel Fat One", sans-serif'); c.lineJoin = 'round'; c.lineWidth = 5; c.strokeStyle = 'rgba(20,10,4,.85)'; c.strokeText(name, tx, y + 58); c.fillStyle = col; c.fillText(name, tx, y + 58);
+  fitFont(c, `« ${phr} »`, maxW, 19, '"Alegreya Sans", sans-serif', 'italic 800 '); c.fillStyle = '#fffaf0'; c.fillText(`« ${phr} »`, tx, y + 88);
+  if (sub) { c.textAlign = 'center'; c.font = '800 16px "Alegreya Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(10,14,10,.8)'; c.strokeText(sub, cx, y + h + 24); c.fillStyle = '#f3e5c0'; c.fillText(sub, cx, y + h + 24); }
+  c.restore();
+}
+// en manche classique : la carte s'affiche 3 s en bas quand tu te fais souffler
+function drawMatchCard(c, t) {
+  if (G.mode !== 'match' || !G.vcard) return;
+  const age = G.t - G.vcard.at; if (age > 3.2 || age < 0) { G.vcard = null; return; }
+  const k = G.players[G.vcard.by]; if (!k) return;
+  drawVictimCard(c, k, nameOf(k.id), W / 2, H - 84, Math.min(1, age * 4, (3.2 - age) * 3), '', t);
+}
 function drawBrOverlay(c, t) {
   const me = G.players[localIdx()]; if (!me || me.alive || G.phase === 'brEnd') return;
   const left = Math.max(1, Math.ceil(3 - me.deathT)), by = me.killedBy;
+  if (by >= 0 && by !== me.id && G.players[by]) { drawVictimCard(c, G.players[by], nameOf(by), W / 2, H / 2 - 12, Math.min(1, me.deathT * 3), `Retour dans ${left} s, sans bonus`, t); return; }
   const who = by === me.id ? 'Ta propre bombe' : by >= 0 && G.players[by] ? `Soufflé par ${nameOf(by)}` : 'Soufflé';
   drawBanner(c, 'Soufflé !', `${who} · retour dans ${left} s, sans bonus`, '#ff7a2f', Math.min(1, me.deathT * 3));
 }
@@ -2444,11 +2690,7 @@ function drawBrGoal(now) {
   if (u > 0.5) { const g = c.createRadialGradient(cx, cy, r * 0.6, cx, cy, Math.min(58, r * 1.9)); g.addColorStop(0, `rgba(255,${Math.round(150 - u * 110)},40,${(u - 0.5) * (0.6 + 0.4 * Math.sin(t * 9))})`); g.addColorStop(1, 'rgba(255,80,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 120, 120); }
   c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(60, 74 + r * 0.95, r * 0.85, r * 0.22, 0, 0, TAU); c.fill();
   c.save(); c.translate(cx, cy); c.scale(pulse, 2 - pulse);
-  const g = c.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.05);
-  g.addColorStop(0, '#6c76a2'); g.addColorStop(0.5, '#2c3149'); g.addColorStop(1, '#101326');
-  c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.lineWidth = 1.6; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
-  if (me) { c.strokeStyle = me.pal.ui; c.lineWidth = 2 + r * 0.08; c.beginPath(); c.ellipse(0, r * 0.08, r * 0.96, r * 0.32, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke(); }
-  c.fillStyle = 'rgba(255,255,255,.32)'; c.beginPath(); c.ellipse(-r * 0.35, -r * 0.42, r * 0.28, r * 0.17, -0.5, 0, TAU); c.fill();
+  drawBombBody(c, me ? csOf(me)[0] || 1 : 1, r, t, me ? me.pal.ui : null);
   if (u > 0.7 && Math.sin(t * 20) > 0) { c.fillStyle = 'rgba(255,60,30,.3)'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); }
   // bouchon et mèche (de plus en plus courte)
   const cap = Math.max(3, r * 0.3); c.fillStyle = '#b8733a'; rr(c, -cap / 2, -r - cap * 0.55, cap, cap * 0.6, 1.5); c.fill();
@@ -2608,7 +2850,7 @@ function addXp(skin, amount) {
   if (a1 > a0) { xpToast(`${CHARS[skin].name} passe niveau ${L1} : aura « ${AURAS[a1]} » débloquée !`, true); Sfx.play('pickup'); }
   else if (L1 > L0) xpToast(`+${amount} XP · ${CHARS[skin].name} passe niveau ${L1} !`, true);
   else xpToast(`+${amount} XP`);
-  syncXpUi();
+  syncXpUi(); if (L1 > L0) cosCheckNew();
 }
 function renderEndXp() {
   const el = document.getElementById('end-xp'), S = G.xpSess;
@@ -2623,10 +2865,39 @@ function renderEndXp() {
 }
 // Chaque image : aura du joueur local et gains d'XP (fin de manche, victimes et temps de survie en battle royale)
 let xpPrevPhase = '', xpPrevKills = 0, xpBrT = 0;
+// Stats (victimes, parties, victoires) pour les cosmétiques ; carte de victime quand on se fait souffler
+let stPrevKills = -1, stPrevPhase = '', stBrT = 0, stBrCounted = false, vcPrevAlive = true;
+function statTick(dt, me, i) {
+  if (vcPrevAlive && !me.alive) { const by = me.killedBy; G.vcard = by >= 0 && by !== me.id && G.players[by] ? { by, at: G.t } : null; }
+  vcPrevAlive = me.alive;
+  const k = me.kills | 0;
+  if (stPrevKills >= 0 && k > stPrevKills) statAdd('k', k - stPrevKills);
+  stPrevKills = k;
+  if (G.mode === 'match' && G.phase === 'matchEnd' && stPrevPhase && stPrevPhase !== 'matchEnd') {
+    statAdd('g', 1);
+    if (G.pointsMode ? (G.matchWin || []).includes(i) : G.lastWinner === i) statAdd('w', 1);
+  }
+  if (G.mode === 'br') {
+    if (G.phase === 'play') stBrT += dt;
+    if (G.phase === 'brEnd' && stPrevPhase && stPrevPhase !== 'brEnd') {
+      if (!stBrCounted) statAdd('g', 1);
+      stBrCounted = true; if (G.brWinner === i) statAdd('w', 1);
+    }
+    if (G.phase === 'play' && stPrevPhase === 'brEnd') { stBrCounted = false; stBrT = 0; }
+  }
+  stPrevPhase = G.phase;
+}
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
-  if (!me || me.ai || !inGame()) { xpPrevPhase = G.phase; xpPrevKills = 0; return; }
-  me.aura = auraOf(me.skin); me.elo = ELO.me ? ELO.me.elo | 0 : 0;
+  if (!me || me.ai || !inGame()) {
+    xpPrevPhase = G.phase; xpPrevKills = 0;
+    // battle royale quitté après 3 minutes de jeu : compte comme une partie
+    if (stBrT >= 180 && !stBrCounted) statAdd('g', 1);
+    stPrevKills = -1; stPrevPhase = ''; stBrT = 0; stBrCounted = false; vcPrevAlive = true; G.vcard = null;
+    return;
+  }
+  me.aura = auraOf(me.skin); me.elo = ELO.me ? ELO.me.elo | 0 : 0; me.cs = myCos();
+  statTick(dt, me, i);
   if (G.mode === 'match') {
     if (G.phase === 'roundEnd' && xpPrevPhase !== 'roundEnd' && xpPrevPhase) {
       const pts = G.pointsMode ? (G.gains[i] | 0) : (G.lastWinner === i ? PTS[0] : 0);
@@ -2889,18 +3160,96 @@ function drawFieldItem(c, k, t) {
 }
 
 /* ---------- Bombe ---------- */
+// Corps d'une bombe (rayon R, centré sur l'origine) selon le skin choisi ; col = bande à la couleur du joueur
+function drawBombBody(c, kind, R, t, col) {
+  const band = lw => { if (!col) return; c.strokeStyle = col; c.lineWidth = lw || Math.max(2, R * 0.2); c.beginPath(); c.ellipse(0, R * 0.07, R * 0.96, R * 0.33, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke(); };
+  const shine = a => { c.fillStyle = `rgba(255,255,255,${a ?? 0.33})`; c.beginPath(); c.ellipse(-R * 0.36, -R * 0.43, R * 0.29, R * 0.18, -0.5, 0, TAU); c.fill(); };
+  const ball = (c0, c1, c2) => { const g = c.createRadialGradient(-R * 0.36, -R * 0.43, R * 0.14, 0, 0, R * 1.14); g.addColorStop(0, c0); g.addColorStop(0.5, c1); g.addColorStop(1, c2); c.fillStyle = g; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); };
+  const clipBall = () => { c.save(); c.beginPath(); c.arc(0, 0, R, 0, TAU); c.clip(); };
+  switch (kind) {
+    case 2: { // citrouille
+      for (const [ox, w, sh] of [[-0.5, 0.55, '#b94f0e'], [0.5, 0.55, '#b94f0e'], [-0.22, 0.62, '#d9681a'], [0.22, 0.62, '#d9681a'], [0, 0.5, '#ee8226']]) {
+        const g = c.createRadialGradient(ox * R - R * 0.2, -R * 0.45, R * 0.05, ox * R, 0, R * 1.05); g.addColorStop(0, '#ffbe6a'); g.addColorStop(1, sh);
+        c.fillStyle = g; c.beginPath(); c.ellipse(ox * R, R * 0.03, w * R, R * 0.95, 0, 0, TAU); c.fill();
+      }
+      band(Math.max(1.6, R * 0.13));
+      const gl = 0.7 + 0.3 * Math.sin(t * 9);
+      c.fillStyle = `rgba(255,${Math.round(190 + 50 * gl)},70,${gl.toFixed(2)})`;
+      for (const sx of [-1, 1]) { c.beginPath(); c.moveTo(sx * R * 0.5, -R * 0.06); c.lineTo(sx * R * 0.16, -R * 0.06); c.lineTo(sx * R * 0.33, -R * 0.38); c.closePath(); c.fill(); }
+      c.beginPath(); c.moveTo(-R * 0.55, R * 0.16); for (let i = 0; i <= 6; i++) c.lineTo(-R * 0.55 + i * R * 0.183, R * (i % 2 ? 0.3 : 0.16));
+      c.quadraticCurveTo(R * 0.2, R * 0.66, -R * 0.55, R * 0.16); c.closePath(); c.fill();
+      c.fillStyle = '#3f8a2a'; c.beginPath(); c.ellipse(R * 0.34, -R * 0.9, R * 0.25, R * 0.1, -0.5, 0, TAU); c.fill();
+      break;
+    }
+    case 3: { // boule de neige
+      ball('#ffffff', '#e6eef7', '#9fb6cf');
+      c.fillStyle = 'rgba(140,170,205,.55)';
+      for (let i = 0; i < 10; i++) { const a = i * 2.39, d = R * (0.2 + 0.65 * ((i * 37) % 10) / 10); c.beginPath(); c.arc(Math.cos(a) * d, Math.sin(a) * d, Math.max(0.6, R * 0.06), 0, TAU); c.fill(); }
+      band(); shine(0.75); break;
+    }
+    case 4: { // rétro (pixels)
+      const P = Math.max(1, R / 4.5);
+      for (let yy = -R; yy < R; yy += P) for (let xx = -R; xx < R; xx += P) {
+        const cx = xx + P / 2, cy = yy + P / 2, d = Math.hypot(cx, cy); if (d > R) continue;
+        let c0 = d > R - P ? '#0b0c18' : '#262a46';
+        if (cx < -R * 0.12 && cy < -R * 0.12 && d < R * 0.78 && d > R * 0.3) c0 = '#4c5384';
+        if (Math.abs(cx + R * 0.42) < P * 0.9 && Math.abs(cy + R * 0.42) < P * 0.9) c0 = '#e8ecff';
+        if (col && cy > R * 0.14 && cy < R * 0.14 + P * 1.1 && d < R - P * 0.5) c0 = col;
+        c.fillStyle = c0; c.fillRect(xx, yy, P + 0.35, P + 0.35);
+      }
+      break;
+    }
+    case 5: { // cristal
+      const pts = []; for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + Math.PI / 8; pts.push([Math.cos(a) * R * 1.04, Math.sin(a) * R * 1.04]); }
+      const g = c.createLinearGradient(-R, -R, R, R); g.addColorStop(0, '#c8f6ff'); g.addColorStop(0.45, '#58b8ff'); g.addColorStop(1, '#6a3cd8');
+      c.fillStyle = g; c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = Math.max(1, R * 0.06); c.stroke();
+      c.beginPath(); for (const [x, y] of pts) { c.moveTo(0, 0); c.lineTo(x, y); } c.strokeStyle = 'rgba(255,255,255,.2)'; c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x * 0.5, y * 0.5) : c.moveTo(x * 0.5, y * 0.5)); c.closePath(); c.fill();
+      band();
+      const gx = -R * 0.42, gy = -R * 0.45, k = R * 0.3 * (0.55 + 0.45 * Math.sin(t * 5));
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(gx, gy - k); c.lineTo(gx + k * 0.22, gy - k * 0.22); c.lineTo(gx + k, gy); c.lineTo(gx + k * 0.22, gy + k * 0.22); c.lineTo(gx, gy + k); c.lineTo(gx - k * 0.22, gy + k * 0.22); c.lineTo(gx - k, gy); c.lineTo(gx - k * 0.22, gy - k * 0.22); c.closePath(); c.fill();
+      break;
+    }
+    case 6: { // lave
+      ball('#6a4438', '#2e1c17', '#0e0806');
+      const q = 0.6 + 0.4 * Math.sin(t * 5);
+      clipBall(); c.lineCap = 'round'; c.lineJoin = 'round';
+      const cracks = [[[-0.75, -0.2], [-0.32, -0.05], [-0.1, -0.42], [0.3, -0.3]], [[0.15, 0.08], [0.5, 0.3], [0.85, 0.12]], [[-0.45, 0.5], [-0.12, 0.34], [0.1, 0.62]], [[0.3, -0.3], [0.46, -0.72]]];
+      for (const [lw, cl] of [[R * 0.24, `rgba(255,90,20,${(0.35 * q).toFixed(2)})`], [R * 0.09, `rgb(255,${Math.round(150 + 80 * q)},60)`]]) {
+        c.strokeStyle = cl; c.lineWidth = lw;
+        for (const cr of cracks) { c.beginPath(); cr.forEach(([x, y], i) => i ? c.lineTo(x * R, y * R) : c.moveTo(x * R, y * R)); c.stroke(); }
+      }
+      c.restore(); band(); shine(0.12); break;
+    }
+    case 7: { // dorée
+      ball('#fff4b8', '#e2a62c', '#6e4206');
+      clipBall(); c.rotate(-0.6);
+      const sx = ((t * 0.7) % 2 - 0.6) * R * 2.4, g = c.createLinearGradient(sx - R * 0.4, 0, sx + R * 0.4, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(sx - R * 0.4, -R * 2, R * 0.8, R * 4); c.restore();
+      band(); shine(0.5); break;
+    }
+    case 8: { // galaxie
+      ball('#7a5ae0', '#2a1870', '#07051a');
+      clipBall(); c.rotate(t * 0.5); c.lineWidth = R * 0.12;
+      for (let i = 0; i < 3; i++) { c.strokeStyle = i % 2 ? 'rgba(120,200,255,.38)' : 'rgba(255,120,220,.38)'; c.beginPath(); c.arc(0, 0, R * (0.3 + i * 0.22), i * 2.1, i * 2.1 + 2.2); c.stroke(); }
+      c.restore();
+      for (let i = 0; i < 8; i++) { const a = i * 2.4, d = R * (0.2 + 0.7 * ((i * 53) % 10) / 10), tw = 0.5 + 0.5 * Math.sin(t * 4 + i * 1.7); c.fillStyle = `rgba(255,255,255,${(0.4 + 0.6 * tw).toFixed(2)})`; c.beginPath(); c.arc(Math.cos(a) * d, Math.sin(a) * d, Math.max(0.6, R * 0.05 * (0.6 + tw)), 0, TAU); c.fill(); }
+      band(); shine(0.22); break;
+    }
+    default: ball('#5f6890', '#2c3149', '#13162a'); band(); shine();
+  }
+}
 function drawBomb(c, x, y, b, t) {
-  if (b && b.owner && b.owner.skin) { const ch = CHARS[b.owner.skin], im = ch && charImg[ch.key]; if (im) { drawCharBomb(c, x, y, b, t, im, CHAR_RECTS[ch.key].bomb[0]); return; } }
+  const o = b && b.owner, bs = o ? csOf(o)[0] : 1;
+  if (o && o.skin && bs === 0) { const ch = CHARS[o.skin], im = ch && charImg[ch.key]; if (im) { drawCharBomb(c, x, y, b, t, im, CHAR_RECTS[ch.key].bomb[0]); return; } }
   const left = b ? Math.max(0, b.timer) : FUSE, u = 1 - left / FUSE;
   const pulse = 1 + Math.sin(t * (7 + u * 22)) * (0.035 + u * 0.07);
   c.save(); c.translate(x, y + 3);
   c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 12, 12, 4); c.fill();
   c.scale(pulse, 2 - pulse);
-  const g = c.createRadialGradient(-5, -6, 2, 0, 0, 16);
-  g.addColorStop(0, '#5f6890'); g.addColorStop(0.5, '#2c3149'); g.addColorStop(1, '#13162a');
-  c.fillStyle = g; c.beginPath(); c.arc(0, 0, 14, 0, TAU); c.fill();
-  if (b) { c.strokeStyle = b.owner.pal.coat; c.lineWidth = 3; c.beginPath(); c.ellipse(0, 1, 13.4, 4.6, 0, 0.06 * Math.PI, 0.94 * Math.PI); c.stroke(); }
-  c.fillStyle = 'rgba(255,255,255,.33)'; ell(c, -5, -6, 4, 2.6); c.fill();
+  drawBombBody(c, bs || 1, 14, t, o ? o.pal.coat : null);
   c.fillStyle = '#b8733a'; rr(c, -4.5, -17, 9, 5, 1.5); c.fill();
   const fl = 0.35 + 0.65 * (left / FUSE), ex = 4 + 5 * fl, ey = -17 - 8 * fl;
   c.strokeStyle = '#6b4a2b'; c.lineWidth = 2.4; c.lineCap = 'round';
@@ -3313,14 +3662,23 @@ function drawHero(c, x, y, pal, face, phase, moving, t, o) {
 
 /* ---------- Flammes ---------- */
 const FLAME_LAYERS = [[1, 'rgba(255,92,24,.95)'], [0.66, '#ffb020'], [0.34, '#fff4c2']];
+// couleur d'une couche de flamme selon les flammes choisies par le poseur de la bombe
+function flameCol(li, k) {
+  const o = G.players[G.flameOwner[k]], F = FLAME_SKINS[o ? csOf(o)[1] | 0 : 0] || FLAME_SKINS[0];
+  if (!F.rainbow) return F.L[li];
+  if (li === 2) return '#fffaf0';
+  const h = Math.round(((G.t * 140 + (k % COLS) * 30 + ((k / COLS) | 0) * 30) % 360) / 15) * 15;
+  return li ? `hsl(${h + 30},100%,70%)` : `hsla(${h},100%,55%,.95)`;
+}
 function drawFlames(c) {
-  for (const [lw, col] of FLAME_LAYERS) {
-    c.fillStyle = col;
+  for (let li = 0; li < FLAME_LAYERS.length; li++) {
+    const lw = FLAME_LAYERS[li][0]; let cur = '';
     const V = G.view;
     for (let k = 0; k < N; k++) {
       const ft = G.flameT[k]; if (ft <= 0) continue;
       const bits = G.flameBits[k]; if (!bits) continue;
       if (V) { const fx_ = k % COLS, fy_ = (k / COLS) | 0; if (fx_ < V.x0 || fx_ > V.x1 || fy_ < V.y0 || fy_ > V.y1) continue; }
+      const col = flameCol(li, k); if (col !== cur) { c.fillStyle = col; cur = col; }
       // flammes longues (souffle de la giga bombe) : pleine taille jusqu'à leurs dernières 0,55 s
       const f = Math.min(1, ft / FLAME_DUR), age = ft > FLAME_DUR ? 0.5 : 1 - f;
       const s = age < 0.12 ? age / 0.12 : (f < 0.4 ? f / 0.4 : 1);
@@ -3432,7 +3790,7 @@ function render() {
     c.fillStyle = `rgba(20,10,5,${(0.15 + p * 0.35).toFixed(3)})`; ell(c, x, y + 8, 8 + p * 16, 4 + p * 9); c.fill();
   }
 
-  const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []);
+  const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [];
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
   for (const p of G.players) { if (p.alive || p.deathT < 1) heroRows[clamp(Math.round(p.y), 0, ROWS - 1)].push(p); }
 
@@ -3461,8 +3819,11 @@ function render() {
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
       else if (G.phase === 'brEnd' && G.megaOn && G.megaW === p.id) { o.hop = megaHop(G.megaT); }
-      const face = (!p.alive || o.hop) ? 'down' : p.face;
+      let dz = null;
+      if (p.alive && p.emote && EMOTES[p.emote.n].dance) { const ag = G.t - p.emote.at; if (ag < 2.4) { dz = ['down', 'left', 'down', 'right'][Math.floor(ag * 5) % 4]; if (!o.hop) o.hop = Math.abs(Math.sin(ag * 9)) * 6; } }
+      const face = dz || ((!p.alive || o.hop) ? 'down' : p.face);
       const hx = ((p.rx ?? p.x) + 0.5) * T, hy = ((p.ry ?? p.y) + 0.5) * T, au = p.alive && !p.ai ? p.aura | 0 : 0;
+      if (p.emote && G.t - p.emote.at < 2.6) emoB.push([hx, hy - (o.hop || 0), p]);
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, false, p.id);
       if (p.alive && p.shield > 0 && Math.sin(t * 22) > 0) { c.save(); c.globalAlpha = 0.45; drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o); c.restore(); }
       else drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o);
@@ -3479,6 +3840,7 @@ function render() {
     c.save(); c.translate(gx, gy - h * T); c.rotate((f.dx || f.dy) * f.t * 9); drawBomb(c, 0, 0, f.b, t); c.restore();
   }
   drawParticles(c);
+  for (const [ex, ey, p] of emoB) drawEmoteBubble(c, ex, ey, p.emote.n, G.t - p.emote.at, p.pal.ui);
   for (const f of G.flying) {
     const q = Math.min(1, f.t / f.dur), tx = f.k % COLS, ty = (f.k / COLS) | 0;
     if (f.drop) {
@@ -3501,6 +3863,7 @@ function render() {
   c.setTransform(K, 0, 0, K, 0, 0);
   c.drawImage(sprites.vignette.c, 0, 0, W, H);
   if (G.mode === 'br') { drawBrOverlay(c, t); drawMegaFlash(c, 1 / 60); }
+  drawMatchCard(c, t);
 
   // bandeaux
   if (G.phase === 'intro') {
@@ -3528,7 +3891,7 @@ function render() {
    Interface (HTML)
    ========================================================= */
 const $ = s => document.querySelector(s);
-const secretEl = $('#secret'), ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
+const customEl = $('#custom'), secretEl = $('#secret'), ranksEl = $('#ranks'), menuEl = $('#menu'), pauseEl = $('#pause'), endEl = $('#end'), playBtn = $('#play'), onlineEl = $('#online'), soloEl = $('#solo'), helpEl = $('#help');
 const cards = [$('#card0'), $('#card1'), $('#card2'), $('#card3')];
 const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute');
 let hudCache = {};
@@ -3910,18 +4273,23 @@ async function rpc(fn, args) {
 // ---------- Comptes : identifiant + mot de passe ; la progression (XP, auras, persos débloqués, codes) est gardée sur le compte
 // Créer un compte transforme le compte anonyme de ce navigateur (même Elo) et y envoie la progression actuelle.
 // Se connecter ailleurs : la progression du compte est fusionnée avec celle de l'appareil (XP max par perso, déblocages cumulés).
-const progOf = () => ({ rv: settings.rv | 0, xp: settings.xp || {}, unl: settings.unl || {}, codes: settings.codes || [], auraSel: settings.auraSel || {}, skin: charLockedReal(settings.skin) ? 0 : settings.skin | 0 });
+const progOf = () => ({ rv: settings.rv | 0, xp: settings.xp || {}, unl: settings.unl || {}, codes: settings.codes || [], auraSel: settings.auraSel || {}, skin: charLockedReal(settings.skin) ? 0 : settings.skin | 0, st: settings.st || {}, cos: settings.cos || COS_DEF() });
 var ACC = { saving: false, last: '', at: 0, t: 0, err: '' };   // var : saveSettings peut l'appeler très tôt
 function mergeProgLocal(p) {
   if (!p || typeof p !== 'object') return;
   const rv = Number.isInteger(p.rv) ? p.rv : 0;
   if (rv < (settings.rv | 0)) return;
-  if (rv > (settings.rv | 0)) { settings.rv = rv; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0; }
+  if (rv > (settings.rv | 0)) { settings.rv = rv; settings.xp = {}; settings.unl = {}; settings.codes = []; settings.auraSel = {}; settings.skin = 0; settings.st = {}; settings.cos = COS_DEF(); settings.cosKnown = undefined; settings.cosNew = []; }
   if (p.xp && typeof p.xp === 'object') for (const k in p.xp) { const v = Number(p.xp[k]); if (Number.isFinite(v) && v > (Number(settings.xp[k]) || 0)) settings.xp[k] = v; }
   if (p.unl && typeof p.unl === 'object') for (const k in p.unl) if (p.unl[k] === true) settings.unl[k] = true;
   if (Array.isArray(p.codes)) { if (!Array.isArray(settings.codes)) settings.codes = []; for (const c of p.codes) if (typeof c === 'string' && !settings.codes.includes(c)) settings.codes.push(c); }
   if (p.auraSel && typeof p.auraSel === 'object') for (const k in p.auraSel) if (Number.isInteger(p.auraSel[k])) settings.auraSel[k] = p.auraSel[k];
   if (Number.isInteger(p.skin) && p.skin >= 0 && p.skin < CHARS.length && !charLocked(p.skin)) settings.skin = p.skin;
+  if (p.st && typeof p.st === 'object') for (const k of ['g', 'k', 'w']) { const v = Math.floor(Number(p.st[k]) || 0); if (v > statOf(k)) settings.st[k] = v; }
+  if (p.cos && typeof p.cos === 'object') {
+    const c = p.cos; settings.cos = { b: cosIdx(BOMB_SKINS, c.b), f: cosIdx(FLAME_SKINS, c.f), c: cosIdx(CARD_STYLES, c.c), p: cosIdx(CARD_PHRASES, c.p), e: Array.isArray(c.e) ? c.e.map(v => cosIdx(EMOTES, v)).slice(0, 4) : [0, 1, 2, 3] };
+  }
+  cosCheckNew(true);
 }
 function progChanged() {
   if (!ACC || !settings.account || !settings.account.login) return;
@@ -4193,6 +4561,100 @@ function openSecret() {
 }
 function closeSecret() { secretEl.hidden = true; menuEl.hidden = false; try { $('#btn-secret').focus({ preventScroll: true }); } catch (e) {} }
 $('#btn-secret').addEventListener('click', openSecret);
+/* ---------- Écran Personnaliser ---------- */
+let cosTab = 'b', cosHintT = 0;
+const plural = (n, a, b) => `${n} ${n > 1 ? b : a}`;
+function openCustom() {
+  menuEl.hidden = true; customEl.hidden = false; cosCheckNew(true); renderCustom(true);
+  try { customEl.querySelector(`.cos-tabs button[data-k="${cosTab}"]`).focus({ preventScroll: true }); } catch (e) {}
+}
+function closeCustom() {
+  customEl.hidden = true; menuEl.hidden = false; settings.cosNew = []; saveSettings(); syncCosBadge();
+  try { $('#btn-custom').focus({ preventScroll: true }); } catch (e) {}
+}
+const COS_HINTS = {
+  b: "Le skin de tes bombes, que tout le monde voit. « Bombe du perso » garde la bombe de ton perso.",
+  f: 'La couleur des flammes de tes explosions, et du souffle de ta giga bombe en battle royale.',
+  e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone.',
+  c: 'Ce que voient les joueurs que tu souffles : un style de carte et ta phrase.',
+};
+function cosHint(msg) { const h = $('#cos-hint'); h.textContent = msg; clearTimeout(cosHintT); cosHintT = setTimeout(() => { h.textContent = COS_HINTS[cosTab]; }, 3500); }
+function cosTile(k, L, i, sel, slot) {
+  const it = L[i], ok = cosOk(L, i), b = document.createElement('button');
+  b.type = 'button'; b.className = 'cos-tile' + (ok ? '' : ' locked'); b.setAttribute('role', k === 'e' ? 'checkbox' : 'radio'); b.setAttribute('aria-checked', String(sel));
+  b.setAttribute('aria-label', ok ? it.name : `Mystère : se débloque à ${needTxt(it.need)}`);
+  const cv = document.createElement('canvas'); cv.width = k === 'c' ? 300 : 128; cv.height = k === 'c' ? 88 : 128; cv.dataset.k = k; cv.dataset.i = i; cv.dataset.lk = ok ? '' : '1';
+  const lb = document.createElement('span'); lb.textContent = ok ? it.name : needTxt(it.need);
+  b.append(cv, lb);
+  if (slot) { const sb = document.createElement('i'); sb.className = 'slot'; sb.textContent = slot; b.appendChild(sb); }
+  if (ok && Array.isArray(settings.cosNew) && settings.cosNew.includes(k + i)) { const nb = document.createElement('i'); nb.className = 'nw'; nb.textContent = 'nouveau'; b.appendChild(nb); }
+  b.addEventListener('click', () => {
+    if (!ok) { cosHint(`${it.name ? 'Mystère' : ''} : se débloque à ${needTxt(it.need)} (tu en es à ${statOf(it.need[0])}).`); return; }
+    const m = cosMap();
+    if (k === 'e') {
+      const cur = myEmotes(), at = cur.indexOf(i);
+      if (at >= 0) cur.splice(at, 1); else if (cur.length >= 4) { cosHint('4 emotes au plus : retire d’abord une emote équipée.'); return; } else cur.push(i);
+      m.e = cur;
+    } else m[k] = i;
+    saveSettings(); renderCustom();
+  });
+  return b;
+}
+function renderCustom(first) {
+  const st = `${plural(statOf('g'), 'partie', 'parties')} · ${plural(statOf('k'), 'victime', 'victimes')} · ${plural(statOf('w'), 'victoire', 'victoires')} · ${plural(statOf('l'), 'niveau gagné', 'niveaux gagnés')}`;
+  $('#cos-stats').textContent = settings.admin ? `${st} · mode admin : tout est débloqué` : st;
+  customEl.querySelectorAll('.cos-tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.k === cosTab)));
+  if (first || !cosHintT) $('#cos-hint').textContent = COS_HINTS[cosTab];
+  const grid = $('#cos-grid'), phr = $('#cos-phr'), m = cosMap(), mine = myCos();
+  grid.innerHTML = ''; grid.className = 'cos-grid' + (cosTab === 'c' ? ' cards' : ''); grid.setAttribute('role', cosTab === 'e' ? 'group' : 'radiogroup');
+  if (cosTab === 'e') { const eq = myEmotes(); EMOTES.forEach((_, i) => grid.appendChild(cosTile('e', EMOTES, i, eq.includes(i), eq.indexOf(i) + 1 || 0))); }
+  else { const L = COS_KINDS[cosTab], cur = mine[{ b: 0, f: 1, c: 2 }[cosTab]]; L.forEach((_, i) => grid.appendChild(cosTile(cosTab, L, i, i === cur))); }
+  $('#cos-card').hidden = cosTab !== 'c'; $('#cos-phr-lbl').hidden = cosTab !== 'c'; phr.hidden = cosTab !== 'c'; phr.innerHTML = '';
+  if (cosTab === 'c') CARD_PHRASES.forEach((it, i) => {
+    const ok = cosOk(CARD_PHRASES, i), b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio');
+    b.className = ok ? '' : 'locked'; b.setAttribute('aria-checked', String(i === mine[3]));
+    b.textContent = ok ? `« ${it.name} »` : `? · ${needTxt(it.need)}`;
+    if (ok && Array.isArray(settings.cosNew) && settings.cosNew.includes('p' + i)) b.textContent += ' · nouveau';
+    b.addEventListener('click', () => { if (!ok) { cosHint(`Phrase mystère : se débloque à ${needTxt(it.need)} (tu en es à ${statOf(it.need[0])}).`); return; } m.p = i; saveSettings(); renderCustom(); });
+    phr.appendChild(b);
+  });
+  cosPrevT = 0;
+}
+customEl.querySelectorAll('.cos-tabs button').forEach(b => b.addEventListener('click', () => { cosTab = b.dataset.k; clearTimeout(cosHintT); cosHintT = 0; renderCustom(true); }));
+$('#btn-custom').addEventListener('click', openCustom);
+$('#custom-close').addEventListener('click', closeCustom);
+syncCosBadge();
+// Aperçus animés tant que l'écran est ouvert
+let cosPrevT = 0;
+function drawLockedTile(c, w, h) {
+  c.fillStyle = 'rgba(243,229,192,.08)'; c.beginPath(); c.arc(w / 2, h / 2, Math.min(w, h) * 0.36, 0, TAU); c.fill();
+  c.fillStyle = 'rgba(243,229,192,.75)'; c.font = `${Math.round(Math.min(w, h) * 0.42)}px "Bagel Fat One", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', w / 2, h / 2 + 2);
+}
+function drawFlamePreview(c, fi, t) {
+  const F = FLAME_SKINS[fi];
+  for (let li = 0; li < 3; li++) {
+    const w = 30 * FLAME_LAYERS[li][0] * (1 + 0.08 * Math.sin(t * 30 + li)), a = 44;
+    c.fillStyle = F.rainbow ? (li === 2 ? '#fffaf0' : `hsl(${(Math.round(t * 140) + li * 30) % 360},100%,${li ? 70 : 55}%)`) : F.L[li];
+    c.beginPath(); c.arc(64, 64, w * 0.78, 0, TAU); c.fill();
+    c.fillRect(64 - a, 64 - w / 2, a * 2, w); c.fillRect(64 - w / 2, 64 - a, w, a * 2);
+    for (const [dx, dy] of [[a, 0], [-a, 0], [0, a], [0, -a]]) { c.beginPath(); c.arc(64 + dx, 64 + dy, w / 2, 0, TAU); c.fill(); }
+  }
+}
+function drawCosPreviews(now) {
+  if (now - cosPrevT < 50) return; cosPrevT = now;
+  const t = now / 1000, me = { id: 0, skin: settings.skin, pal: palFor(0), cs: myCos() };
+  for (const cv of customEl.querySelectorAll('canvas[data-k]')) {
+    const c = cv.getContext('2d'), k = cv.dataset.k, i = +cv.dataset.i;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    if (cv.dataset.lk) { drawLockedTile(c, cv.width, cv.height); continue; }
+    if (k === 'b') { c.setTransform(2.4, 0, 0, 2.4, 0, 0); drawBomb(c, 26.7, 26, { timer: FUSE * (0.8 + 0.2 * Math.sin(t)), owner: { ...me, cs: [i, 0, 0, 0] } }, t); }
+    else if (k === 'f') drawFlamePreview(c, i, t);
+    else if (k === 'e') drawEmoteIcon(c, i, 64, 60, 2.2, me.pal.ui);
+    else if (k === 'c') { c.setTransform(cv.width / 380, 0, 0, cv.width / 380, 0, 0); cardBg(c, i, 3, 3, 374, 106, t); if (i === 5) drawCrown(c, 56, 30, 1.6); }
+  }
+  const big = $('#cos-card');
+  if (!big.hidden) { const c = big.getContext('2d'); c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, 380, 112); drawVictimCard(c, me, settings.name, 190, 56, 1, '', t, me.cs); }
+}
 $('#admin-pill').addEventListener('click', () => setAdmin(false));
 $('#btn-account').addEventListener('click', openAccount);
 $('#acc-close').addEventListener('click', closeAccount);
@@ -4241,6 +4703,7 @@ window.addEventListener('keydown', e => {
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
+  if (!customEl.hidden) { if (code === 'Escape') closeCustom(); return; }
   if (!accEl().hidden) { if (code === 'Escape') closeAccount(); return; }
   const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
@@ -4269,6 +4732,10 @@ window.addEventListener('keydown', e => {
     if (code === 'KeyP') pause();
     else if (code === 'KeyM') toggleMute();
     else if (code === 'KeyC' && G.mode === 'br' && inGame() && !e.repeat) cycleCam();
+    else if (/^(Digit|Numpad)[1-4]$/.test(code) && inGame() && !e.repeat) {
+      const pi = NET.role || G.mode === 'br' ? localIdx() : (code.startsWith('Numpad') && settings.mode === 'duo' ? 1 : 0);
+      emoteSlot(G.players[pi], +code.slice(-1) - 1);
+    }
     return;
   }
   e.preventDefault();
@@ -4302,6 +4769,18 @@ pad.addEventListener('pointerdown', e => { e.preventDefault(); try { pad.setPoin
 pad.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') padMove(e); });
 pad.addEventListener('pointerup', () => padSet(null));
 pad.addEventListener('pointercancel', () => padSet(null));
+// emotes au tactile : le bouton ouvre une petite rangée des emotes équipées
+$('#temote').addEventListener('pointerdown', e => {
+  e.preventDefault(); const pop = $('#emote-pop');
+  if (!pop.hidden) { pop.hidden = true; return; }
+  pop.innerHTML = '';
+  myEmotes().forEach((n, sl) => {
+    const b = document.createElement('button'); b.type = 'button'; b.tabIndex = -1; b.textContent = EMOTES[n].ic || EMOTES[n].tx; b.setAttribute('aria-label', EMOTES[n].name);
+    b.addEventListener('pointerdown', ev => { ev.preventDefault(); emoteSlot(G.players[localIdx()], sl); pop.hidden = true; });
+    pop.appendChild(b);
+  });
+  pop.hidden = !pop.children.length;
+});
 $('#tstop').addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) { p.stopQueued = true; (p.hold || (p.hold = new Set())).add('T'); } });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('#tstop').addEventListener(ev, () => { for (const p of G.players) if (p.hold) p.hold.delete('T'); });
 tbomb.addEventListener('pointerdown', e => { e.preventDefault(); const p = G.players[localIdx()]; if (p && !p.ai && !p.remote && inGame() && G.phase === 'play' && !G.paused) p.bombQueued = true; });
@@ -4491,7 +4970,11 @@ function onHostData(L, d) {
   L.lastSeen = performance.now();
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
-    if (L.gin && G.players[L.slot] && G.players[L.slot].remote) { G.players[L.slot].aura = L.gin.au | 0; G.players[L.slot].elo = L.gin.el | 0; }
+    if (L.gin && G.players[L.slot] && G.players[L.slot].remote) {
+      const rp = G.players[L.slot]; rp.aura = L.gin.au | 0; rp.elo = L.gin.el | 0; rp.cs = L.gin.cs;
+      const em = L.gin.em;
+      if (em) { if (L.lastEm === undefined || em[0] < L.lastEm) L.lastEm = em[0]; else if (em[0] > L.lastEm) { L.lastEm = em[0]; doEmote(rp, em[1]); } }
+    }
     if (L.gin && L.gin.sk !== L.skin) { L.skin = L.gin.sk; if (!NET.started) refreshHostLobby(); else if (G.mode === 'br' && G.players[L.slot] && G.players[L.slot].remote) G.players[L.slot].skin = L.skin; }
     if (L.gin && (L.gin.aid !== L.aid || L.gin.el !== L.elo)) {
       L.aid = L.gin.aid; L.elo = L.gin.el;
@@ -4546,7 +5029,7 @@ function startOnlineMatch() {
 }
 /* ---------- Invité ---------- */
 function guestInit(peer, code, pub) {
-  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
+  Object.assign(NET, { role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -4703,6 +5186,7 @@ function readGuest(pr) {
     nk: cleanNick(pr.nk, ''), pid: typeof pr.pid === 'string' ? pr.pid.slice(0, 32) : '',
     aid: typeof pr.aid === 'string' && /^[a-z0-9]{12}$/.test(pr.aid) ? pr.aid : '', el: clamp(num(pr.el) | 0, 0, 9999),
     sk: clamp(num(pr.sk) | 0, 0, CHARS.length - 1), au: clamp(num(pr.au) | 0, 0, 10), lf: num(pr.lf) | 0,
+    cs: cosClean(pr.cs), em: Array.isArray(pr.em) && pr.em.length === 2 ? [num(pr.em[0]) | 0, num(pr.em[1]) | 0] : null,
   };
 }
 function applyGuestInput() {
@@ -4722,11 +5206,11 @@ function applyGuestInput() {
 }
 const b36 = (n, w) => { let s = Math.max(0, n | 0).toString(36); while (s.length < w) s = '0' + s; return s; };
 function buildSnap() {
-  let g = '', f = '', bu = '';
+  let g = '', f = '', bu = '', fo = '';
   const kw = N > 1296 ? 3 : 2;   // largeur des numéros de case en base 36
   for (let k = 0; k < N; k++) {
     g += G.items[k] >= 0 && G.grid[k] === EMPTY ? String.fromCharCode(97 + G.items[k]) : String(G.grid[k]);
-    if (G.flameT[k] > 0) f += b36(k, kw) + b36(G.flameBits[k], 1) + b36(Math.min(35, Math.round(G.flameT[k] * 60)), 1);
+    if (G.flameT[k] > 0) { f += b36(k, kw) + b36(G.flameBits[k], 1) + b36(Math.min(35, Math.round(G.flameT[k] * 60)), 1); fo += b36(Math.min(35, G.flameOwner[k] + 1), 1); }
     if (G.burn[k] > 0) bu += b36(k, kw) + b36(Math.min(35, Math.round(G.burn[k] * 60)), 1);
   }
   const b = [];
@@ -4739,7 +5223,8 @@ function buildSnap() {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
-    seed: G.seed, g, f, bu, b, fa, tw, p, e: NET.events.slice(), kw,
+    seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw,
+    cs: G.players.map(o => csOf(o)), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1),
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), pk: G.players.map(o => o.peak | 0), bw: G.brWinner ?? -1, kb: G.players.map(o => o.killedBy ?? -1) } : {}),
   };
 }
@@ -4774,6 +5259,9 @@ function decodeSnap(s) {
     if (p.skin !== sk) { p.skin = sk; hudDirty = true; }
     if (i !== NET.me) p.aura = Array.isArray(s.au) ? clamp(num(s.au[i]) | 0, 0, 10) : 0;
     if (i !== NET.me) p.elo = Array.isArray(s.eo) ? clamp(num(s.eo[i]) | 0, 0, 9999) : 0;
+    if (i !== NET.me && Array.isArray(s.cs)) p.cs = cosClean(s.cs[i]);
+    if (Array.isArray(s.kl)) p.kills = num(s.kl[i]) | 0;
+    if (Array.isArray(s.kb)) p.killedBy = num(s.kb[i]) | 0;
   });
   NET.kinds = kinds;
   G.phase = PH[s.ph] || 'play'; G.phaseT = num(s.pt) / 100; G.time = num(s.tm) / 10; G.sudden = !!s.sd; G.suddenFlash = num(s.sf) / 100;
@@ -4792,9 +5280,9 @@ function decodeSnap(s) {
       G.grid[k] = nv; G.items[k] = -1;
     }
   }
-  G.flameT.fill(0); G.flameBits.fill(0);
-  const f = String(s.f || '');
-  for (let i = 0; i + kw + 2 <= f.length; i += kw + 2) { const k = parseInt(f.substr(i, kw), 36); if (k >= 0 && k < N) { G.flameBits[k] = parseInt(f[i + kw], 36) || 0; G.flameT[k] = (parseInt(f[i + kw + 1], 36) || 0) / 60; } }
+  G.flameT.fill(0); G.flameBits.fill(0); G.flameOwner.fill(-1);
+  const f = String(s.f || ''), fo = String(s.fo || '');
+  for (let i = 0, j = 0; i + kw + 2 <= f.length; i += kw + 2, j++) { const k = parseInt(f.substr(i, kw), 36); if (k >= 0 && k < N) { G.flameBits[k] = parseInt(f[i + kw], 36) || 0; G.flameT[k] = (parseInt(f[i + kw + 1], 36) || 0) / 60; G.flameOwner[k] = (parseInt(fo[j], 36) || 0) - 1; } }
   G.burn.fill(0);
   const bu = String(s.bu || '');
   for (let i = 0; i + kw + 1 <= bu.length; i += kw + 1) { const k = parseInt(bu.substr(i, kw), 36); if (k >= 0 && k < N) G.burn[k] = Math.max(0.001, (parseInt(bu[i + kw], 36) || 0) / 60); }
@@ -4892,6 +5380,7 @@ function sendGuest() {
       t: 'g', role: 'guest', mi: NET.mi, rd: G.round, x: Math.round(me.x * 1000) / 1000, y: Math.round(me.y * 1000) / 1000,
       f: Math.max(0, FACES.indexOf(me.face)), m: me.moving ? 1 : 0, b: NET.bombSeq, k: NET.kickReq, st: NET.stopSeq, tw: NET.throwReq,
       nk: settings.name, pid: settings.pid, aid: myAid(), el: ELO.me ? ELO.me.elo | 0 : 0, sk: settings.skin, au: me.aura | 0, lf: me.life | 0,
+      cs: myCos(), em: [NET.emSeq | 0, NET.emN | 0],
     });
   } catch (e) {}
 }
@@ -4960,7 +5449,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, secretEl, accEl(), ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, onlineEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -4993,6 +5482,7 @@ function navBack(root) {
   else if (root === helpEl) closeHelp();
   else if (root === ranksEl) closeRanks();
   else if (root === secretEl) closeSecret();
+  else if (root === customEl) closeCustom();
   else if (root === accEl()) closeAccount();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
@@ -5048,6 +5538,7 @@ function pollPads() {
           if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
           padVec[code] = dir ? vec : null;
           if (G.mode === 'br' && hit(8) && !Object.values(pb).includes(8)) cycleCam();
+          [2, 3, 4, 5].forEach((bi, sl) => { if (hit(bi) && !Object.values(pb).includes(bi)) emoteSlot(p, sl); });
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
           if (!p.hold) p.hold = new Set();
@@ -5196,7 +5687,7 @@ else window.addEventListener('resize', resize);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  pollPads(); update(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (G.mode === 'br') brHudTick(now);
+  pollPads(); update(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); if (G.mode === 'br') brHudTick(now);
   requestAnimationFrame(loop);
 }
 function boot(data) {
@@ -5218,7 +5709,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { orbsFor, pickup, kill, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { orbsFor, pickup, kill, placeBomb, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
