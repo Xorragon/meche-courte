@@ -1279,10 +1279,10 @@ const Sfx = {
       .then(buf => { this.bufs[k] = buf; }).catch(() => {});
   },
   // Explosion selon le type de bombe (skin choisi, ou bombe du perso)
-  boom(kind, force) {
+  boom(kind, force, mul) {
     if (this.muted || !this.ac || G.mode === 'demo') return;
     try {
-      const now = this.ac.currentTime, v = force || (now - this.lastBoom < 0.06 ? 0.35 : 0.85); this.lastBoom = now;
+      const now = this.ac.currentTime, v = (force || (now - this.lastBoom < 0.06 ? 0.35 : 0.85)) * (mul || 1); this.lastBoom = now;
       const buf = this.bufs[kind] || this.bufs.classic;
       if (buf) {
         const s = this.ac.createBufferSource(), g = this.ac.createGain();
@@ -1813,9 +1813,20 @@ function pickup(p, k) {
 // l'explosion est-elle à l'écran ? (sinon pas de secousse ni de vibration)
 const inView = (x, y) => G.mode !== 'br' || ((x + 0.5) * T >= G.cam.x && (x + 0.5) * T <= G.cam.x + W && (y + 0.5) * T >= G.cam.y && (y + 0.5) * T <= G.cam.y + H);
 const nearView = (x, y) => G.mode !== 'br' || (Math.abs((x + 0.5) * T - (G.cam.x + W / 2)) < W * 0.7 && Math.abs((y + 0.5) * T - (G.cam.y + H / 2)) < H * 0.7);
+// Son des explosions : seulement si la bombe est à l'écran, et plus faible quand elle est loin de nous
+const onScreen = (x, y, m) => (x + 0.5) * T >= G.cam.x - m && (x + 0.5) * T <= G.cam.x + W + m && (y + 0.5) * T >= G.cam.y - m && (y + 0.5) * T <= G.cam.y + H + m;
+function earVol(x, y) {
+  let ears = [];
+  if (!REPLAY.on && !NET.spec) ears = (NET.role ? [G.players[localIdx()]] : G.players.filter(p => !p.ai)).filter(p => p && p.alive);
+  let d;
+  if (ears.length) d = Math.min(...ears.map(p => Math.hypot(p.x - x, p.y - y)));
+  else d = Math.hypot((G.cam.x + W / 2) / T - 0.5 - x, (G.cam.y + H / 2) / T - 0.5 - y); // mort, spectateur, replay : le centre de l'écran
+  return Math.max(0.15, 1 / (1 + (d / 5) * (d / 5)));   // 2 cases : 86 %, 5 cases : 50 %, 8 cases : 28 %
+}
 const FX = {
   boom(cx, cy, who) {
-    if (!nearView(cx, cy)) return; explosionFx(cx, cy); Sfx.boom(boomKind(G.players[who | 0]));
+    if (!nearView(cx, cy)) return; explosionFx(cx, cy);
+    if (onScreen(cx, cy, T * 0.3)) Sfx.boom(boomKind(G.players[who | 0]), 0, earVol(cx, cy));
     if (inView(cx, cy)) { if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); rumble(0.15, 0.35, 90); }
   },
   crate(x, y) {
@@ -6741,7 +6752,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { leaveOnline, Sfx, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { leaveOnline, Sfx, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
