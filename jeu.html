@@ -927,7 +927,7 @@ const ITEMS = [
   { name: 'Bombe en plus',    short: '+1 bombe',  desc: 'Une bombe de plus à poser en même temps.', c1: '#9a90ff', c2: '#4a3cc0' },
   { name: 'Poudre vive',      short: '+1 portée', desc: 'Tes explosions vont une case plus loin.',  c1: '#ff9152', c2: '#c43f0b' },
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
-  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête.', c1: '#ffd66e', c2: '#c4860c' },
+  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête. Tout le monde l\'a dès le départ, sauf en battle royale où il faut le trouver.', c1: '#ffd66e', c2: '#c4860c' },
   { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde E (B à la manette) enfoncé et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
   // orbes de points (battle royale) : pas dans la légende des bonus
   { name: 'Orbe', short: '+2', orb: 2, c1: '#ffe27a', c2: '#d99a1a' },
@@ -1307,7 +1307,7 @@ function genMap(seed) {
     if (r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
   }
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
-  const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 4];
+  const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4];
   for (let i = 0; i < bag.length && i < pairs.length; i++) { G.hidden[pairs[i][0]] = bag[i]; G.hidden[pairs[i][1]] = bag[i]; }
   // ordre de chute de la mort subite : spirale sur les 2 rangées du bord seulement
   const order = []; let x0 = 1, y0 = 1, x1 = COLS - 2, y1 = ROWS - 2;
@@ -1339,7 +1339,8 @@ function makePlayer(i, lv, nick) {
 }
 function resetPlayer(p) {
   const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
-  p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = false; p.throw = false; p.active = 0;
+  // hors battle royale, tout le monde a le coup de botte dès le départ (il n'est plus dans les caisses)
+  p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = G.mode !== 'br'; p.throw = false; p.active = 0;
   p.alive = true; p.deathT = 0; p.deadTick = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
   if (p.ai) { p.ai.path = []; p.ai.cd = 0.25 + p.id * 0.1 + Math.random() * 0.1; p.ai.sig = -1; p.ai.stuck = 0; p.ai.goal = -1; p.ai.nb = shuffled(NB); }
 }
@@ -1678,7 +1679,7 @@ function updateFalling(dt) {
     if (f.t <= 0) { G.falling.splice(i, 1); land(f.k); }
   }
 }
-const RAIN_BAG = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 4];
+const RAIN_BAG = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4];
 function rainBonus() {
   const cands = [];
   for (let k = 0; k < N; k++) {
@@ -1720,7 +1721,7 @@ function scatterLoot(p) {
   for (let i = 1; i < p.maxBombs; i++) loot.push(0);
   for (let i = 2; i < p.range; i++) loot.push(1);
   for (let i = 0; i < p.speedLv; i++) loot.push(2);
-  if (p.kick) loot.push(3);
+  if (p.kick && G.mode === 'br') loot.push(3);
   if (p.throw) loot.push(4);
   if (!loot.length) return;
   const cx = Math.round(p.x), cy = Math.round(p.y), cands = [];
