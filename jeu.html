@@ -1200,7 +1200,7 @@ const NET = {
   events: [], fxSeq: 0, lastFx: 0, lastQ: -1, q: 0, gotSnap: false,
   bombSeq: 0, kickSeq: 0, kickReq: null, kickT: -9, throwSeq: 0, throwReq: null, throwT: -9, sendT: 0, links: [], started: false, me: 1, stopSeq: 0,
 };
-const localIdx = () => NET.role === 'guest' ? NET.me : 0;
+const localIdx = () => NET.role === 'guest' ? NET.me : (NET.hostSlot | 0);
 // spectateur : personne n'est « toi » ; la caméra et la carte du joueur suivent NET.follow
 const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : localIdx();
 const inGame = () => G.mode === 'match' || G.mode === 'br';
@@ -1870,6 +1870,7 @@ const FX = {
   },
   drop(x, y) { if (x === undefined || nearView(x, y)) Sfx.play('drop'); },
   megaGo(id) { if (!G.megaOn) megaStart(id | 0, 0); },
+  hostMoved(id, old) { if ((id | 0) !== localIdx()) migToast(`${nameOf(id | 0)} reprend la partie : elle continue !`); },
   contract(id, tg) {
     id |= 0; tg |= 0; const me = localIdx();
     if (id === me) { brToast(`Contrat : souffle ${nameOf(tg)} dans les ${CT_DUR} s : +${BR_CONTRACT_PTS} points !`); Sfx.play('pickup'); }
@@ -3329,7 +3330,7 @@ function brSeekEnd() {
   if (slot < 0) { brToast('Tous les battle royale sont pleins : partie hors ligne'); return; }
   let peer;
   try { peer = new window.Peer(brId(slot), peerOptions()); } catch (err) { return; }
-  Object.assign(NET, { role: 'host', peer, links: [], specs: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0, pubN: 0 });
+  Object.assign(NET, { role: 'host', hostSlot: 0, peer, links: [], specs: [], code: 'br-' + slot, events: [], started: true, sendT: 0, pub: true, br: true, cdEnd: 0, pubN: 0 });
   NET.mi++;
   peer.on('connection', conn => {
     if (NET.peer !== peer) return;
@@ -5629,6 +5630,7 @@ function peerErrorText(err) {
   return "La connexion a échoué. Réessaie dans un moment.";
 }
 function dropPeer() {
+  clearTimeout(NET.aliasT); if (NET.alias) { const a = NET.alias; NET.alias = null; setTimeout(() => { try { a.destroy(); } catch (e) {} }, 150); }
   const links = NET.links.slice(), l = NET.link, p = NET.peer;
   NET.links = []; NET.link = null; NET.peer = null;
   setTimeout(() => {
@@ -5702,7 +5704,7 @@ function hostGame(e, attempt = 0, pub = null) {
   const code = pub ? 'pub-' + pub.slot : makeCode();
   let peer;
   try { peer = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (err) { failOnline(peerErrorText(err)); return; }
-  Object.assign(NET, { role: 'host', peer, links: [], specs: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
+  Object.assign(NET, { role: 'host', hostSlot: 0, peer, links: [], specs: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
     $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Lobby créé.';
@@ -5749,8 +5751,10 @@ const specCount = () => (NET.specs || []).filter(S => S.conn.open).length;
 function onHostData(L, d) {
   if (!d || typeof d !== 'object' || NET.links.indexOf(L) < 0) return;
   L.lastSeen = performance.now();
+  if (d.t === 'moved' && NET.started && typeof d.id === 'string' && d.id.length < 80) { rejoinAsGuest(d.id); return; }
   if (d.t === 'g') {
     L.gin = readGuest(d) || L.gin;
+    if (L.fresh && L.gin) { L.fresh = false; L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; L.lastThrow = L.gin.tw ? L.gin.tw[0] : 0; }
     if (L.gin && G.players[L.slot] && G.players[L.slot].remote) {
       const rp = G.players[L.slot]; rp.aura = L.gin.au | 0; rp.elo = L.gin.el | 0; rp.cs = L.gin.cs;
       const em = L.gin.em;
@@ -5792,7 +5796,7 @@ function startOnlineMatch() {
   if (humans < 2 && NET.pub) return;
   NET.cdEnd = 0;
   const bots = NET.pub ? 0 : clamp(Math.max(settings.bots | 0, 2 - humans), 0, 4 - humans);
-  Sfx.init(); NET.mi++; NET.started = true;
+  Sfx.init(); NET.mi++; NET.started = true; NET.hostSlot = 0;
   G.mode = 'match'; G.paused = false;
   NET.mid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [makePlayer(0, null, settings.name)];
@@ -5809,8 +5813,153 @@ function startOnlineMatch() {
   blurActive();
 }
 /* ---------- Invité ---------- */
+/* ---------- Reprise de la partie quand l'hôte s'en va (ou ne répond plus) ----------
+   L'hôte envoie régulièrement l'adresse PeerJS de chaque vrai joueur. S'il part, chacun calcule le même successeur
+   (le vrai joueur restant au plus petit numéro) : celui-ci devient l'hôte avec l'état qu'il a déjà, les autres s'y reconnectent. */
+function peerIdList() {
+  const ids = G.players.map(() => '');
+  if (NET.peer && NET.peer.id) ids[localIdx()] = NET.peer.id;
+  for (const L of NET.links) if (L.slot >= 0 && L.conn && L.conn.peer) ids[L.slot] = L.conn.peer;
+  return ids;
+}
+function migToast(msg) { if (G.mode === 'br') brToast(msg); else xpToast(msg, true); }
+function hostLost(voluntary) {
+  if (NET.role !== 'guest' || !NET.gotSnap || NET.migrating) return;
+  const ids = NET.peerIds || [], hs = NET.hsSeen | 0, bad = NET.migBad || [];
+  const cands = ids.map((_, i) => i).filter(i => i !== hs && ids[i] && !bad.includes(i) && G.players[i] && !G.players[i].isBot);
+  if (!cands.length) { opponentLeft("L'hôte a quitté la partie."); return; }
+  const succ = cands[0], old = NET.link;
+  NET.migrating = { succ, hs, at: performance.now(), tries: 0 }; NET.link = null;
+  // l'ancien hôte, s'il n'était que figé, saura où la partie continue
+  try { if (old && old.open) old.send({ t: 'moved', id: ids[succ], slot: NET.me }); } catch (e) {}
+  setTimeout(() => { try { old && old.close(); } catch (e) {} }, 300);
+  const who = nameOf(hs);
+  if (succ === NET.me && !NET.spec) { migToast(`${who} a quitté : tu reprends la partie, elle continue !`); becomeHost(hs, voluntary); }
+  else { migToast(`${who} a quitté : ${nameOf(succ)} reprend la partie…`); connectMig(ids[succ], succ); }
+}
+function connectMig(id, succ) {
+  const M = NET.migrating, peer = NET.peer; if (!M || !peer) return;
+  M.tries++;
+  let conn; try { conn = peer.connect(id, { serialization: 'json', metadata: { mig: 1, slot: NET.me, spec: NET.spec ? 1 : 0 } }); } catch (e) { conn = null; }
+  if (!conn) return;
+  NET.link = conn; attachGuestConn(conn);
+  conn.on('open', () => { if (NET.link !== conn) return; NET.migrating = null; NET.lastSeen = performance.now(); sendGuest(); migToast('La partie continue !'); });
+  setTimeout(() => {
+    if (NET.link !== conn || conn.open || NET.migrating !== M) return;
+    try { conn.close(); } catch (e) {}
+    if (M.tries < 4) connectMig(id, succ);
+    else { NET.migBad = [...(NET.migBad || []), succ]; NET.migrating = null; NET.link = null; hostLost(false); }
+  }, 3000);
+}
+function migToBot(p) {
+  p.remote = false; p.moving = false; p.dirStack = [];
+  p.ai = newAI(G.mode === 'br' ? brBotLevel() : AI_LV[clamp(settings.diff | 0, 0, 2)], p.id);
+  if (G.mode === 'br') { p.nick = brBotName(); p.aid = ''; }
+}
+function becomeHost(hs, voluntary) {
+  const me = NET.me, now = performance.now(), pend = NET.pendConns || [];
+  Object.assign(NET, { role: 'host', hostSlot: me, links: [], specs: NET.specs || [], events: [], started: true, sendT: 0, q: NET.lastQ + 60, fxSeq: NET.lastFx + 60,
+    cdEnd: 0, link: null, seek: null, migrating: null, br: G.mode === 'br', migWait: {}, pendConns: [] });
+  G.players.forEach((p, i) => {
+    if (!p.dirStack) p.dirStack = [];
+    if (i === me) { p.remote = false; p.ai = null; return; }
+    if (p.isBot || (i === hs && voluntary)) migToBot(p);
+    else { p.remote = true; p.ai = null; NET.migWait[i] = now + 8000; }
+    if (i === hs) p.migGone = true;
+  });
+  // ce que seul l'ancien hôte savait : bombes en cours par joueur, contenu des caisses, minuteries
+  for (const p of G.players) p.active = G.bombs.filter(b => b.owner === p).length + G.thrown.filter(f => f.b.owner === p).length;
+  for (let k = 0; k < N; k++) {
+    if (G.grid[k] !== CRATE) { G.hidden[k] = -1; continue; }
+    if (G.mode === 'br') G.hidden[k] = Math.random() < 0.15 ? BR_BAG[(Math.random() * BR_BAG.length) | 0] : Math.random() < BR_CRATE_ORB ? ORB0 : -1;
+    else { const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4]; G.hidden[k] = Math.random() < 0.22 ? bag[(Math.random() * bag.length) | 0] : -1; }
+  }
+  if (!Array.isArray(G.sdOrder) || !G.sdOrder.length) { genMapSdOrder(); }
+  if (G.sudden) { while (G.sdIdx < G.sdOrder.length && G.grid[G.sdOrder[G.sdIdx]] === STONE) G.sdIdx++; }
+  if (G.mode === 'br') {
+    G.brT = G.brT || 0; if (G.chestK < 0) G.chestT = CHEST_EVERY;
+    for (const p of G.players) { if (p.ct && p.ct.at !== undefined) p.ct = { tg: p.ct.tg, until: G.brT + Math.max(5, p.ct.left - (G.t - p.ct.at)) }; if (p.shield) p.shield = 1.2; }
+  }
+  for (const c of pend) hostOnConn(c);
+  claimAlias(0);
+  fx('hostMoved', me, hs);
+  hudCache = {}; setupHud();
+  if (!endEl.hidden) { $('#again').hidden = false; $('#end-note').textContent = ''; }
+}
+function genMapSdOrder() {
+  const order = []; let x0 = 1, y0 = 1, x1 = COLS - 2, y1 = ROWS - 2;
+  for (let ring = 0; ring < SD_RINGS && x0 <= x1 && y0 <= y1; ring++) {
+    for (let x = x0; x <= x1; x++) order.push(idx(x, y0));
+    for (let y = y0 + 1; y <= y1; y++) order.push(idx(x1, y));
+    if (y1 > y0) for (let x = x1 - 1; x >= x0; x--) order.push(idx(x, y1));
+    if (x1 > x0) for (let y = y1 - 1; y > y0; y--) order.push(idx(x0, y));
+    x0++; y0++; x1--; y1--;
+  }
+  G.sdOrder = order.filter(k => G.grid[k] !== PILLAR);
+}
+// le nouvel hôte reprend aussi l'adresse publique de la partie (code, partie publique, battle royale) dès qu'elle se libère
+function claimAlias(tries) {
+  const code = NET.code; if (!code || code.startsWith(PEER_PREFIX) || NET.role !== 'host' || NET.alias) return;
+  let ap; try { ap = new window.Peer(PEER_PREFIX + code, peerOptions()); } catch (e) { return; }
+  NET.alias = ap;
+  ap.on('connection', conn => { if (NET.alias === ap && NET.role === 'host') hostOnConn(conn); });
+  ap.on('error', err => {
+    if (NET.alias !== ap) return;
+    if (err && (err.type === 'unavailable-id' || err.type === 'network' || err.type === 'server-error')) { NET.alias = null; try { ap.destroy(); } catch (e) {} if (tries < 20 && NET.role === 'host') NET.aliasT = setTimeout(() => claimAlias(tries + 1), 4000); }
+  });
+}
+// connexions arrivant sur le pair d'un invité : quelqu'un a vu l'hôte partir avant nous
+function onPeerConn(pp, conn) {
+  if (NET.peer !== pp) { try { conn.close(); } catch (e) {} return; }
+  if (NET.role === 'host') { hostOnConn(conn); return; }
+  if (NET.role === 'guest' && conn.metadata && (conn.metadata.mig || conn.metadata.spec)) { (NET.pendConns = NET.pendConns || []).push(conn); hostLost(false); if (NET.role === 'host') return; return; }
+  try { conn.close(); } catch (e) {}
+}
+function hostOnConn(conn) {
+  if (conn.metadata && conn.metadata.spec) { addSpec(conn); return; }
+  const md = conn.metadata || {}, now = performance.now();
+  const refuse = t => conn.on('open', () => { try { conn.send({ t }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 300); });
+  let slot = -1;
+  if (md.mig && Number.isInteger(md.slot)) {
+    const p = G.players[md.slot];
+    if (p && md.slot !== localIdx() && !NET.links.some(L => L.slot === md.slot) && (p.remote || p.migGone)) slot = md.slot;
+  }
+  if (slot < 0) {
+    if (G.mode !== 'br' || G.players.filter(p => !p.ai).length >= BR_MAX_HUMANS) { refuse(G.mode === 'br' ? 'full' : 'started'); return; }
+    const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastThrow: 0, lastSeen: now, slot: -1 };
+    NET.links.push(L);
+    conn.on('open', () => { L.lastSeen = performance.now(); brAddHuman(L); });
+    conn.on('data', d => onHostData(L, d)); conn.on('close', () => dropLink(L)); conn.on('error', () => dropLink(L));
+    return;
+  }
+  const p = G.players[slot];
+  if (p.ai || p.migGone) { if (p.alive && G.mode === 'br') scatterLoot(p); p.ai = null; p.migGone = false; p.isBot = false; }
+  p.remote = true; p.moving = false; if (NET.migWait) delete NET.migWait[slot];
+  const L = { conn, gin: null, lastBomb: 0, lastKick: 0, lastStop: 0, lastThrow: 0, lastSeen: now, slot, fresh: true };
+  NET.links.push(L);
+  conn.on('open', () => { L.lastSeen = performance.now(); });
+  conn.on('data', d => onHostData(L, d)); conn.on('close', () => dropLink(L)); conn.on('error', () => dropLink(L));
+  hudCache = {}; setupHud();
+}
+// ancien hôte resté figé (onglet en veille…) : la partie a continué ailleurs, il la rejoint comme invité
+function rejoinAsGuest(id) {
+  if (NET.role !== 'host' || NET.rejoining) return;
+  const slot = localIdx(), code = NET.code, pub = NET.pub;
+  for (const L of NET.links) { try { L.conn.close(); } catch (e) {} }
+  dropPeer();
+  let peer; try { peer = new window.Peer(undefined, peerOptions()); } catch (e) { opponentLeft('La connexion a été perdue.'); return; }
+  guestInit(peer, code, pub); NET.me = slot; NET.rejoining = true;
+  migToast('La partie a continué sans toi : tu la rejoins…');
+  peer.on('open', () => {
+    if (NET.peer !== peer) return;
+    const conn = peer.connect(id, { serialization: 'json', metadata: { mig: 1, slot } });
+    attachGuestConn(conn);
+    conn.on('open', () => { if (NET.link === conn) { NET.lastSeen = performance.now(); sendGuest(); } });
+  });
+  peer.on('error', err => guestPeerError(peer, err));
+}
 function guestInit(peer, code, pub) {
-  Object.assign(NET, { spec: false, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
+  Object.assign(NET, { spec: false, migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false, hostSlot: 0, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -5826,7 +5975,7 @@ function guestOpened(conn) {
 function attachGuestConn(conn) {
   NET.link = conn;
   conn.on('data', onGuestData);
-  conn.on('close', () => { if (NET.link !== conn) return; if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby(NET.pub ? "La partie publique s'est fermée avant de commencer." : "Le lobby s'est fermé avant le début de la partie."); });
+  conn.on('close', () => { if (NET.link !== conn) return; if (NET.gotSnap) { if (NET.migrating) return; hostLost(false); } else backToLobby(NET.pub ? "La partie publique s'est fermée avant de commencer." : "Le lobby s'est fermé avant le début de la partie."); });
   conn.on('error', () => { if (NET.link === conn && !NET.gotSnap) backToLobby(peerErrorText({ type: 'webrtc' })); });
 }
 function guestPeerError(peer, err) {
@@ -6010,14 +6159,14 @@ function onGuestData(d) {
   }
   else if (d.t === 'specwait') $('#net-wait-text').textContent = "La partie n'a pas encore commencé : elle s'affichera dès son lancement.";
   else if (d.t === 'specfull') backToLobby('Il y a déjà trop de spectateurs sur cette partie.');
-  else if (d.t === 'bye') { if (NET.gotSnap) opponentLeft("L'hôte a quitté la partie."); else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
+  else if (d.t === 'bye') { if (NET.gotSnap) { if (d.mig) hostLost(true); else opponentLeft("L'hôte a quitté la partie."); } else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
 }
 function leaveOnline() {
-  if (NET.role === 'host') { for (const L of [...NET.links, ...(NET.specs || [])]) if (L.conn.open) { try { L.conn.send({ t: 'bye' }); } catch (e) {} } }
+  if (NET.role === 'host') { const mig = NET.started && inGame() ? 1 : 0; for (const L of [...NET.links, ...(NET.specs || [])]) if (L.conn.open) { try { L.conn.send({ t: 'bye', mig }); } catch (e) {} } }
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '' });
+  Object.assign(NET, { role: null, hostSlot: 0, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '', migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false });
   G.specN = 0; syncSpecBar();
 }
 function opponentLeft(msg) {
@@ -6078,7 +6227,8 @@ function buildSnap() {
     q: ++NET.q, mi: NET.mi, n: G.players.length, k: G.players.map(o => o.ai ? 'b' : 'h').join(''),
     ph: PH.indexOf(G.phase), pt: Math.round(G.phaseT * 100), tm: Math.round(G.time * 10),
     sd: G.sudden ? 1 : 0, sf: Math.round(Math.max(0, G.suddenFlash) * 100), rd: G.round, sc: G.scores.slice(), lw: G.lastWinner, wn: G.winsNeeded, pl: G.places.slice(), gn: G.gains.slice(), fs: G.firsts.slice(), nm: G.players.map(o => o.nick), ids: G.players.map(o => o.aid || ''), md: NET.mid || '', sk: G.players.map(o => o.skin | 0), au: G.players.map(o => o.ai ? 0 : o.aura | 0), eo: G.players.map(o => o.ai ? 0 : o.elo | 0),
-    seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw, sn: G.specN | 0,
+    seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw, sn: G.specN | 0, rg: G.bombs.map(o => o.range | 0), twr: G.thrown.map(o => o.b.range | 0),
+    ...(NET.q % 6 === 0 ? { pr: peerIdList(), hs: localIdx() } : {}),
     cs: G.players.map(o => csOf(o)), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1),
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), pk: G.players.map(o => o.peak | 0), bw: G.brWinner ?? -1, kb: G.players.map(o => o.killedBy ?? -1),
       ct: G.players.map(o => o.ct ? [o.ct.tg, Math.max(0, Math.round((o.ct.until - G.brT) * 10))] : 0), ck: G.chestK ?? -1, chp: G.chestHp | 0 } : {}),
@@ -6148,14 +6298,14 @@ function decodeSnap(s) {
   for (let i = 0; i + 8 <= bs.length; i += 8) {
     const pass = new Set(), m = num(bs[i + 7]);
     for (let j = 0; j < Math.min(n, 31); j++) if (m & (1 << j)) pass.add(j);
-    G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[clamp(num(bs[i + 6]) | 0, 0, n - 1)], range: 2, passers: pass });
+    G.bombs.push({ x: clamp(num(bs[i]) | 0, 0, COLS - 1), y: clamp(num(bs[i + 1]) | 0, 0, ROWS - 1), mdx: Math.sign(num(bs[i + 2])), mdy: Math.sign(num(bs[i + 3])), prog: num(bs[i + 4]) / 100, timer: num(bs[i + 5]) / 100, owner: G.players[clamp(num(bs[i + 6]) | 0, 0, n - 1)], range: clamp(num(Array.isArray(s.rg) ? s.rg[i / 8] : 2) | 0 || 2, 1, MAX_RANGE), passers: pass });
   }
   const tws = Array.isArray(s.tw) ? s.tw : [];
   G.thrown = [];
   for (let i = 0; i + 8 <= tws.length; i += 8) {
     const owner = G.players[clamp(num(tws[i + 6]) | 0, 0, n - 1)];
     G.thrown.push({ sx: num(tws[i]) | 0, sy: num(tws[i + 1]) | 0, dx: Math.sign(num(tws[i + 2])), dy: Math.sign(num(tws[i + 3])), n: clamp(num(tws[i + 4]) | 0, 1, 200), t: num(tws[i + 5]) / 1000,
-      b: { owner, timer: num(tws[i + 7]) / 100, mdx: 0, mdy: 0, prog: 0, x: 0, y: 0, passers: new Set() } });
+      b: { owner, timer: num(tws[i + 7]) / 100, mdx: 0, mdy: 0, prog: 0, x: 0, y: 0, passers: new Set(), range: clamp(num(Array.isArray(s.twr) ? s.twr[i / 8] : 2) | 0 || 2, 1, MAX_RANGE) } });
   }
   const fa = Array.isArray(s.fa) ? s.fa : [];
   G.falling = [];
@@ -6199,6 +6349,8 @@ function decodeSnap(s) {
   if (typeof s.md === 'string' && /^[a-z0-9]{10,24}$/.test(s.md)) NET.mid = s.md;
   if (G.phase === 'matchEnd' && prevPhase !== 'matchEnd' && !first) { G.matchWin = []; G.ranking = []; showEnd(); }
   G.specN = num(s.sn) | 0;
+  if (Array.isArray(s.pr)) { NET.peerIds = s.pr.slice(0, 32).map(v => typeof v === 'string' && v.length < 80 ? v : ''); NET.hsSeen = clamp(num(s.hs) | 0, 0, 31); }
+  if (NET.peer && !NET.peer._migL) { NET.peer._migL = true; const pp = NET.peer; pp.on('connection', conn => onPeerConn(pp, conn)); }
   if (br) {
     G.brWinner = num(s.bw) | 0;
     G.chestK = typeof s.ck === 'number' ? s.ck | 0 : -1; G.chestHp = num(s.chp) | 0;
@@ -6274,11 +6426,12 @@ function netTick() {
     }
     for (const L of NET.links.slice()) if (now - L.lastSeen > 10000) dropLink(L);
     for (const S of (NET.specs || []).slice()) if (now - S.lastSeen > 15000) dropSpec(S);
+    if (NET.migWait) for (const k of Object.keys(NET.migWait)) if (now > NET.migWait[k]) { delete NET.migWait[k]; const p = G.players[+k]; if (p && p.remote && !NET.links.some(L => L.slot === +k)) { migToBot(p); p.migGone = true; fx('left', +k); setupHud(); } }
   } else if (NET.role === 'guest') {
     const l = NET.link; if (!l || !l.open) return;
     if (!NET.gotSnap && NET.lastSeen && now - NET.lastSeen > 10000) { backToLobby("La connexion avec l'hôte a été perdue."); return; }
     if (now - NET.sendT > 33) { NET.sendT = now; sendGuest(); }
-    if (NET.lastSeen && now - NET.lastSeen > 10000 && NET.gotSnap) opponentLeft("La connexion avec l'hôte a été perdue.");
+    if (NET.lastSeen && now - NET.lastSeen > 4000 && NET.gotSnap && !NET.migrating) hostLost(false);
   }
 }
 document.getElementById('net-join').addEventListener('submit', e => { e.preventDefault(); joinGame($('#net-code-in').value); });
@@ -6565,8 +6718,21 @@ function loop(now) {
     requestAnimationFrame(loop); return;
   }
   pollPads(); update(dt); recTick(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); syncSpecBar(); if (G.mode === 'br') brHudTick(now);
-  requestAnimationFrame(loop);
+  syncBg(); requestAnimationFrame(loop);
 }
+// Onglet caché pendant une partie en ligne : le navigateur arrête requestAnimationFrame (et ralentit les minuteries).
+// Un minuteur dans un worker, qui n'est pas ralenti, fait alors tourner la partie et le réseau 30 fois par seconde, sans dessin :
+// l'hôte continue d'envoyer la partie aux autres, et un invité continue de répondre.
+const bgWorker = (() => { try { return new Worker(URL.createObjectURL(new Blob(['let h=0;onmessage=e=>{clearInterval(h);h=0;if(e.data)h=setInterval(()=>postMessage(0),e.data)}'], { type: 'text/javascript' }))); } catch (e) { return null; } })();
+let bgOn = false;
+function syncBg() { const want = !!bgWorker && document.hidden && !!NET.role; if (want === bgOn) return; bgOn = want; try { bgWorker.postMessage(want ? 33 : 0); } catch (e) {} }
+if (bgWorker) bgWorker.onmessage = () => {
+  if (!document.hidden) return;
+  const now = performance.now(), dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  if (!REPLAY.on) { update(dt); recTick(dt); xpTick(dt); }
+  netTick(); syncBg();
+};
+document.addEventListener('visibilitychange', syncBg);
 function boot(data) {
   data = data || {};
   if (data.settings) Object.assign(settings, data.settings);
@@ -6586,7 +6752,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { Sfx, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { leaveOnline, Sfx, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
