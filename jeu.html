@@ -1083,13 +1083,12 @@ function botCos(p) {
   return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
 }
 // son d'explosion : celui du skin de bombe choisi, ou celui de la bombe du perso
-const BOOM_FILES = ['classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy', 'tech', 'magic', 'slime', 'smoke', 'mega'];
+const BOOM_FILES = ['classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy', 'mega'];
 const BOOM_SKIN = ['', 'classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy'];
-const BOOM_CHAR = { robot: 'tech', renard: 'pumpkin', mage: 'magic', sorciere: 'magic', slime: 'slime', ninja: 'smoke', rodeur: 'tech', astral: 'magic' };
+// le son suit le skin de bombe choisi ; la bombe du perso fait le son classique pour tous les persos
 function boomKind(p) {
   if (!p) return 'classic';
-  const bs = csOf(p)[0] | 0; if (bs > 0) return BOOM_SKIN[bs] || 'classic';
-  const ch = CHARS[p.skin | 0]; return (ch && BOOM_CHAR[ch.key]) || 'classic';
+  const bs = csOf(p)[0] | 0; return bs > 0 ? BOOM_SKIN[bs] || 'classic' : 'classic';
 }
 const csOf = p => p.cs || (p.cs = p.ai || p.isBot ? botCos(p) : [0, 0, 0, 0, 0, 0]);
 function cosAllKeys() { const out = []; for (const k in COS_KINDS) COS_KINDS[k].forEach((_, i) => { if (cosOkReal(COS_KINDS[k], i)) out.push(k + i); }); return out; }
