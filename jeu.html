@@ -1082,6 +1082,14 @@ function botCos(p) {
   const pick = L => { const ok = L.map((_, i) => i).filter(i => cosOkReal(L, i)); return ok[r(ok.length)] | 0; };
   return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
 }
+// son d'explosion : celui du skin de bombe choisi, ou celui de la bombe du perso
+const BOOM_SKIN = ['', 'classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy'];
+const BOOM_CHAR = { robot: 'tech', renard: 'pumpkin', mage: 'magic', sorciere: 'magic', slime: 'slime', ninja: 'smoke', rodeur: 'tech', astral: 'magic' };
+function boomKind(p) {
+  if (!p) return 'classic';
+  const bs = csOf(p)[0] | 0; if (bs > 0) return BOOM_SKIN[bs] || 'classic';
+  const ch = CHARS[p.skin | 0]; return (ch && BOOM_CHAR[ch.key]) || 'classic';
+}
 const csOf = p => p.cs || (p.cs = p.ai || p.isBot ? botCos(p) : [0, 0, 0, 0, 0, 0]);
 function cosAllKeys() { const out = []; for (const k in COS_KINDS) COS_KINDS[k].forEach((_, i) => { if (cosOkReal(COS_KINDS[k], i)) out.push(k + i); }); return out; }
 function syncCosBadge() { const d = document.querySelector('#btn-custom .cos-dot'); if (d) d.hidden = !(Array.isArray(settings.cosNew) && settings.cosNew.length); }
@@ -1243,6 +1251,10 @@ const Sfx = {
       const len = this.ac.sampleRate, buf = this.ac.createBuffer(1, len, this.ac.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       this.nb = buf;
+      // bruit « 8 bits » : valeurs tenues et seulement 4 niveaux (pour la bombe rétro)
+      const b8 = this.ac.createBuffer(1, len, this.ac.sampleRate), d8 = b8.getChannelData(0); let v8 = 0;
+      for (let i = 0; i < len; i++) { if (i % 28 === 0) v8 = (Math.floor(Math.random() * 4) - 1.5) / 1.5; d8[i] = v8; }
+      this.nb8 = b8;
     } catch (e) { this.ac = null; }
   },
   tone(type, f0, f1, dur, vol, delay = 0) {
@@ -1251,22 +1263,80 @@ const Sfx = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.03);
   },
-  noise(dur, vol, f0, f1, delay = 0) {
+  noise(dur, vol, f0, f1, delay = 0, type = 'lowpass', q = 1, buf) {
     const a = this.ac, t = a.currentTime + delay, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-    s.buffer = this.nb; f.type = 'lowpass';
+    s.buffer = buf || this.nb; f.type = type; f.Q.value = q;
     f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.out); s.start(t, Math.random() * 0.4); s.stop(t + dur + 0.03);
+  },
+  // Explosion selon le type de bombe (skin choisi, ou bombe du perso)
+  boom(kind, force) {
+    if (this.muted || !this.ac || G.mode === 'demo') return;
+    try {
+      const now = this.ac.currentTime, v = (force || (now - this.lastBoom < 0.06 ? 0.35 : 0.85)) * ({ slime: 1.45, smoke: 1.3, magic: 1.3, crystal: 1.15 }[kind] || 1); this.lastBoom = now;
+      const R = (a, b) => a + Math.random() * (b - a), j = R(0.94, 1.06);   // petite variation à chaque explosion
+      switch (kind) {
+        case 'pumpkin':   // citrouille : « plop » creux et mouillé, quelques graines qui retombent
+          this.noise(0.5, v * 0.75, 1300 * j, 80); this.tone('sine', 190 * j, 46, 0.36, v * 0.95);
+          this.noise(0.16, v * 0.5, 650, 220, 0.02, 'bandpass', 2.5); this.tone('triangle', 240 * j, 170, 0.09, v * 0.3);
+          for (const dl of [0.09, 0.15, 0.22, 0.3]) this.noise(0.03, v * 0.18, 2500, 1800, dl + R(0, 0.03), 'highpass', 1);
+          break;
+        case 'snow':      // boule de neige : « foump » feutré, craquement de neige et petit scintillement froid
+          this.noise(0.45, v * 0.55, 900 * j, 120); this.tone('sine', 95 * j, 40, 0.3, v * 0.55);
+          this.noise(0.22, v * 0.45, 3200, 2000, 0.01, 'highpass', 0.8);
+          this.tone('triangle', 2637 * j, 2600, 0.14, v * 0.1, 0.05); this.tone('triangle', 3520 * j, 3500, 0.16, v * 0.08, 0.1);
+          break;
+        case 'retro':     // rétro : explosion 8 bits
+          this.noise(0.5, v * 0.8, 3800, 160, 0, 'lowpass', 1, this.nb8); this.tone('square', 420 * j, 38, 0.42, v * 0.22);
+          this.tone('square', 150 * j, 30, 0.35, v * 0.2, 0.03);
+          break;
+        case 'crystal':   // cristal : éclats de verre qui tintent longtemps
+          this.noise(0.3, v * 0.5, 5200, 3000, 0, 'highpass', 0.9); this.tone('sine', 110 * j, 40, 0.3, v * 0.5);
+          for (const f of [2093, 2794, 3520, 4186, 5274]) this.tone(Math.random() < 0.5 ? 'sine' : 'triangle', f * R(0.98, 1.02), f * 0.985, R(0.5, 1), v * 0.07, R(0, 0.07));
+          break;
+        case 'lava':      // lave : grondement grave, sifflement de vapeur, bulles
+          this.noise(0.95, v * 0.95, 650 * j, 40); this.tone('sine', 70 * j, 24, 0.85, v);
+          this.tone('sawtooth', 55, 28, 0.6, v * 0.12); this.noise(0.75, v * 0.22, 4500, 2500, 0.12, 'highpass', 0.7);
+          for (const dl of [0.28, 0.4, 0.55]) this.tone('sine', R(260, 340), R(520, 700), 0.06, v * 0.16, dl);
+          break;
+        case 'gold':      // dorée : explosion brillante et pièces qui tintent
+          this.noise(0.5, v * 0.8, 2800 * j, 120); this.tone('sine', 130 * j, 40, 0.42, v * 0.85);
+          [1568, 2093, 2637, 1976].forEach((f, i) => { this.tone('triangle', f, f, 0.12, v * 0.13, 0.06 + i * 0.055 + R(0, 0.02)); this.tone('square', f * 2, f * 2, 0.03, v * 0.03, 0.06 + i * 0.055); });
+          break;
+        case 'galaxy':    // galaxie : balayage spatial et étoiles
+          this.tone('sine', 900 * j, 55, 0.6, v * 0.4); this.tone('sawtooth', 300 * j, 40, 0.5, v * 0.12);
+          this.noise(0.6, v * 0.55, 3000, 220, 0, 'bandpass', 1.4); this.tone('sine', 110, 35, 0.4, v * 0.6);
+          for (let i = 0; i < 5; i++) this.tone('sine', R(1500, 3200), R(1400, 3000), 0.12, v * 0.06, 0.08 + i * 0.07);
+          break;
+        case 'tech':      // robot, créature : « zap » électrique puis explosion
+          this.tone('square', 1300 * j, 90, 0.22, v * 0.16); this.noise(0.5, v * 0.75, 2500, 100); this.tone('sine', 140 * j, 35, 0.4, v * 0.8);
+          for (let i = 0; i < 4; i++) this.noise(0.03, v * 0.25, 6000, 4000, R(0.03, 0.25), 'highpass', 1);
+          break;
+        case 'magic':     // mage, sorcière, astral : explosion douce et arpège magique
+          this.noise(0.5, v * 0.6, 1800 * j, 100); this.tone('sine', 120 * j, 40, 0.4, v * 0.65);
+          [784, 988, 1175, 1568].forEach((f, i) => this.tone('triangle', f * j, f * j, 0.16, v * 0.1, 0.03 + i * 0.045));
+          this.noise(0.4, v * 0.12, 6500, 5000, 0.05, 'bandpass', 3);
+          break;
+        case 'slime':     // gloop : « splotch » visqueux
+          this.noise(0.35, v * 0.7, 800 * j, 60); this.tone('sine', 320 * j, 60, 0.25, v * 0.6); this.tone('sine', 190 * j, 45, 0.2, v * 0.45, 0.08);
+          this.noise(0.2, v * 0.35, 1100, 300, 0.03, 'bandpass', 3);
+          break;
+        case 'smoke':     // ninja : bombe fumigène, « pfff » et petit tintement métallique
+          this.tone('triangle', 3100 * j, 3000, 0.05, v * 0.12); this.noise(0.65, v * 0.6, 2600, 600, 0, 'bandpass', 0.8);
+          this.tone('sine', 100 * j, 45, 0.25, v * 0.5); this.noise(0.5, v * 0.25, 900, 150, 0.08);
+          break;
+        default:          // classique
+          this.noise(0.65, v, 2200 * j, 90); this.tone('sine', 120 * j, 32, 0.5, v * 0.9);
+      }
+    } catch (e) {}
   },
   play(n) {
     if (this.muted || !this.ac || G.mode === 'demo') return;
     try {
       switch (n) {
         case 'drop': this.tone('sine', 320, 110, 0.13, 0.35); break;
-        case 'boom': {
-          const now = this.ac.currentTime, v = now - this.lastBoom < 0.06 ? 0.35 : 0.85; this.lastBoom = now;
-          this.noise(0.65, v, 2200, 90); this.tone('sine', 120, 32, 0.5, v * 0.9); break;
-        }
+        case 'boom': this.boom('classic'); break;
         case 'item': this.tone('triangle', 660, 660, 0.09, 0.28); this.tone('triangle', 990, 990, 0.09, 0.28, 0.07); this.tone('triangle', 1320, 1320, 0.14, 0.24, 0.14); break;
         case 'kick': this.noise(0.09, 0.4, 3500, 700); this.tone('square', 210, 90, 0.07, 0.12); break;
         case 'throw': this.noise(0.22, 0.3, 2600, 500); this.tone('sine', 260, 620, 0.2, 0.14); break;
@@ -1625,7 +1695,7 @@ function explode(b) {
     }
   }
   rebuildBombAt();
-  fx('boom', cx, cy);
+  fx('boom', cx, cy, who);
 }
 function updateBombs(dt) {
   for (const b of G.bombs) {
@@ -1764,8 +1834,8 @@ function pickup(p, k) {
 const inView = (x, y) => G.mode !== 'br' || ((x + 0.5) * T >= G.cam.x && (x + 0.5) * T <= G.cam.x + W && (y + 0.5) * T >= G.cam.y && (y + 0.5) * T <= G.cam.y + H);
 const nearView = (x, y) => G.mode !== 'br' || (Math.abs((x + 0.5) * T - (G.cam.x + W / 2)) < W * 0.7 && Math.abs((y + 0.5) * T - (G.cam.y + H / 2)) < H * 0.7);
 const FX = {
-  boom(cx, cy) {
-    if (!nearView(cx, cy)) return; explosionFx(cx, cy); Sfx.play('boom');
+  boom(cx, cy, who) {
+    if (!nearView(cx, cy)) return; explosionFx(cx, cy); Sfx.boom(boomKind(G.players[who | 0]));
     if (inView(cx, cy)) { if (!reduceMotion) G.shake = Math.min(10, G.shake + 5); rumble(0.15, 0.35, 90); }
   },
   crate(x, y) {
@@ -1837,7 +1907,7 @@ const FX = {
   mega(id) {
     if (!G.megaOn) megaStart(id | 0, MEGA_HIT);
     G.megaBoomFx = true;
-    G.megaFlash = 1.6; Sfx.play('boom'); setTimeout(() => Sfx.play('boom'), 160); setTimeout(() => Sfx.play('boom'), 380);
+    const mk = boomKind(G.players[id | 0]); G.megaFlash = 1.6; Sfx.boom(mk, 1); setTimeout(() => Sfx.boom(mk, 1), 160); setTimeout(() => Sfx.boom('classic', 1), 380);
     if (!reduceMotion) G.shake = 22; rumble(0.9, 1, 900);
     G.megaRing = { x: (G.megaTx + 0.5) * T, y: (G.megaTy + 0.5) * T, t: 0 };
     const x = (G.megaTx + 0.5) * T, y = (G.megaTy + 0.5) * T;
@@ -5220,7 +5290,7 @@ function closeCustom() {
   try { $('#btn-custom').focus({ preventScroll: true }); } catch (e) {}
 }
 const COS_HINTS = {
-  b: "Le skin de tes bombes, que tout le monde voit. « Bombe du perso » garde la bombe de ton perso.",
+  b: "Le skin de tes bombes, que tout le monde voit et entend : chacun a son propre bruit d'explosion (clique pour l'écouter). « Bombe du perso » garde la bombe et le son de ton perso.",
   f: 'La couleur des flammes de tes explosions, et du souffle de ta giga bombe en battle royale.',
   e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone.',
   c: 'Ce que voient les joueurs que tu souffles : un style de carte et ta phrase.',
@@ -5244,6 +5314,7 @@ function cosTile(k, L, i, sel, slot) {
       if (at >= 0) cur.splice(at, 1); else if (cur.length >= 4) { cosHint('4 emotes au plus : retire d’abord une emote équipée.'); return; } else cur.push(i);
       m.e = cur;
     } else m[k] = i;
+    if (k === 'b') { Sfx.init(); const was = G.mode; if (was === 'demo') G.mode = 'menu'; Sfx.boom(boomKind({ skin: settings.skin, cs: [i, 0, 0, 0, 0, 0] }), 0.85); G.mode = was; }
     saveSettings(); renderCustom();
   });
   return b;
@@ -6515,7 +6586,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { Sfx, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
