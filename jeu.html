@@ -1440,9 +1440,20 @@ function tryMove(p, ax, dir, dist) {
   const off = p[pa] - lane;
   if (Math.abs(off) > 1e-4) {
     const c = Math.round(p[ax]);
+    // une bombe qu'on peut pousser (ou lancer) devant soi compte comme un passage : on se recale dans son couloir,
+    // puis le coup de pied part (sinon, en montant à côté d'une bombe, appuyer vers elle ne faisait rien)
+    const K = (along, perp) => {
+      if (!C(along, perp)) return true;
+      if (p.ai || (!p.kick && !p.throw)) return false;
+      const x = ax === 'x' ? along : perp, y = ax === 'x' ? perp : along;
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return false;
+      const b = G.bombAt[y * COLS + x];
+      if (!b || b.mdx || b.mdy || b.passers.has(p.id) || x !== b.x || y !== b.y) return false;
+      return canThrow(p, b) || (p.kick && !bombBlocked(b.x + (ax === 'x' ? dir : 0), b.y + (ax === 'y' ? dir : 0), b));
+    };
     let target = null;
-    if (!C(c + dir, lane)) target = lane;
-    else { const l2 = lane + Math.sign(off); if (1 - Math.abs(off) <= ASSIST && !C(c + dir, l2)) target = l2; }
+    if (K(c + dir, lane)) target = lane;
+    else { const l2 = lane + Math.sign(off); if (1 - Math.abs(off) <= ASSIST && K(c + dir, l2)) target = l2; }
     if (target === null) return 0;
     const need = Math.abs(target - p[pa]), step = Math.min(need, dist);
     p[pa] += Math.sign(target - p[pa]) * step; moved += step; dist -= step;
@@ -2232,7 +2243,16 @@ function freeAxis(p, ax, d) {
 function freeNudge(p, ax, dir, amt) {
   const o = ax === 'x' ? 'y' : 'x', lane = Math.round(p[o]), off = p[o] - lane;
   const ahead = Math.round(p[ax]) + dir;
-  const free = l => !(ax === 'x' ? blockedFor(p, ahead, l) : blockedFor(p, l, ahead));
+  // une bombe qu'on peut pousser ou lancer compte comme libre : on glisse dans son couloir, puis elle part
+  const pushable = l => {
+    if (p.ai || (!p.kick && !p.throw)) return false;
+    const x = ax === 'x' ? ahead : l, y = ax === 'x' ? l : ahead;
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS || G.grid[y * COLS + x] !== EMPTY) return false;
+    const b = G.bombAt[y * COLS + x];
+    if (!b || b.mdx || b.mdy || b.passers.has(p.id)) return false;
+    return canThrow(p, b) || (p.kick && !bombBlocked(b.x + (ax === 'x' ? dir : 0), b.y + (ax === 'y' ? dir : 0), b, true));
+  };
+  const free = l => !(ax === 'x' ? blockedFor(p, ahead, l) : blockedFor(p, l, ahead)) || pushable(l);
   let target = null;
   if (free(lane)) { if (Math.abs(off) > 1e-4) target = lane; }
   else if (Math.abs(off) > 1e-4) { const l2 = lane + Math.sign(off); if (1 - Math.abs(off) <= FREE_NUDGE && free(l2)) target = l2; }
