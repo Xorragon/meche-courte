@@ -1242,7 +1242,7 @@ const effBots = () => clamp(settings.bots | 0, minBots(), Math.max(minBots(), ma
    Audio synthétisé
    ========================================================= */
 const Sfx = {
-  ac: null, out: null, nb: null, muted: false, lastBoom: 0,
+  ac: null, out: null, nb: null, muted: false, lastBoom: 0, lastDeath: -1, live: [],
   init() {
     if (this.ac) { if (this.ac.state === 'suspended') this.ac.resume().catch(() => {}); return; }
     try {
@@ -1289,7 +1289,8 @@ const Sfx = {
       if (buf) {
         const s = this.ac.createBufferSource(), g = this.ac.createGain();
         s.buffer = buf; s.playbackRate.value = 0.96 + Math.random() * 0.08;   // petite variation à chaque explosion
-        g.gain.value = v * 1.2; s.connect(g); g.connect(this.out); s.start(now);
+        g.gain.value = v * 1.2 * (now - this.lastDeath < 0.12 ? 0.12 : 1); s.connect(g); g.connect(this.out); s.start(now);
+        this.live = (this.live || []).filter(o => o.end > now); this.live.push({ g, end: now + buf.duration });
         return;
       }
       // fichiers pas encore chargés : explosion synthétique simple
@@ -1308,7 +1309,11 @@ const Sfx = {
         case 'throw': this.noise(0.22, 0.3, 2600, 500); this.tone('sine', 260, 620, 0.2, 0.14); break;
         case 'bounce': this.tone('sine', 300, 150, 0.08, 0.22); break;
         case 'halt': this.tone('square', 180, 70, 0.08, 0.14); this.noise(0.06, 0.25, 1500, 400); break;
-        case 'death': this.tone('sawtooth', 520, 70, 0.7, 0.22); this.noise(0.4, 0.3, 1200, 200, 0.05); break;
+        case 'death': {   // son de mort d'origine ; les explosions en cours baissent pour qu'on l'entende bien
+          const now = this.ac.currentTime; this.lastDeath = now;
+          for (const o of this.live || []) if (o.end > now) { const g = o.g.gain; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(g.value * 0.12, now + 0.04); }
+          this.tone('sawtooth', 520, 70, 0.7, 0.22); this.noise(0.4, 0.3, 1200, 200, 0.05); break;
+        }
         case 'win': [523, 659, 784, 1047].forEach((f, i) => this.tone('triangle', f, f, 0.18, 0.25, i * 0.1)); break;
         case 'draw': this.tone('triangle', 392, 330, 0.3, 0.22); this.tone('triangle', 330, 262, 0.4, 0.22, 0.25); break;
         case 'beep': this.tone('square', 660, 660, 0.08, 0.12); break;
