@@ -1082,7 +1082,6 @@ function botCos(p) {
   const pick = L => { const ok = L.map((_, i) => i).filter(i => cosOkReal(L, i)); return ok[r(ok.length)] | 0; };
   return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
 }
-// son d'explosion : celui du skin de bombe choisi, ou celui de la bombe du perso
 const BOOM_FILES = ['classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy', 'mega'];
 const BOOM_SKIN = ['', 'classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy'];
 // le son suit le skin de bombe choisi ; la bombe du perso fait le son classique pour tous les persos
