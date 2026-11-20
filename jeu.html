@@ -1033,7 +1033,7 @@ const CAMP = [
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui explose au contact et fait double dégât !',
-    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 27, rows: 21, allies: 3, allyLv: 1, wins: 1, time: 600 },
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, allies: 3, allyLv: 1, wins: 1, time: 600 },
   { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
 ];
 const foeName = c => c.npc || CHARS[c.foe].name;
@@ -1523,7 +1523,8 @@ function genMap(seed) {
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
     if (m < k || g[k] !== EMPTY || safe.has(k)) continue;
-    if (!campFlag('noCrates') && r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
+    // crates : part des cases libres avec une caisse (0,8 par défaut)
+    if (!campFlag('noCrates') && r() < (campFlag('crates') || 0.8)) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
   }
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
   const bag = [];   // grande carte : plus de bonus cachés, en proportion
