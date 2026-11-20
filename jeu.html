@@ -5297,7 +5297,8 @@ function drawNpcs(c, t) {
     const name = S.blow ? 'castF' : S.arm > 0.15 ? (side ? 'castS' : 'castF') : S.moving ? (S.look4 || 'down') + (1 + (Math.floor(S.phase || 0) % 3)) : 'down0';
     const feet = y + T * 0.62;
     c.fillStyle = 'rgba(0,0,0,.25)'; ell(c, x, feet - 4, T * 0.42, T * 0.13); c.fill();
-    bossFrame(c, name, x + jx, feet + jy, T * 1.45, { rage: rg ? rg * 0.5 : 0, flip: name === 'castS' && lx < 0, swell: S.blow ? swell : 0 }, KAB_IMG);
+    const angry = (rg > 0) && sheetReady(KAB_RAGE);   // en rage : la planche « en colère » du joueur (sinon, teinte rouge)
+    bossFrame(c, name, x + jx, feet + jy, T * 1.45, { rage: rg && !angry ? rg * 0.5 : 0, flip: name === 'castS' && lx < 0, swell: S.blow ? swell : 0 }, angry ? KAB_RAGE : KAB_IMG);
   } else drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
   if (S.blow && Math.sin(t * (20 + S.blow * 30)) > 0) { c.save(); c.globalAlpha = 0.45; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, T * 0.62 * swell, 0, TAU); c.fill(); c.restore(); }
 }
@@ -5309,7 +5310,7 @@ function drawNpcs(c, t) {
 // corps de 196 px de haut. Images : immobile ×4 directions, sort de face, sort de profil, puis 3 images de marche par direction.
 const SHEET_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 'down2', 'down3', 'left1', 'left2', 'left3', 'up1', 'up2', 'up3', 'right1', 'right2', 'right3'];
 function loadSheet(src) { const im = new Image(); im.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
-const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png');
+const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png'), KAB_RAGE = loadSheet('assets/npc-kaboum-rage.png');   // Kaboum en colère : planche à part
 const sheetReady = im => im.complete && im.naturalWidth > 0, bossReady = () => sheetReady(BOSS_IMG);
 const bossTint = document.createElement('canvas'); bossTint.width = bossTint.height = 224;
 function bossFrame(c, name, x, feetY, h, o, img) {
