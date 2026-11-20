@@ -455,6 +455,16 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .camp-res.ko{background:rgba(255,90,70,.12);color:#ffb3a6;border:1px solid rgba(255,120,100,.4)}
 .camp-bar{width:100%;height:8px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
 .camp-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#e8b23a,#fff1a8);transition:width 1s ease}
+.camp-coop{width:min(560px,100%);margin:0 0 10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.camp-coop .cc-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.camp-coop .cc-row button{padding:8px 16px;font-size:14px}
+.camp-coop .cc-code{display:flex;align-items:center;gap:8px;font-weight:700;color:rgba(243,229,192,.8)}
+.camp-coop .cc-code[hidden]{display:none}
+.camp-coop .cc-code b{font-size:22px;letter-spacing:.14em;color:var(--gold)}
+.camp-coop .cc-mates{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.camp-coop .cc-mates li{padding:4px 12px;border-radius:999px;background:rgba(10,16,10,.5);border:1px solid var(--pc,rgba(243,229,192,.3));font-size:13px;font-weight:700}
+.camp-coop .cc-mates li span{opacity:.65;font-weight:600;margin-left:6px}
+.camp-coop .cc-note{margin:0;font-size:13px;color:rgba(243,229,192,.72);text-align:center}
 .camp-card{width:min(560px,100%);margin:10px 0 8px;padding:14px 18px;border-radius:16px;background:rgba(10,16,10,.5);border:1px solid rgba(243,229,192,.16)}
 .camp-card h3{margin:0 0 6px;font-family:var(--font-display);font-weight:400;font-size:28px}
 .camp-card p{margin:4px 0;color:var(--muted);font-weight:700}
@@ -871,6 +881,11 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="camp-path" id="camp-path" role="group" aria-label="Les 10 défis"></div>
     <div class="camp-bar" aria-hidden="true"><i id="camp-fill"></i></div>
     <div class="camp-card" id="camp-card" role="status"><h3 id="camp-name"></h3><p id="camp-desc"></p><p class="camp-rules" id="camp-rules"></p></div>
+    <div class="camp-coop" id="camp-coop">
+      <div class="cc-row"><button class="ghost" id="camp-inv" type="button">Inviter des amis</button><span class="cc-code" id="camp-codebox" hidden>Code <b id="camp-code"></b><button class="ghost" id="camp-link" type="button">Copier le lien</button></span></div>
+      <ul class="cc-mates" id="camp-mates"></ul>
+      <p class="cc-note" id="camp-coop-note" role="status"></p>
+    </div>
     <div class="row">
       <button class="cta" id="camp-go" type="button">Lancer le défi <kbd>Entrée</kbd></button>
       <button class="ghost" id="camp-back" type="button">Retour <kbd>Échap</kbd></button>
@@ -1986,7 +2001,7 @@ function kill(p, by) {
   if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
-  if (campFlag('tomb') && G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb });   // ses bonus sont éjectés quand même : relevé, il repart sans
+  if (campFlag('tomb') && G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb, kick: p.kick });   // bonus éjectés quand même ; seule la poussée est rendue à la résurrection
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
@@ -2695,13 +2710,14 @@ function update(dt) {
     // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne),
     // et quand le joueur est soufflé sans pouvoir être relevé (sa tombe a disparu ou il n'a plus de coéquipier) : il ne reste que des ordis
     const teams = new Set(G.players.filter(p => p.alive).map(p => p.team));
-    const meDead = !G.players[0].alive && !(G.tombs.some(tb => tb.p.id === 0) && G.players.some(o => o.alive && o.team === 0));
+    // avec des amis : la manche s'arrête quand plus aucun humain de l'équipe ne peut revenir
+    const meDead = G.players.filter(o => !o.ai && o.team === 0).every(h => !h.alive && !(G.tombs.some(tb => tb.p === h) && G.players.some(o => o.alive && o.team === 0)));
     if (teams.size <= 1 || meDead) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(meDead); }
     else G.endTimer = 0;   // quelqu'un a été relevé entre-temps
   } else if (G.phase === 'play' && G.boss) {
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
-    else if (!G.players[0].alive || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // le défi est perdu dès que le joueur est soufflé
+    else if (!G.players.some(o => !o.ai && o.alive) || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // perdu dès que le joueur (et ses amis) sont soufflés
   } else if (G.phase === 'play' && G.mode !== 'br') {
     const alive = G.players.filter(p => p.alive);
     // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
@@ -4842,7 +4858,7 @@ function setupHud() {
     const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
-    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && (G.camp.boss || (G.camp.team && p.team === 0)) && p.ai ? 'Allié' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && (G.camp.boss || (G.camp.team && p.team === 0)) && (p.ai || p.isBot) ? 'Allié' : G.camp && NET.role && !p.ai && !p.isBot && i !== localIdx() ? 'Ami' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
@@ -5079,8 +5095,8 @@ function startMatch() {
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true;
   blurActive(); saveSettings();
 }
-function toMenu() {
-  leaveOnline(); G.camp = null; $('#end-camp').hidden = true;
+function toMenu(keepNet) {
+  if (!keepNet) leaveOnline(); G.camp = null; $('#end-camp').hidden = true;
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
@@ -5116,6 +5132,7 @@ function pause() {
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
+  if (G.camp && NET.role === 'guest') { setTimeout(() => guestCampEnd(null), 350); return; }   // défi joué chez un ami : retour à son salon
   renderEndXp(); $('#again').firstChild.textContent = 'Revanche '; $('#end-camp').hidden = !G.camp;
   if (G.camp) { showEndCamp(); return; }
   if (G.pointsMode) { showEndPoints(); reportMatch(); return; }
@@ -5380,12 +5397,18 @@ function makeBoss(c) {
 const bossAt = (x, y) => !!(G.boss && G.boss.alive && Math.abs(G.boss.x - x) < 0.95 && Math.abs(G.boss.y - y) < 0.95);
 function bossDamage(n) {
   const B = G.boss; if (!B || !B.alive) return;
-  B.hp = Math.max(0, B.hp - n); B.hitT = 0.18;
+  B.hp = Math.max(0, B.hp - n); bossHitFx(B, n);
+  if (!B.rage && B.hp <= B.max / 2) { B.rage = true; bossRageFx(B); fx('snd', 'sudden'); }
+  if (B.hp <= 0) { B.alive = false; B.deadT = 0; G.warn.length = 0; G.bossBlock = null; bossDeathFx(B); }
+}
+function bossHitFx(B, n) {
+  B.hitT = 0.18;
   addP({ kind: 'text', x: (B.x + 0.5) * T + (Math.random() - 0.5) * 20, y: (B.y + 0.5) * T - 46, vx: 0, vy: -50, life: 0.9, max: 0.9, size: n > 1 ? 24 : 18, color: n > 1 ? '#ffd166' : '#fff3e0', text: `-${n}` });
   Sfx.play('thud');
-  if (!B.rage && B.hp <= B.max / 2) { B.rage = true; G.rageFlash = 2.2; G.rageMsg = [`${B.name} se déchaîne !`, 'Ses sorts s\'enchaînent plus vite et frappent plus fort']; fx('snd', 'sudden'); }
-  if (B.hp <= 0) {
-    B.alive = false; B.deadT = 0; G.warn.length = 0; G.bossBlock = null;
+}
+function bossRageFx(B) { G.rageFlash = 2.2; G.rageMsg = [`${B.name} se déchaîne !`, 'Ses sorts s\'enchaînent plus vite et frappent plus fort']; }
+function bossDeathFx(B) {
+  {
     const x = (B.x + 0.5) * T, y = (B.y + 0.5) * T;
     Sfx.boom('mega', 1); setTimeout(() => Sfx.boom('classic', 1), 160);
     if (!reduceMotion) G.shake = 24; rumble(1, 1, 900);
@@ -5400,7 +5423,7 @@ function teamTick(dt) {
     const mate = G.players.find(o => o.alive && o.team === tb.p.team && Math.abs(o.x - tb.x) < 0.6 && Math.abs(o.y - tb.y) < 0.6);
     if (mate) {
       const q = tb.p; G.tombs.splice(i, 1);
-      Object.assign(q, { alive: true, deathT: 0, x: tb.x, y: tb.y, rx: tb.x, ry: tb.y, shield: 1.5, moving: false, killedBy: -1 });   // sans ses bonus (éjectés à sa mort)
+      Object.assign(q, { alive: true, deathT: 0, x: tb.x, y: tb.y, rx: tb.x, ry: tb.y, shield: 1.5, moving: false, killedBy: -1, kick: q.kick || !!tb.kick });   // bonus éjectés à sa mort, sauf la poussée qu'il retrouve
       if (q.ai) { q.ai.path = []; q.ai.cd = 0; q.ai.goal = -1; }
       const cx = (tb.x + 0.5) * T, cy = (tb.y + 0.5) * T;
       for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 140; addP({ kind: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.7, max: 0.7, size: 3, color: j % 2 ? '#fff3b0' : '#7fe0ff' }); }
@@ -5705,7 +5728,7 @@ function openCamp(just, res) {
   renderCamp();
   try { $('#camp-go').focus({ preventScroll: true }); } catch (e) {}
 }
-function closeCamp() { campEl.hidden = true; menuEl.hidden = false; syncCampBtn(); try { $('#btn-camp').focus({ preventScroll: true }); } catch (e) {} }
+function closeCamp() { if (NET.campLobby) leaveOnline(); campEl.hidden = true; menuEl.hidden = false; syncCampBtn(); try { $('#btn-camp').focus({ preventScroll: true }); } catch (e) {} }
 function renderCamp() {
   const d = campDone(), path = $('#camp-path');
   $('#camp-prog').textContent = `${d} / ${CAMP.length} défi${d > 1 ? 's' : ''} réussi${d > 1 ? 's' : ''}`;
@@ -5744,6 +5767,7 @@ function renderCamp() {
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
+  if (NET.role === 'host' && NET.campLobby) refreshHostLobby(); else renderCampCoop();
   go.firstChild.textContent = campRes && !campRes.won && campRes.i === campSel ? 'Réessayer ' : campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
   // résultat du défi qu'on vient de jouer
   const rs = $('#camp-res');
@@ -5765,12 +5789,14 @@ function startCamp(i) {
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
     + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.npc ? 'Boss' : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
-  if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = `Toi + ${c.allies} alliés`;
+  const fr = campSeats(c);
+  if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = fr.length ? `Toi, ${fr.map(L => cleanNick(L.nick, 'Ami')).join(', ')}${c.allies > fr.length ? ` + ${c.allies - fr.length} allié${c.allies - fr.length > 1 ? 's' : ''}` : ''}` : `Toi + ${c.allies} alliés`;
   const cvs = vsEl.querySelectorAll('canvas'), bs = vsEl.querySelectorAll('.vs-side b');
   if (c.team) {
     // deux portraits de chaque côté
-    drawDuo(cvs[0], [me.pal, me.skin], [palFor(2), c.ally]); drawDuo(cvs[1], [palFor(1), c.foes[0]], [palFor(3), c.foes[1]]);
-    bs[0].textContent = `${settings.name || CHARS[me.skin].name} et ${CHARS[c.ally].name}`; bs[1].textContent = foeName(c);
+    const mate = fr[0] ? [Number.isInteger(fr[0].skin) ? fr[0].skin : 0, cleanNick(fr[0].nick, 'Ami')] : [c.ally, CHARS[c.ally].name];
+    drawDuo(cvs[0], [me.pal, me.skin], [palFor(2), mate[0]]); drawDuo(cvs[1], [palFor(1), c.foes[0]], [palFor(3), c.foes[1]]);
+    bs[0].textContent = `${settings.name || CHARS[me.skin].name} et ${mate[1]}`; bs[1].textContent = foeName(c);
     vsEl.querySelector('.vs-side.l span').textContent = 'Ton équipe'; vsEl.querySelector('.vs-side.r span').textContent = `Ordis ${AI_LV_NAME[c.lv]}`;
   } else { drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin); bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = foeName(c); }
   vsEl.querySelector('.vs-top').append(c.name);
@@ -5784,21 +5810,22 @@ function startCampMatch(i) {
   Sfx.init();
   G.mode = 'match'; G.paused = false; G.camp = { i, ...c };
   const me = makePlayer(0, null, settings.name); me.skin = settings.skin;
+  const seats = campSeats(c); for (const L of NET.links) L.slot = -1;
   if (c.boss) {
-    // défi du boss : le joueur et ses alliés (ordis) ; le boss n'est pas un joueur (G.boss)
-    const list = [me]; for (let j = 1; j <= c.allies; j++) list.push(makePlayer(j, AI_LV[c.allyLv]));
-    setPlayers(list); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
+    // défi du boss : le joueur et ses alliés (ordis, ou amis en ligne) ; le boss n'est pas un joueur (G.boss)
+    const list = [me]; for (let j = 1; j <= c.allies; j++) list.push(seats[j - 1] ? seatFriend(seats[j - 1], j) : makePlayer(j, AI_LV[c.allyLv]));
+    setPlayers(list); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
     newRound(); setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
   if (c.team) {
     // 2 contre 2 : toi (0) et ton allié (2) en haut, les adversaires (1 et 3) en bas
-    const al = makePlayer(2, AI_LV[c.lv], CHARS[c.ally].name); al.skin = c.ally;
+    const al = seats[0] ? seatFriend(seats[0], 2) : makePlayer(2, AI_LV[c.lv], CHARS[c.ally].name); if (!seats[0]) al.skin = c.ally;
     const e1 = makePlayer(1, AI_LV[c.lv], skinName(c.foes[0])); e1.skin = c.foes[0];
     const e2 = makePlayer(3, AI_LV[c.lv], skinName(c.foes[1])); e2.skin = c.foes[1];
     me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
-    setPlayers([me, e1, al, e2]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
+    setPlayers([me, e1, al, e2]); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
     newRound(); setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
@@ -5810,17 +5837,86 @@ function startCampMatch(i) {
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
   blurActive();
 }
+/* ---------- Campagne entre amis : l'hôte ouvre un salon depuis l'écran de la campagne ; ses amis remplacent ses alliés ordis ---------- */
+const campAllies = c => !c || !c.name ? 0 : c.team ? 1 : c.boss ? c.allies | 0 : 0;
+const campFriends = () => NET.role === 'host' && NET.campLobby ? NET.links.filter(L => L.conn.open) : [];
+const campSeats = c => campFriends().slice(0, campAllies(c));
+function seatFriend(L, slot) {
+  const p = makePlayer(slot, null, L.nick || 'Ami'); p.remote = true; p.aid = L.aid || ''; if (Number.isInteger(L.skin)) p.skin = L.skin;
+  L.slot = slot; if (L.gin) { L.lastBomb = L.gin.b; L.lastKick = L.gin.k ? L.gin.k[0] : 0; L.lastStop = L.gin.st; L.lastThrow = L.gin.tw ? L.gin.tw[0] : 0; }
+  return p;
+}
+function campNetStart() {
+  if (!(NET.role === 'host' && NET.campLobby)) return;
+  NET.mi++; NET.started = true; NET.hostSlot = 0; NET.campWaitT = 0;
+  NET.mid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
+}
+let campCoopMsg = '';
+function renderCampCoop() {
+  const on = NET.role === 'host' && NET.campLobby, c = CAMP[campSel], n = campAllies(c), fr = campFriends(), note = $('#camp-coop-note');
+  $('#camp-inv').textContent = on ? 'Fermer le salon' : 'Inviter des amis';
+  $('#camp-codebox').hidden = !on;
+  const ul = $('#camp-mates'); ul.innerHTML = '';
+  if (!on) { note.textContent = campCoopMsg || 'Joue la campagne avec des amis : ils remplacent tes alliés ordis.'; return; }
+  $('#camp-code').textContent = String(NET.code || '').toUpperCase();
+  [{ n: settings.name, s: settings.skin, k: 'toi' }, ...fr.map((L, j) => ({ n: L.nick || 'Ami', s: L.skin | 0, k: j < n ? 'joue' : 'attend' }))].forEach((m, j) => {
+    const li = document.createElement('li'); li.style.setProperty('--pc', palFor(j === 0 ? 0 : j).ui);
+    li.textContent = cleanNick(m.n, 'Ami'); const sp = document.createElement('span'); sp.textContent = `${charName(clamp(m.s, 0, CHARS.length - 1))} · ${m.k}`; li.append(sp); ul.appendChild(li);
+  });
+  note.textContent = campCoopMsg ? campCoopMsg
+    : !fr.length ? "Donne ce code à tes amis : « Jouer en ligne », puis « Rejoindre avec un code ». Jusqu'à 3 amis."
+    : !c.name ? ''
+    : !n ? `Le défi ${campSel + 1} se joue seul : tes amis attendront le prochain défi avec des alliés.`
+    : fr.length > n ? `Le défi ${campSel + 1} n'a que ${n} allié${n > 1 ? 's' : ''} : ${n > 1 ? 'les premiers amis jouent' : 'le premier ami joue'}, les autres attendent.`
+    : `${fr.length} ami${fr.length > 1 ? 's' : ''} remplace${fr.length > 1 ? 'nt' : ''} ${fr.length > 1 ? 'tes' : 'ton'} allié${fr.length > 1 ? 's' : ''} ordi${fr.length > 1 ? 's' : ''}${n > fr.length ? ` (${n - fr.length} ordi${n - fr.length > 1 ? 's' : ''} en renfort)` : ''}.`;
+}
+$('#camp-inv').addEventListener('click', () => {
+  campCoopMsg = '';
+  if (NET.role === 'host' && NET.campLobby) { leaveOnline(); renderCampCoop(); return; }
+  if (!peerReady()) { campCoopMsg = "Le module de jeu en ligne n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."; renderCampCoop(); return; }
+  if (NET.role) { campCoopMsg = 'Quitte d\'abord ton autre partie en ligne.'; renderCampCoop(); return; }
+  NET.campLobby = true; hostGame(); renderCampCoop();
+});
+$('#camp-link').addEventListener('click', () => {
+  const btn = $('#camp-link'), url = location.origin + location.pathname + '?partie=' + (NET.code || '');
+  const done = ok => { btn.textContent = ok ? 'Lien copié !' : url; setTimeout(() => { btn.textContent = 'Copier le lien'; }, 2500); };
+  try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+});
+// chez l'ami : fin du défi, retour à l'attente dans le salon de l'hôte
+function guestCampEnd(d) {
+  if (NET.role !== 'guest') return;
+  const i = d ? num(d.i) | 0 : G.camp ? G.camp.i : -1, c = CAMP[i]; if (!c) return;
+  const won = d ? !!d.won : G.lastWinner === 0;
+  if (NET.campEndMi !== NET.mi) {
+    if (!d && !NET.gotSnap) return;
+    NET.campEndMi = NET.mi;
+    NET.campCredit = won && campDone() === i;           // c'était aussi ton prochain défi : il est validé pour toi
+    if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); }
+    NET.gotSnap = false; G.camp = null; G.boss = null; G.tombs = []; G.warn = [];
+    resetDemoPlayers(); endEl.hidden = true; pauseEl.hidden = true;
+    showOnline(NET.view || 'join'); setNetView(true, NET.code, '');
+    $('#net-title').textContent = 'Campagne de ton ami';
+  }
+  const text = d && typeof d.text === 'string' ? ' ' + d.text.slice(0, 160) : '';
+  $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ' Il est validé dans ta campagne.' : ''}`;
+  $('#net-wait-text').textContent = "En attente du prochain défi de ton ami…";
+}
 function showEndCamp() {
   const c = G.camp, won = G.lastWinner === 0, first = won && c.i >= campDone();
   if (won) statMax('cp', c.i + 1);
   // retour direct à l'écran de la campagne (courbe de progression), avec le résultat ; un court délai laisse compter l'XP et les stats
   const text = c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
-    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `Tu as été soufflé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
   const res = { i: c.i, won, text };
   endEl.hidden = true; pauseEl.hidden = true;
-  setTimeout(() => { if (G.camp && G.camp.i === c.i && G.phase === 'matchEnd') { toMenu(); openCamp(first ? c.i : undefined, res); } }, 350);
+  setTimeout(() => {
+    if (!(G.camp && G.camp.i === c.i && G.phase === 'matchEnd')) return;
+    const keep = NET.role === 'host' && NET.campLobby;   // salon avec des amis : il reste ouvert pour le défi suivant
+    if (keep) { NET.started = false; for (const L of NET.links) { L.slot = -1; if (L.conn.open) { try { L.conn.send({ t: 'campend', i: c.i, won: won ? 1 : 0, text }); } catch (e) {} } } }
+    toMenu(keep); openCamp(first ? c.i : undefined, res);
+  }, 350);
   return;
   $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
   const title = $('#end-title'); title.textContent = `Défi ${c.i + 1} · ${c.name}`; title.style.color = won ? '#ffd36e' : '#f3e5c0';
@@ -6657,10 +6753,11 @@ function dropPeer() {
   }, 150);
 }
 function failOnline(msg) {
+  if (NET.campLobby && NET.role === 'host') { campCoopMsg = msg; setTimeout(renderCampCoop, 0); }
   dropPeer();
   if (NET.seek) clearTimeout(NET.seek.timer);
   if (NET.wseek) clearTimeout(NET.wseek.timer);
-  Object.assign(NET, { role: null, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, spec: false, wseek: null });
+  Object.assign(NET, { role: null, campLobby: false, campEndMi: 0, campCredit: false, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, spec: false, wseek: null });
   setNetView(false); renderLobby(msg); syncMenu();
   try { (NET.view === 'join' ? $('#net-code-in') : $('#net-retry')).focus({ preventScroll: true }); } catch (e) {}
 }
@@ -6668,7 +6765,7 @@ function failOnline(msg) {
 function lobbyList() {
   const out = [{ k: 'h', n: settings.name, e: ELO.me ? ELO.me.elo | 0 : 0, s: settings.skin }];
   NET.links.forEach(L => out.push({ k: 'h', n: L.nick || 'Pote', e: L.elo | 0, s: L.skin | 0 }));
-  for (let i = 0, nb = NET.pub ? 0 : effBots(); i < nb; i++) out.push({ k: 'b', n: PALS[out.length].name });
+  for (let i = 0, nb = NET.pub || NET.campLobby ? 0 : effBots(); i < nb; i++) out.push({ k: 'b', n: PALS[out.length].name });
   return out;
 }
 function renderNetPlayers(list, you) {
@@ -6687,11 +6784,16 @@ function renderNetPlayers(list, you) {
 }
 function lobbyMsg(you) {
   const cd = NET.pub && NET.cdEnd ? Math.max(0, Math.ceil((NET.cdEnd - performance.now()) / 1000)) : -1;
-  return { t: 'lobby', list: lobbyList(), you, pub: NET.pub ? 1 : 0, cd, cfg: { diff: settings.diff | 0, wins: settings.wins | 0 } };
+  const camp = NET.campLobby && CAMP[campSel] ? { i: campSel, n: CAMP[campSel].name || '', a: campAllies(CAMP[campSel]), s: you <= campAllies(CAMP[campSel]) ? 1 : 0 } : 0;
+  return { t: 'lobby', list: lobbyList(), you, pub: NET.pub ? 1 : 0, cd, cfg: { diff: settings.diff | 0, wins: settings.wins | 0 }, camp };
 }
 // Texte des réglages du lobby, vu par les potes
 function cfgText(m) {
   const list = Array.isArray(m.list) ? m.list : [], n = list.length, bots = list.filter(x => x && x.k === 'b').length;
+  if (m.camp && typeof m.camp === 'object') {
+    const ci = clamp(num(m.camp.i) | 0, 0, 98), a = num(m.camp.a) | 0, nm = typeof m.camp.n === 'string' ? m.camp.n.slice(0, 60) : '';
+    return `Campagne de ton ami · défi ${ci + 1}${nm ? ' · ' + nm : ''}. ` + (!a ? "Ce défi se joue seul : tu joueras au prochain défi avec des alliés." : m.camp.s ? `Tu y remplaces un allié ordi.` : `Ce défi n'a que ${a} allié${a > 1 ? 's' : ''} : tu attends le suivant.`);
+  }
   if (m.pub) return 'Partie publique : sans ordis. En duel, 3 manches gagnantes ; à 3 ou 4, 3 manches aux points.';
   const c = m.cfg || {}, w = clamp(num(c.wins) | 0, 1, 9);
   const rounds = n >= 3 ? '3 manches aux points' : `${w} manche${w > 1 ? 's' : ''} gagnante${w > 1 ? 's' : ''}`;
@@ -6715,6 +6817,7 @@ function refreshHostLobby() {
       : "Donne ce code à tes potes (ou envoie le lien d'invitation) : ils cliquent sur « Rejoindre avec un code » et l'entrent. Jusqu'à 3 potes.";
   }
   NET.links.forEach((L, i) => { if (L.conn.open) { try { L.conn.send(lobbyMsg(i + 1)); } catch (e) {} } });
+  if (NET.campLobby) renderCampCoop();
 }
 function hostGame(e, attempt = 0, pub = null) {
   if (NET.role || !peerReady()) return;
@@ -6843,6 +6946,7 @@ function peerIdList() {
 function migToast(msg) { if (G.mode === 'br') brToast(msg); else xpToast(msg, true); }
 function hostLost(voluntary) {
   if (NET.role !== 'guest' || !NET.gotSnap || NET.migrating) return;
+  if (G.camp) { opponentLeft("Ton ami (l'hôte) a quitté le défi."); return; }   // la campagne appartient à l'hôte : pas de reprise
   const ids = NET.peerIds || [], hs = NET.hsSeen | 0, bad = NET.migBad || [];
   const cands = ids.map((_, i) => i).filter(i => i !== hs && ids[i] && !bad.includes(i) && G.players[i] && !G.players[i].isBot);
   if (!cands.length) { opponentLeft("L'hôte a quitté la partie."); return; }
@@ -6978,7 +7082,7 @@ function rejoinAsGuest(id) {
 }
 function guestInit(peer, code, pub) {
   G.camp = null;
-  Object.assign(NET, { spec: false, migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false, hostSlot: 0, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
+  Object.assign(NET, { campEndMi: 0, campCredit: false, spec: false, migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false, hostSlot: 0, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
   setPlayers([makePlayer(0, null), makePlayer(1, null)]); G.players[0].remote = true;
@@ -7164,7 +7268,8 @@ function onGuestData(d) {
     if (!NET.gotSnap) {
       const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n, e: x && x.e, s: x && x.s })) : [];
       renderNetPlayers(list, num(d.you) | 0);
-      $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg });
+      $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg, camp: d.camp });
+      if (d.camp && !NET.campEndMi) $('#net-title').textContent = 'Campagne de ton ami';
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
     }
   } else if (d.t === 's') {
@@ -7176,16 +7281,18 @@ function onGuestData(d) {
     backToLobby(d.t === 'full' ? 'Cette partie est déjà complète (4 artificiers au maximum). Tu peux la regarder en spectateur.' : "Cette partie a déjà commencé. Tu peux la regarder en spectateur, ou demander à l'hôte de créer un nouveau lobby.");
     NET.watchId = id; syncWatchBtn();
   }
+  else if (d.t === 'campwait') { if (!NET.gotSnap) $('#net-wait-text').textContent = `Ton ami joue le défi ${(num(d.i) | 0) + 1} sans toi (pas d'allié à remplacer, ou plus de place) : tu joueras au prochain défi.`; }
+  else if (d.t === 'campend') guestCampEnd(d);
   else if (d.t === 'specwait') $('#net-wait-text').textContent = "La partie n'a pas encore commencé : elle s'affichera dès son lancement.";
   else if (d.t === 'specfull') backToLobby('Il y a déjà trop de spectateurs sur cette partie.');
   else if (d.t === 'bye') { if (NET.gotSnap) { if (d.mig) hostLost(true); else opponentLeft("L'hôte a quitté la partie."); } else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
 }
 function leaveOnline() {
-  if (NET.role === 'host') { const mig = NET.started && inGame() ? 1 : 0; for (const L of [...NET.links, ...(NET.specs || [])]) if (L.conn.open) { try { L.conn.send({ t: 'bye', mig }); } catch (e) {} } }
+  if (NET.role === 'host') { const mig = NET.started && inGame() && !NET.campLobby ? 1 : 0; for (const L of [...NET.links, ...(NET.specs || [])]) if (L.conn.open) { try { L.conn.send({ t: 'bye', mig }); } catch (e) {} } }
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, hostSlot: 0, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '', migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false });
+  Object.assign(NET, { role: null, campLobby: false, campEndMi: 0, campCredit: false, hostSlot: 0, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '', migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false });
   G.specN = 0; syncSpecBar();
 }
 function opponentLeft(msg) {
@@ -7249,10 +7356,22 @@ function buildSnap() {
     seed: G.seed, g, f, fo, bu, b, fa, tw, p, e: NET.events.slice(), kw, sn: G.specN | 0, rg: G.bombs.map(o => o.range | 0), twr: G.thrown.map(o => o.b.range | 0),
     ...(NET.q % 6 === 0 ? { pr: peerIdList(), hs: localIdx() } : {}),
     cs: G.players.map(o => csOf(o)), kl: G.players.map(o => o.kills | 0), kb: G.players.map(o => o.killedBy ?? -1),
+    ...(G.camp ? { cp: campSnap() } : {}),
     ...(G.mode === 'br' ? { br: 1, cols: COLS, rows: ROWS, sh: G.players.map(o => o.shield > 0 ? 1 : 0), lf: G.players.map(o => o.life | 0), kl: G.players.map(o => o.kills | 0), pt: G.players.map(o => o.pts | 0), pk: G.players.map(o => o.peak | 0), bw: G.brWinner ?? -1, kb: G.players.map(o => o.killedBy ?? -1),
       ct: G.players.map(o => o.ct ? [o.ct.tg, Math.max(0, Math.round((o.ct.until - G.brT) * 10))] : 0), ck: G.chestK ?? -1, chp: G.chestHp | 0 } : {}),
   };
 }
+function campSnap() {
+  const B = G.boss;
+  return {
+    i: G.camp.i, c: COLS, r: ROWS, te: G.players.map(o => o.team | 0),
+    tb: (G.tombs || []).map(tb => [tb.p.id, tb.x, tb.y, Math.round(tb.t * 100), Math.round(tb.max * 100)]),
+    wa: (G.warn || []).filter(w => w.t >= 0).map(w => [Math.round(w.t * 100), Math.round(w.dur * 100), ...w.cells]),
+    bo: B ? [Math.round(B.x * 100), Math.round(B.y * 100), B.hp, B.max, B.alive ? 1 : 0, B.rage ? 1 : 0, B.face < 0 ? -1 : 1, Math.max(0, FACES.indexOf(B.dir)), B.moving ? 1 : 0, Math.max(0, ['', 'castF', 'castS'].indexOf(B.pose)), B.cast > 0 ? 1 : 0, Math.round(B.deadT * 100)] : 0,
+    pt: G.players.map(o => o.placeT != null && G.t - o.placeT < 0.35 ? 1 : 0),
+  };
+}
+const skinOk = v => SHEET_SKINS[v] ? v : clamp(v, 0, CHARS.length - 1);
 function applySnap(s) {
   if (!s || typeof s !== 'object' || typeof s.q !== 'number' || s.q <= NET.lastQ) return;
   if (REPLAY.on) { if (PH[s.ph] !== REPLAY.saved.phase || s.mi !== NET.mi) stopReplay(); else return; }
@@ -7266,7 +7385,14 @@ function decodeSnap(s) {
     const c = clamp(num(s.cols) | 0, 15, 99), r = clamp(num(s.rows) | 0, 13, 99);
     if (c !== COLS || r !== ROWS) { setMapSize(c, r); G.brMini = null; }
     if (G.mode !== 'br') { G.mode = 'br'; G.camSnap = true; $('#br-ui').hidden = false; }
-  } else if (BIG_MAP()) setMapSize(VCOLS, VROWS);
+  }
+  const cp = !br && s.cp && typeof s.cp === 'object' && CAMP[num(s.cp.i) | 0] && CAMP[num(s.cp.i) | 0].name ? s.cp : null;
+  if (cp) {
+    // défi de la campagne de l'hôte : taille de l'arène et règles du défi
+    const ci = num(cp.i) | 0, c = clamp(num(cp.c) | 0, 9, 99), r = clamp(num(cp.r) | 0, 7, 99);
+    if (c !== COLS || r !== ROWS) { setMapSize(c, r); G.camSnap = true; }
+    if (!G.camp || G.camp.i !== ci) { G.camp = { i: ci, ...CAMP[ci] }; G.boss = null; }
+  } else if (!br) { if (G.camp) { G.camp = null; G.boss = null; G.tombs = []; G.warn = []; } if (BIG_MAP()) setMapSize(VCOLS, VROWS); }
   const n = clamp(num(s.n) | 0 || 2, 2, br ? 32 : 4), kinds = String(s.k || '').slice(0, n), kw = num(s.kw) === 3 ? 3 : 2;
   NET.lastQ = s.q; NET.mi = s.mi;
   let hudDirty = first || newMatch || kinds !== NET.kinds;
@@ -7281,7 +7407,8 @@ function decodeSnap(s) {
     p.aid = aid;
     const nk = cleanNick(Array.isArray(s.nm) ? s.nm[i] : '', palFor(i).name);
     if (p.nick !== nk) { p.nick = nk; hudDirty = true; }
-    const sk = Array.isArray(s.sk) ? clamp(num(s.sk[i]) | 0, 0, CHARS.length - 1) : 0;
+    const sk = Array.isArray(s.sk) ? skinOk(num(s.sk[i]) | 0) : 0;
+    p.team = cp && Array.isArray(cp.te) ? num(cp.te[i]) | 0 : undefined;
     if (p.skin !== sk) { p.skin = sk; hudDirty = true; }
     if (i !== NET.me) p.aura = Array.isArray(s.au) ? clamp(num(s.au[i]) | 0, 0, 10) : 0;
     if (i !== NET.me) p.elo = Array.isArray(s.eo) ? clamp(num(s.eo[i]) | 0, 0, 9999) : 0;
@@ -7359,6 +7486,7 @@ function decodeSnap(s) {
     if (first || !Object.prototype.hasOwnProperty.call(FX, e[1])) continue;
     try { const a0 = e[1] === 'snd' ? String(e[2]) : num(e[2]); FX[e[1]](a0, num(e[3]), num(e[4]), num(e[5])); recEvent(e[1], a0, num(e[3]), num(e[4]), num(e[5])); } catch (err) {}
   }
+  if (cp) { G.pointsMode = false; if (G.mode !== 'match') { G.mode = 'match'; hudDirty = true; } decodeCamp(cp, first || newMatch); }
   if (num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); hudDirty = true; }
   if (hudDirty) setupHud();
   rebuildBombAt();
@@ -7379,6 +7507,21 @@ function decodeSnap(s) {
     }
     if (G.phase !== 'brEnd' && prevPhase === 'brEnd') { clearTimeout(NET.brEndT); endEl.hidden = true; G.camSnap = true; G.megaOn = false; G.megaRing = null; }
   }
+}
+function decodeCamp(cp, first) {
+  const P = G.players, at = i => P[clamp(num(i) | 0, 0, P.length - 1)];
+  G.tombs = (Array.isArray(cp.tb) ? cp.tb : []).filter(a => Array.isArray(a) && a.length >= 5).map(a => ({ p: at(a[0]), x: num(a[1]) | 0, y: num(a[2]) | 0, t: num(a[3]) / 100, max: Math.max(0.1, num(a[4]) / 100) }));
+  G.warn = (Array.isArray(cp.wa) ? cp.wa : []).filter(a => Array.isArray(a) && a.length >= 2).slice(0, 40).map(a => ({ t: num(a[0]) / 100, dur: Math.max(0.05, num(a[1]) / 100), cells: a.slice(2, 400).map(v => num(v) | 0).filter(k => k >= 0 && k < N), fire() {} }));
+  if (Array.isArray(cp.pt)) P.forEach((p, i) => { const v = cp.pt[i] ? 1 : 0; if (v && !p.ptWas) p.placeT = G.t; p.ptWas = v; });
+  const bo = cp.bo;
+  if (!Array.isArray(bo) || bo.length < 12) { G.boss = null; return; }
+  if (!G.boss) { G.boss = makeBoss(G.camp); first = true; }
+  const B = G.boss, hp = Math.max(0, num(bo[2]) | 0), alive = !!bo[4], rage = !!bo[5], x = num(bo[0]) / 100, y = num(bo[1]) / 100;
+  if (!first && B.alive && hp < B.hp) bossHitFx(B, B.hp - hp);
+  if (!first && rage && !B.rage) bossRageFx(B);
+  if (!first && B.alive && !alive) { B.x = x; B.y = y; bossDeathFx(B); }
+  if (first || Math.abs(B.x - x) + Math.abs(B.y - y) > 2) { B.x = x; B.y = y; }
+  Object.assign(B, { gx: x, gy: y, hp, max: Math.max(1, num(bo[3]) | 0), alive, rage, face: num(bo[6]) < 0 ? -1 : 1, dir: FACES[num(bo[7]) | 0] || 'down', moving: !!bo[8], pose: ['', 'castF', 'castS'][num(bo[9]) | 0] || '', cast: bo[10] ? 1 : 0, deadT: num(bo[11]) / 100 });
 }
 function updateGuest(dt) {
   G.t += dt; updateParticles(dt); megaTick(dt);
@@ -7403,6 +7546,10 @@ function updateGuest(dt) {
   if (me) { if (G.phase === 'play' && me.alive) updateHuman(me, dt); else me.moving = false; }
   for (const p of G.players) { if (p.alive) { if (p.moving) p.phase += dt * speedOf(p) * 3.3; } else p.deathT += dt; }
   smoothRemote(dt);
+  // défi de campagne : le boss glisse vers sa position reçue, les tombes et les cases d'alerte avancent
+  if (G.boss) { const B = G.boss, a = Math.min(1, dt * 12); B.hitT = Math.max(0, B.hitT - dt); if (B.gx !== undefined) { B.x += (B.gx - B.x) * a; B.y += (B.gy - B.y) * a; } if (B.moving) B.phase += dt * 6; if (!B.alive) B.deadT += dt; }
+  if (G.tombs) for (const tb of G.tombs) tb.t = Math.max(0, tb.t - dt);
+  if (G.warn) for (const w of G.warn) w.t += dt;
 }
 function sendGuest() {
   const l = NET.link;
@@ -7428,6 +7575,7 @@ function netTick() {
         for (const L of NET.links) if (L.conn.open && L.slot >= 0) { try { L.conn.send({ t: 's', s, me: L.slot }); } catch (e) {} }
         for (const S of NET.specs || []) if (S.conn.open) { try { S.conn.send({ t: 's', s, me: -1 }); } catch (e) {} }
       }
+      if (NET.campLobby && now - (NET.campWaitT || 0) > 1500) { NET.campWaitT = now; for (const L of NET.links) if (L.slot < 0 && L.conn.open) { try { L.conn.send({ t: 'campwait', i: G.camp ? G.camp.i : 0 }); } catch (e) {} } }
     } else {
       if (NET.pub) {
         // partie publique (jusqu'à 4 joueurs) : dès 2 joueurs, départ quand personne n'est arrivé depuis PUB_WAIT ;
