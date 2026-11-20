@@ -1027,16 +1027,26 @@ const PALS = [
 const SPAWNS = [[1, 1, 'down'], [COLS - 2, ROWS - 2, 'up'], [COLS - 2, 1, 'down'], [1, ROWS - 2, 'up']];
 // Campagne : 10 défis, à faire dans l'ordre. Seul le premier est prêt ; les autres arrivent plus tard (foe : perso adverse, pour l'icône).
 // inset : épaisseur de mur ajoutée autour de l'arène (2 → arène de 9 × 7 cases au lieu de 13 × 11)
+// défis en équipe : une flamme d'un coéquipier (pas la sienne) ne souffle pas
+function allySafe(p, owner) {
+  if (owner === p.id) return false;
+  if (G.boss) return owner !== BOSS_ID;
+  if (G.camp && G.camp.team) { const o = G.players[owner]; return !!o && o.team === p.team; }
+  return false;
+}
 const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9;   // portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
+  { name: 'Deux contre deux', desc: 'Fais équipe avec le Chevalier contre la Sorcière et le Mage. La première équipe à 2 manches gagnantes remporte le défi.',
+    foe: 7, team: true, ally: 6, foes: [7, 3], foesTxt: 'la Sorcière et le Mage', lv: 1, wins: 2 },
+  { foe: 1 },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
-  { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
+  { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
-const foeName = c => c.npc || CHARS[c.foe].name;
+const foeName = c => c.npc || (c.foes ? c.foes.map(f => CHARS[f].name).join(' et ') : CHARS[c.foe].name);
 const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
@@ -2370,7 +2380,7 @@ function thinkInner(p) {
     return;
   }
   // adversaires vivants, le plus proche en premier
-  let eks = G.boss ? (G.boss.alive ? [G.boss] : []) : G.players.filter(o => o !== p && o.alive && !(o.shield > 0))
+  let eks = G.boss ? (G.boss.alive ? [G.boss] : []) : G.players.filter(o => o !== p && o.alive && !(o.shield > 0) && !(G.camp && G.camp.team && o.team === p.team))
     .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)));
   if (G.mode === 'br') eks = eks.filter(o => Math.abs(o.x - p.x) + Math.abs(o.y - p.y) <= 14).slice(0, 5);
   eks = eks.map(o => idx(Math.round(o.x), Math.round(o.y)));
@@ -2645,8 +2655,8 @@ function update(dt) {
       if (p.moving) p.phase += dt * speedOf(p) * 3.3;
       if (G.phase === 'play') {
         const k = idx(Math.round(p.x), Math.round(p.y));
-        // défi du boss : les bombes des alliés ne blessent pas ; ses propres bombes, si (et celles du boss aussi)
-        if (G.flameT[k] > 0 && !(G.boss && G.flameOwner[k] !== BOSS_ID && G.flameOwner[k] !== p.id)) { kill(p, G.flameOwner[k]); continue; }
+        // défis en équipe : les bombes des alliés ne blessent pas ; ses propres bombes, si (et celles du boss et des adversaires aussi)
+        if (G.flameT[k] > 0 && !allySafe(p, G.flameOwner[k])) { kill(p, G.flameOwner[k]); continue; }
         if (G.items[k] >= 0 && G.itemAge[k] > 0.05) pickup(p, k);
       }
       if (p.shield > 0) p.shield = Math.max(0, p.shield - dt);
@@ -2656,7 +2666,11 @@ function update(dt) {
       if (G.mode === 'br' && p.deathT >= BR_RESPAWN) brSpawn(p);
     }
   }
-  if (G.phase === 'play' && G.boss) {
+  if (G.phase === 'play' && campFlag('team')) {
+    // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne)
+    const teams = new Set(G.players.filter(p => p.alive).map(p => p.team));
+    if (teams.size <= 1) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(); }
+  } else if (G.phase === 'play' && G.boss) {
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
     else if (!G.players[0].alive || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // le défi est perdu dès que le joueur est soufflé
@@ -4708,6 +4722,11 @@ function render() {
     else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Pousse tes bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
+  } else if (G.phase === 'roundEnd' && G.camp && G.camp.team) {
+    const a = Math.min(1, (2.8 - G.phaseT) * 4), sc = `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(G.camp)}`;
+    if (G.lastWinner === 0) drawBanner(c, 'Ton équipe gagne la manche', sc, '#ffd36e', a);
+    else if (G.lastWinner === 1) drawBanner(c, `${foeName(G.camp)} gagnent la manche`, sc, '#f3e5c0', a);
+    else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive)) {
     const a = Math.min(1, (2.8 - G.phaseT) * 4), won = G.lastWinner === 0;
     drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : 'Tu as tenu bon') : G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer', won ? '#ffd36e' : '#f3e5c0', a);
@@ -4792,7 +4811,7 @@ function setupHud() {
     const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
-    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && G.camp.boss && p.ai ? 'Allié' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && (G.camp.boss || (G.camp.team && p.team === 0)) && p.ai ? 'Allié' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
@@ -5323,6 +5342,14 @@ function bossDamage(n) {
     for (let i = 0; i < 70; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
   }
 }
+function teamEndRound() {
+  const alive = G.players.filter(p => p.alive), t = alive.length ? alive[0].team : -1;
+  let w = -1;
+  if (t >= 0) { w = t === 0 ? 0 : 1; for (const p of G.players) if (p.team === t) G.scores[p.id]++; }
+  G.lastWinner = w; G.phase = 'roundEnd'; G.phaseT = 2.8;
+  const done = w >= 0 && G.scores[w] >= G.winsNeeded;
+  fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
+}
 function bossEnd(won) {
   if (G.phase !== 'play') return;
   G.lastWinner = won ? 0 : -1; if (won) G.scores[0]++;
@@ -5607,7 +5634,8 @@ function renderCamp() {
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
     $('#camp-desc').textContent = c.desc;
-    $('#camp-rules').textContent = (c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
+    $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · les bombes de ton allié ne te blessent pas`
+      : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
@@ -5621,6 +5649,13 @@ function renderCamp() {
 }
 // écran « VS » avant le défi, puis la partie
 let vsT = 0, vsNext = null;
+function drawDuo(cv, a, b) {
+  const t1 = document.createElement('canvas'), t2 = document.createElement('canvas'); t1.width = t1.height = t2.width = t2.height = 200;
+  drawPortrait(t1, a[0], a[1]); drawPortrait(t2, b[0], b[1]);
+  const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height);
+  c.drawImage(t2, cv.width * 0.36, cv.height * 0.3, cv.width * 0.62, cv.height * 0.62);
+  c.drawImage(t1, cv.width * 0.02, cv.height * 0.08, cv.width * 0.62, cv.height * 0.62);
+}
 function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
@@ -5629,8 +5664,12 @@ function startCamp(i) {
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = `Toi + ${c.allies} alliés`;
   const cvs = vsEl.querySelectorAll('canvas'), bs = vsEl.querySelectorAll('.vs-side b');
-  drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin);
-  bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = foeName(c);
+  if (c.team) {
+    // deux portraits de chaque côté
+    drawDuo(cvs[0], [me.pal, me.skin], [palFor(2), c.ally]); drawDuo(cvs[1], [palFor(1), c.foes[0]], [palFor(3), c.foes[1]]);
+    bs[0].textContent = `${settings.name || CHARS[me.skin].name} et ${CHARS[c.ally].name}`; bs[1].textContent = foeName(c);
+    vsEl.querySelector('.vs-side.l span').textContent = 'Ton équipe'; vsEl.querySelector('.vs-side.r span').textContent = `Ordis ${AI_LV_NAME[c.lv]}`;
+  } else { drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin); bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = foeName(c); }
   vsEl.querySelector('.vs-top').append(c.name);
   campEl.hidden = true; vsEl.hidden = false; Sfx.play('pickup');
   clearTimeout(vsT); vsNext = () => { vsNext = null; vsEl.hidden = true; startCampMatch(i); };
@@ -5650,6 +5689,17 @@ function startCampMatch(i) {
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
+  if (c.team) {
+    // 2 contre 2 : toi (0) et ton allié (2) en haut, les adversaires (1 et 3) en bas
+    const al = makePlayer(2, AI_LV[c.lv], CHARS[c.ally].name); al.skin = c.ally;
+    const e1 = makePlayer(1, AI_LV[c.lv], CHARS[c.foes[0]].name); e1.skin = c.foes[0];
+    const e2 = makePlayer(3, AI_LV[c.lv], CHARS[c.foes[1]].name); e2.skin = c.foes[1];
+    me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
+    setPlayers([me, e1, al, e2]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
+    newRound(); setupHud();
+    menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+    blurActive(); return;
+  }
   const foe = c.npc ? makePlayer(1, null, c.npc) : makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
   if (c.npc) { foe.npc = true; foe.cs = [0, 0, 0, 0, 0, 0]; }
   setPlayers([me, foe]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
@@ -5663,6 +5713,7 @@ function showEndCamp() {
   // retour direct à l'écran de la campagne (courbe de progression), avec le résultat ; un court délai laisse compter l'XP et les stats
   const text = c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `Tu as été soufflé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
   const res = { i: c.i, won, text };
   endEl.hidden = true; pauseEl.hidden = true;
