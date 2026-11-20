@@ -1032,7 +1032,7 @@ const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
-  { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui explose au contact et fait double dégât !',
+  { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
   { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
 ];
@@ -1378,8 +1378,7 @@ const NET = {
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : (NET.hostSlot | 0);
 // spectateur : personne n'est « toi » ; la caméra et la carte du joueur suivent NET.follow
-// défi du boss : une fois mort, on suit un allié encore en vie
-const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : G.camp && G.camp.boss && G.players[0] && !G.players[0].alive && G.players.some(p => p.alive) ? G.players.findIndex(p => p.alive) : localIdx();
+const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : localIdx();
 const inGame = () => G.mode === 'match' || G.mode === 'br';
 // À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
 const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
@@ -1885,8 +1884,8 @@ function updateBombs(dt) {
       // La bombe ne vérifie les joueurs qu'au moment de s'engager dans la case suivante :
       // une fois lancée vers une case, elle y va sans revenir en arrière.
       const nx = b.x + b.mdx, ny = b.y + b.mdy;
-      // défi du boss : une bombe poussée qui arrive contre lui explose aussitôt (double dégât)
-      const boom = () => { b.timer = Math.min(b.timer, 0.05); b.kickHit = true; stopBomb(b); };
+      // défi du boss : une bombe poussée qui arrive contre lui le frappe (-2 PV), sans explosion autour
+      const boom = () => { b.hitBoss = true; stopBomb(b); };
       if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
@@ -1899,6 +1898,14 @@ function updateBombs(dt) {
         }
       }
     }
+  }
+  for (let i = G.bombs.length - 1; i >= 0; i--) {
+    const b = G.bombs[i]; if (!b.hitBoss) continue;
+    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1);
+    const B = G.boss, x = (b.x + b.mdx * b.prog + 0.5) * T, y = (b.y + b.mdy * b.prog + 0.5) * T;
+    for (let j = 0; j < 14; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4, max: 0.4, size: 2.4, color: j % 2 ? '#ffd166' : '#ff8a3d' }); }
+    Sfx.boom(boomKind(b.owner && b.owner.id !== BOSS_ID ? G.players[b.owner.id] : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 4);
+    if (B && B.alive) bossDamage(2);
   }
   rebuildBombAt();
   // une bombe (poussée ou non) qui se trouve dans une explosion encore active saute aussitôt
@@ -2652,7 +2659,7 @@ function update(dt) {
   if (G.phase === 'play' && G.boss) {
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
-    else if (!G.players.some(p => p.alive) || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }
+    else if (!G.players[0].alive || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // le défi est perdu dès que le joueur est soufflé
   } else if (G.phase === 'play' && G.mode !== 'br') {
     const alive = G.players.filter(p => p.alive);
     // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
@@ -4698,7 +4705,7 @@ function render() {
   if (G.phase === 'intro') {
     const tt = G.phaseT;
     if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
-    else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Poussez vos bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Pousse tes bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
   } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive)) {
@@ -5617,7 +5624,7 @@ function showEndCamp() {
   if (won) statMax('cp', c.i + 1);
   // retour direct à l'écran de la campagne (courbe de progression), avec le résultat ; un court délai laisse compter l'XP et les stats
   const text = c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
-    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `Toute l'équipe a été soufflée : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `Tu as été soufflé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
   const res = { i: c.i, won, text };
   endEl.hidden = true; pauseEl.hidden = true;
