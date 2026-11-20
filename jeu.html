@@ -264,6 +264,10 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .cos-grid.cards .cos-tile canvas{width:150px;height:44px}
 .cos-tile[aria-checked="true"]{border-color:var(--gold);background:rgba(255,214,110,.12)}
 .cos-tile.locked{opacity:.55}
+.cos-how{width:64px;height:64px;display:grid;place-items:center;padding:2px;border-radius:10px;background:rgba(255,214,110,.1);color:var(--gold);font:800 10.5px/1.2 var(--font-body);text-align:center;white-space:normal;overflow:hidden}
+.cos-grid.cards .cos-how{width:150px;height:44px}
+.cos-tile.flip{border-style:dashed}
+.cos-phr button.flip{border-style:dashed;color:var(--gold)}
 .cos-grid[hidden]{display:none}
 .cos-tile .slot{position:absolute;top:5px;right:6px;min-width:18px;padding:3px 5px;border-radius:999px;background:var(--gold);color:#2a1508;font:800 11px/1 var(--font-body)}
 .cos-tile .nw{position:absolute;top:5px;left:6px;padding:2px 5px;border-radius:999px;background:#ff6a2a;color:#fff;font:800 9px/1.2 var(--font-body);text-transform:uppercase}
@@ -5369,9 +5373,12 @@ function closeSecret() { secretEl.hidden = true; menuEl.hidden = false; try { $(
 $('#btn-secret').addEventListener('click', openSecret);
 /* ---------- Écran Personnaliser ---------- */
 let cosTab = 'b', cosHintT = 0;
+// personnalisations retournées : un clic sur un élément obtenu montre ce qui l'a débloqué, un autre clic le remontre normalement
+const cosFlip = new Set();
+const howGot = (it, L, i) => (it.need ? 'Obtenu : ' + needLbl(it) : 'Offert dès le départ') + (settings.admin && !cosOkReal(L, i) ? ' (mode admin)' : '');
 const plural = (n, a, b) => `${n} ${n > 1 ? b : a}`;
 function openCustom() {
-  menuEl.hidden = true; customEl.hidden = false; cosCheckNew(true); renderCustom(true);
+  menuEl.hidden = true; customEl.hidden = false; cosFlip.clear(); cosCheckNew(true); renderCustom(true);
   try { customEl.querySelector(`.cos-tabs button[data-k="${cosTab}"]`).focus({ preventScroll: true }); } catch (e) {}
 }
 function closeCustom() {
@@ -5379,7 +5386,7 @@ function closeCustom() {
   try { $('#btn-custom').focus({ preventScroll: true }); } catch (e) {}
 }
 const COS_HINTS = {
-  b: "Le skin de tes bombes, que tout le monde voit et entend : chacun a son propre bruit d'explosion (clique pour l'écouter). « Bombe du perso » garde la bombe et le son de ton perso.",
+  b: "Le skin de tes bombes, que tout le monde voit et entend : chacun a son propre bruit d'explosion (clique pour l'écouter). « Bombe du perso » garde la bombe de ton perso. Reclique un élément obtenu pour voir comment tu l’as eu.",
   f: 'La couleur des flammes de tes explosions, et du souffle de ta giga bombe en battle royale.',
   e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone.',
   c: 'Ce que voient les joueurs que tu souffles : un style de carte et ta phrase.',
@@ -5390,19 +5397,21 @@ function cosTile(k, L, i, sel, slot) {
   const it = L[i], ok = cosOk(L, i), b = document.createElement('button');
   b.type = 'button'; b.className = 'cos-tile' + (ok ? '' : ' locked'); b.setAttribute('role', k === 'e' ? 'checkbox' : 'radio'); b.setAttribute('aria-checked', String(sel));
   b.setAttribute('aria-label', ok ? it.name : `Mystère : se débloque à ${needLbl(it)}`);
-  const cv = document.createElement('canvas'); cv.width = k === 'c' ? 300 : 128; cv.height = k === 'c' ? 88 : 128; cv.dataset.k = k; cv.dataset.i = i; cv.dataset.lk = ok ? '' : '1';
+  const key = k + i, flipped = ok && cosFlip.has(key);
   const lb = document.createElement('span'); lb.textContent = ok ? it.name : needLbl(it);
-  b.append(cv, lb);
+  if (flipped) { const how = document.createElement('div'); how.className = 'cos-how'; how.textContent = howGot(it, L, i); b.classList.add('flip'); b.append(how, lb); }
+  else { const cv = document.createElement('canvas'); cv.width = k === 'c' ? 300 : 128; cv.height = k === 'c' ? 88 : 128; cv.dataset.k = k; cv.dataset.i = i; cv.dataset.lk = ok ? '' : '1'; b.append(cv, lb); }
   if (slot) { const sb = document.createElement('i'); sb.className = 'slot'; sb.textContent = slot; b.appendChild(sb); }
   if (ok && Array.isArray(settings.cosNew) && settings.cosNew.includes(k + i)) { const nb = document.createElement('i'); nb.className = 'nw'; nb.textContent = 'nouveau'; b.appendChild(nb); }
   b.addEventListener('click', () => {
     if (!ok) { cosHint(`Mystère : se débloque à ${needLbl(it)} (tu en es à ${statOf(it.need[0])}).`); return; }
+    if (flipped) { cosFlip.delete(key); renderCustom(); return; }   // on la revoit normalement
     const m = cosMap();
     if (k === 'e') {
       const cur = myEmotes(), at = cur.indexOf(i);
-      if (at >= 0) cur.splice(at, 1); else if (cur.length >= 4) { cosHint('4 emotes au plus : retire d’abord une emote équipée.'); return; } else cur.push(i);
+      if (at >= 0) cur.splice(at, 1); else if (cur.length >= 4) { cosHint('4 emotes au plus : retire d’abord une emote équipée.'); return; } else { cur.push(i); cosFlip.add(key); }
       m.e = cur;
-    } else m[k] = i;
+    } else { m[k] = i; cosFlip.add(key); }
     if (k === 'b') { Sfx.init(); const was = G.mode; if (was === 'demo') G.mode = 'menu'; Sfx.boom(boomKind({ skin: settings.skin, cs: [i, 0, 0, 0, 0, 0] }), 0.85); G.mode = was; }
     saveSettings(); renderCustom();
   });
@@ -5422,22 +5431,34 @@ function renderCustom(first) {
   if (cosTab === 't') [{ name: 'Aucun titre' }, ...ACH].forEach((it, j) => {
     const i = j - 1, ok = i < 0 || cosOk(ACH, i), b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio');
     b.className = ok ? '' : 'locked'; b.setAttribute('aria-checked', String(j === mine[4]));
-    b.textContent = ok ? it.name : `? · ${it.desc}`; if (!ok) b.title = `${statOf(it.need[0])} / ${it.need[1]}`;
-    if (ok && i >= 0 && Array.isArray(settings.cosNew) && settings.cosNew.includes('t' + i)) b.textContent += ' · nouveau';
-    b.addEventListener('click', () => { if (!ok) { cosHint(`Succès mystère : ${it.desc} (tu en es à ${statOf(it.need[0])} / ${it.need[1]}).`); return; } m.t = j; saveSettings(); renderCustom(); });
+    const fl = ok && i >= 0 && cosFlip.has('t' + i);
+    b.textContent = fl ? howGot(it, ACH, i) : ok ? it.name : `? · ${it.desc}`; if (!ok) b.title = `${statOf(it.need[0])} / ${it.need[1]}`;
+    if (fl) b.classList.add('flip');
+    if (!fl && ok && i >= 0 && Array.isArray(settings.cosNew) && settings.cosNew.includes('t' + i)) b.textContent += ' · nouveau';
+    b.addEventListener('click', () => {
+      if (!ok) { cosHint(`Succès mystère : ${it.desc} (tu en es à ${statOf(it.need[0])} / ${it.need[1]}).`); return; }
+      if (fl) cosFlip.delete('t' + i); else { m.t = j; if (i >= 0) cosFlip.add('t' + i); }
+      saveSettings(); renderCustom();
+    });
     phr.appendChild(b);
   });
   if (cosTab === 'c') CARD_PHRASES.forEach((it, i) => {
     const ok = cosOk(CARD_PHRASES, i), b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio');
     b.className = ok ? '' : 'locked'; b.setAttribute('aria-checked', String(i === mine[3]));
-    b.textContent = ok ? `« ${it.name} »` : `? · ${needLbl(it)}`;
-    if (ok && Array.isArray(settings.cosNew) && settings.cosNew.includes('p' + i)) b.textContent += ' · nouveau';
-    b.addEventListener('click', () => { if (!ok) { cosHint(`Phrase mystère : se débloque à ${needLbl(it)} (tu en es à ${statOf(it.need[0])}).`); return; } m.p = i; saveSettings(); renderCustom(); });
+    const fl = ok && cosFlip.has('p' + i);
+    b.textContent = fl ? howGot(it, CARD_PHRASES, i) : ok ? `« ${it.name} »` : `? · ${needLbl(it)}`;
+    if (fl) b.classList.add('flip');
+    if (!fl && ok && Array.isArray(settings.cosNew) && settings.cosNew.includes('p' + i)) b.textContent += ' · nouveau';
+    b.addEventListener('click', () => {
+      if (!ok) { cosHint(`Phrase mystère : se débloque à ${needLbl(it)} (tu en es à ${statOf(it.need[0])}).`); return; }
+      if (fl) cosFlip.delete('p' + i); else { m.p = i; cosFlip.add('p' + i); }
+      saveSettings(); renderCustom();
+    });
     phr.appendChild(b);
   });
   cosPrevT = 0;
 }
-customEl.querySelectorAll('.cos-tabs button').forEach(b => b.addEventListener('click', () => { cosTab = b.dataset.k; clearTimeout(cosHintT); cosHintT = 0; renderCustom(true); }));
+customEl.querySelectorAll('.cos-tabs button').forEach(b => b.addEventListener('click', () => { cosTab = b.dataset.k; cosFlip.clear(); clearTimeout(cosHintT); cosHintT = 0; renderCustom(true); }));
 $('#btn-custom').addEventListener('click', openCustom);
 $('#custom-close').addEventListener('click', closeCustom);
 syncCosBadge();
