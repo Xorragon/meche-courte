@@ -1033,7 +1033,7 @@ const CAMP = [
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui explose au contact et fait double dégât !',
-    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, allies: 3, allyLv: 1, wins: 1, time: 600 },
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
   { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
 ];
 const foeName = c => c.npc || CHARS[c.foe].name;
@@ -1517,8 +1517,10 @@ function genMap(seed) {
     else g[k] = EMPTY;
   }
   const a = 1 + I, bx = COLS - 2 - I, by = ROWS - 2 - I;
-  const safe = new Set([idx(a, a), idx(a + 1, a), idx(a, a + 1), idx(bx, by), idx(bx - 1, by), idx(bx, by - 1),
-    idx(bx, a), idx(bx - 1, a), idx(bx, a + 1), idx(a, by), idx(a + 1, by), idx(a, by - 1)]);
+  // cases sans caisse autour des départs : le coin et 1 case de chaque côté (2 pour le défi du boss : un peu plus de place)
+  const safe = new Set(), room = campFlag('spawnRoom') || 1;
+  for (const [cx, cy, sx, sy] of [[a, a, 1, 1], [bx, by, -1, -1], [bx, a, -1, 1], [a, by, 1, -1]])
+    for (let d = 0; d <= room; d++) { safe.add(idx(cx + sx * d, cy)); safe.add(idx(cx, cy + sy * d)); }
   const pairs = [];
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
@@ -1883,12 +1885,16 @@ function updateBombs(dt) {
       // La bombe ne vérifie les joueurs qu'au moment de s'engager dans la case suivante :
       // une fois lancée vers une case, elle y va sans revenir en arrière.
       const nx = b.x + b.mdx, ny = b.y + b.mdy;
-      if (bombBlocked(nx, ny, b, b.prog > 0)) { if (bossAt(nx, ny)) { b.timer = Math.min(b.timer, 0.05); b.kickHit = true; } stopBomb(b); }
+      // défi du boss : une bombe poussée qui arrive contre lui explose aussitôt (double dégât)
+      const boom = () => { b.timer = Math.min(b.timer, 0.05); b.kickHit = true; stopBomb(b); };
+      if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
+      else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
         b.prog += KICK_SPEED * dt;
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
           if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
+          else if (bossAt(b.x + b.mdx, b.y + b.mdy)) boom();
           else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
       }
@@ -2632,8 +2638,8 @@ function update(dt) {
       if (p.moving) p.phase += dt * speedOf(p) * 3.3;
       if (G.phase === 'play') {
         const k = idx(Math.round(p.x), Math.round(p.y));
-        // défi du boss : les bombes de l'équipe ne blessent pas l'équipe
-        if (G.flameT[k] > 0 && !(G.boss && G.flameOwner[k] !== BOSS_ID)) { kill(p, G.flameOwner[k]); continue; }
+        // défi du boss : les bombes des alliés ne blessent pas ; ses propres bombes, si (et celles du boss aussi)
+        if (G.flameT[k] > 0 && !(G.boss && G.flameOwner[k] !== BOSS_ID && G.flameOwner[k] !== p.id)) { kill(p, G.flameOwner[k]); continue; }
         if (G.items[k] >= 0 && G.itemAge[k] > 0.05) pickup(p, k);
       }
       if (p.shield > 0) p.shield = Math.max(0, p.shield - dt);
@@ -5556,7 +5562,7 @@ function renderCamp() {
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
     $('#camp-desc').textContent = c.desc;
-    $('#camp-rules').textContent = (c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · vos propres bombes ne blessent pas l'équipe · ${c.time / 60} minutes au plus`
+    $('#camp-rules').textContent = (c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
