@@ -1039,8 +1039,10 @@ const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
-  { name: 'Deux contre deux', desc: 'Fais équipe avec le Chevalier contre la Sorcière et le Mage. La première équipe à 2 manches gagnantes remporte le défi.',
-    foe: 7, team: true, ally: 6, foes: [7, 3], foesTxt: 'la Sorcière et le Mage', lv: 1, wins: 2 },
+  { name: 'Deux contre deux', desc: 'Fais équipe avec le Chevalier contre la Sorcière et le Mage. Un équipier soufflé laisse une petite tombe : marche dessus à temps pour le relever ! La première équipe à 2 manches gagnantes remporte le défi.',
+    foe: 7, team: true, ally: 6, foes: [7, 3], foesTxt: 'la Sorcière et le Mage', lv: 1, wins: 2, tomb: 4,
+    // les deux équipiers partent ensemble dans le même coin, avec de la place (pas de caisse dans ces rectangles)
+    spawns: { 0: [1, 1, 'right'], 2: [3, 1, 'down'], 1: [13, 11, 'left'], 3: [11, 11, 'up'] }, clear: [[1, 1, 5, 3], [9, 9, 13, 11]] },
   { foe: 1 },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
@@ -1051,6 +1053,7 @@ const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
 function spawnOf(i) {
+  const sp = campFlag('spawns'); if (sp && sp[i]) return sp[i];
   const I = campInset(), a = 1 + I, bx = COLS - 2 - I, by = ROWS - 2 - I;   // les 4 coins (taille de carte quelconque)
   return [[a, a, 'down'], [bx, by, 'up'], [bx, a, 'down'], [a, by, 'up']][i] || [a, a, 'down'];
 }
@@ -1532,6 +1535,7 @@ function genMap(seed) {
   const safe = new Set(), room = campFlag('spawnRoom') || 1;
   for (const [cx, cy, sx, sy] of [[a, a, 1, 1], [bx, by, -1, -1], [bx, a, -1, 1], [a, by, 1, -1]])
     for (let d = 0; d <= room; d++) { safe.add(idx(cx + sx * d, cy)); safe.add(idx(cx, cy + sy * d)); }
+  for (const [x0, y0, x1, y1] of campFlag('clear') || []) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) safe.add(idx(x, y));
   const pairs = [];
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
@@ -1592,7 +1596,7 @@ function newRound() {
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = campFlag('survive') || campFlag('time') || ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
   G.phase = 'intro'; G.phaseT = 1.7; G.endTimer = 0; G.lastWinner = -2; G.introBeep = false;
-  G.lobs = []; G.rageFlash = 0; G.campT = 0; G.warn = [];
+  G.lobs = []; G.rageFlash = 0; G.campT = 0; G.warn = []; G.tombs = [];
   G.boss = campFlag('boss') ? makeBoss(G.camp) : null;
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   groundDirty = true;
@@ -1979,6 +1983,8 @@ function kill(p, by) {
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
+  // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
+  if (campFlag('tomb') && G.phase === 'play') { G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb }); return; }
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
@@ -2381,6 +2387,20 @@ function thinkInner(p) {
     if (path) setPath(p, path, sx, sy);
     return;
   }
+  // 2 contre 2 : une tombe de coéquipier atteignable à temps passe avant tout le reste
+  if (G.tombs && G.tombs.length) {
+    const goal = new Map(); for (const tb of G.tombs) if (tb.p.team === p.team && tb.p !== p) goal.set(idx(tb.x, tb.y), tb.t);
+    if (goal.size) {
+      const prev = new Int32Array(N).fill(-2), dist = new Uint16Array(N); prev[sk] = -1; const q = [sk]; let qi = 0, end = -1;
+      while (qi < q.length) {
+        const k = q[qi++];
+        if (goal.has(k) && (dist[k] + off) * step < goal.get(k) - 0.15) { end = k; break; }
+        const x = k % COLS, y = (k / COLS) | 0;
+        for (const [dx, dy] of NB) { const nk = idx(x + dx, y + dy); if (prev[nk] !== -2 || !(passableAI(nk, -1) || goal.has(nk)) || D.S[nk] !== Infinity) continue; prev[nk] = k; dist[nk] = dist[k] + 1; q.push(nk); }
+      }
+      if (end >= 0) { setPath(p, end === sk ? [] : pathTo(prev, end), sx, sy); return; }
+    }
+  }
   // adversaires vivants, le plus proche en premier
   let eks = G.boss ? (G.boss.alive ? [G.boss] : []) : G.players.filter(o => o !== p && o.alive && !(o.shield > 0) && !(G.camp && G.camp.team && o.team === p.team))
     .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)));
@@ -2406,7 +2426,7 @@ function aiSignature(p) {
     return s;
   }
   if (aiSigCache.tick === G.tick) return aiSigCache.v;
-  let s = G.bombs.length * 977 + G.falling.length * 31 + (G.sudden ? G.sdIdx * 7 : 0);
+  let s = G.bombs.length * 977 + G.falling.length * 31 + (G.sudden ? G.sdIdx * 7 : 0) + (G.tombs ? G.tombs.length * 4099 : 0);
   for (const b of G.bombs) s += b.x * 3 + b.y * 5 + (b.mdx || b.mdy ? 11 : 0);
   for (let k = 0; k < N; k++) if (G.items[k] >= 0) s += k * 13;
   aiSigCache.tick = G.tick; aiSigCache.v = s;
@@ -2669,10 +2689,13 @@ function update(dt) {
     }
   }
   if (G.phase === 'play' && campFlag('team')) {
-    // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne)
-    // et dès que le joueur est soufflé : dans tous les défis, la partie s'arrête quand il ne reste que des ordis
-    const teams = new Set(G.players.filter(p => p.alive).map(p => p.team)), meDead = !G.players[0].alive;
+    teamTick(dt);
+    // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne),
+    // et quand le joueur est soufflé sans pouvoir être relevé (sa tombe a disparu ou il n'a plus de coéquipier) : il ne reste que des ordis
+    const teams = new Set(G.players.filter(p => p.alive).map(p => p.team));
+    const meDead = !G.players[0].alive && !(G.tombs.some(tb => tb.p.id === 0) && G.players.some(o => o.alive && o.team === 0));
     if (teams.size <= 1 || meDead) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(meDead); }
+    else G.endTimer = 0;   // quelqu'un a été relevé entre-temps
   } else if (G.phase === 'play' && G.boss) {
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
@@ -4630,6 +4653,7 @@ function render() {
   }
 
   if (G.warn && G.warn.length) drawWarn(c, t);
+  if (G.tombs && G.tombs.length) drawTombs(c, t);
   const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [], topB = [];
   const top3 = G.mode === 'br' && G.phase === 'play' ? brTop3() : null;
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
@@ -5346,6 +5370,58 @@ function bossDamage(n) {
     for (let i = 0; i < 70; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
   }
 }
+function teamTick(dt) {
+  // tombes : le temps passe, un coéquipier vivant qui passe dessus relève le mort
+  for (let i = G.tombs.length - 1; i >= 0; i--) {
+    const tb = G.tombs[i]; tb.t -= dt;
+    const mate = G.players.find(o => o.alive && o.team === tb.p.team && Math.abs(o.x - tb.x) < 0.6 && Math.abs(o.y - tb.y) < 0.6);
+    if (mate) {
+      const q = tb.p; G.tombs.splice(i, 1);
+      Object.assign(q, { alive: true, deathT: 0, x: tb.x, y: tb.y, rx: tb.x, ry: tb.y, shield: 1.5, moving: false, killedBy: -1 });
+      if (q.ai) { q.ai.path = []; q.ai.cd = 0; q.ai.goal = -1; }
+      const cx = (tb.x + 0.5) * T, cy = (tb.y + 0.5) * T;
+      for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 140; addP({ kind: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.7, max: 0.7, size: 3, color: j % 2 ? '#fff3b0' : '#7fe0ff' }); }
+      addP({ kind: 'text', x: cx, y: cy - 40, vx: 0, vy: -40, life: 1.1, max: 1.1, size: 18, color: '#bff4ff', text: 'Relevé !' });
+      Sfx.play('pickup');
+      continue;
+    }
+    if (tb.t <= 0) { G.tombs.splice(i, 1); const cx = (tb.x + 0.5) * T, cy = (tb.y + 0.5) * T; for (let j = 0; j < 8; j++) addP({ kind: 'smoke', x: cx + (Math.random() - 0.5) * 20, y: cy, vx: (Math.random() - 0.5) * 30, vy: -30 - Math.random() * 30, life: 0.6, max: 0.6, size: 6, color: '200,200,200' }); }
+  }
+  // l'allié (le Chevalier) pousse vers les adversaires les bombes alignées avec eux
+  for (const p of G.players) {
+    if (!p.alive || !p.ai || p.team !== 0) continue;
+    p.kickCd = (p.kickCd || 0) - dt; if (p.kickCd > 0) continue;
+    const sx = Math.round(p.x), sy = Math.round(p.y); if (Math.abs(p.x - sx) + Math.abs(p.y - sy) > 0.15) continue;
+    for (const [dx, dy] of NB) {
+      const b = G.bombAt[idx(sx + dx, sy + dy)]; if (!b || b.mdx || b.mdy || b.timer < 0.3) continue;
+      let hit = false;
+      for (let s2 = 1; s2 <= 12; s2++) {
+        const x = b.x + dx * s2, y = b.y + dy * s2, k = idx(x, y);
+        if (G.grid[k] !== EMPTY || G.bombAt[k]) break;
+        if (G.players.some(o => o.alive && o.team !== p.team && Math.abs(o.x - x) < 0.6 && Math.abs(o.y - y) < 0.6)) { hit = true; break; }
+        if (G.players.some(o => o.alive && o.team === p.team && Math.abs(o.x - x) < 0.6 && Math.abs(o.y - y) < 0.6)) break;   // pas vers un coéquipier
+      }
+      if (hit && !bombBlocked(b.x + dx, b.y + dy, b, true)) { doKick(b.x, b.y, dx, dy, p); p.kickCd = 1.0; break; }
+    }
+  }
+}
+function drawTombs(c, t) {
+  for (const tb of G.tombs) {
+    const x = (tb.x + 0.5) * T, y = (tb.y + 0.5) * T, f = Math.max(0, tb.t / tb.max), blink = tb.t < 1.2 && Math.sin(t * 18) < 0;
+    c.save();
+    // anneau du temps restant, à la couleur du joueur
+    c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.arc(x, y + 2, T * 0.42, 0, TAU); c.stroke();
+    c.strokeStyle = tb.p.pal.ui; c.beginPath(); c.arc(x, y + 2, T * 0.42, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke();
+    if (!blink) {
+      c.fillStyle = 'rgba(0,0,0,.25)'; ell(c, x, y + 13, 12, 4); c.fill();
+      c.fillStyle = '#b9b4aa'; c.strokeStyle = '#4a4740'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 10, y + 13); c.lineTo(x - 10, y - 5); c.arc(x, y - 5, 10, Math.PI, 0); c.lineTo(x + 10, y + 13); c.closePath(); c.fill(); c.stroke();
+      c.strokeStyle = '#6d685e'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(x, y - 9); c.lineTo(x, y + 6); c.moveTo(x - 5, y - 3); c.lineTo(x + 5, y - 3); c.stroke();
+      c.fillStyle = tb.p.pal.ui; c.fillRect(x - 10, y + 9, 20, 4);
+    }
+    c.restore();
+  }
+}
 function teamEndRound(meDead) {
   const alive = G.players.filter(p => p.alive), t = meDead ? (alive.some(p => p.team === 1) ? 1 : -1) : alive.length ? alive[0].team : -1;   // joueur soufflé : la manche va aux adversaires
   let w = -1;
@@ -5638,7 +5714,7 @@ function renderCamp() {
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
     $('#camp-desc').textContent = c.desc;
-    $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · les bombes de ton allié ne te blessent pas`
+    $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
