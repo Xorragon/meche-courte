@@ -1984,7 +1984,7 @@ function kill(p, by) {
   if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
-  if (campFlag('tomb') && G.phase === 'play') { G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb }); return; }
+  if (campFlag('tomb')) { if (G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb }); return; }   // jamais de bonus éjectés en 2 contre 2
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
