@@ -108,6 +108,7 @@ body.hudmany .pts{font-size:13px}
 #time.sudden{color:var(--ember);animation:throb .5s ease-in-out infinite alternate}
 @keyframes throb{to{transform:scale(1.08)}}
 .icon-btns{display:flex;gap:6px;margin-top:3px}
+.ibtn.off{opacity:.55}
 .ibtn{width:30px;height:26px;display:grid;place-items:center;padding:0;border-radius:8px;border:1.5px solid rgba(243,229,192,.25);background:rgba(243,229,192,.06);color:var(--parchment);cursor:pointer}
 .ibtn:hover{border-color:rgba(243,229,192,.55)}
 .ibtn svg{width:15px;height:15px}
@@ -482,6 +483,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg>
         </button>
         <button class="ibtn" id="btn-mute" type="button" aria-label="Couper le son" aria-pressed="false" title="Son (M)"></button>
+        <button class="ibtn" id="btn-music" type="button" aria-label="Couper la musique" aria-pressed="false" title="Musique (N)"></button>
       </div>
     </div>
     <div class="hside r">
@@ -1083,6 +1085,80 @@ function botCos(p) {
   const pick = L => { const ok = L.map((_, i) => i).filter(i => cosOkReal(L, i)); return ok[r(ok.length)] | 0; };
   return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
 }
+// ===== Musique =====
+// Accueil : home-03 en boucle. Partie classique : une piste par partie, en rotation (01, 03, 04), et la suivante enchaîne si la partie dure.
+// Battle royale : in-game-02 puis royale-05, 06, 07, à la suite, en boucle.
+// Fichiers normalisés au même volume (-16 LUFS). En jeu, la musique reste sous les bruitages et se baisse un instant à chaque explosion.
+const MUSIC = { home: ['home-03'], classic: ['in-game-01', 'in-game-03', 'in-game-04'], br: ['in-game-02', 'royale-05', 'royale-06', 'royale-07'] };
+const MUS_VOL = { home: 0.45, classic: 0.25, br: 0.22 };   // en jeu, nettement sous les bruitages
+const Music = {
+  slots: null, ci: 0, scene: null, lv: -1, idx: { classic: Math.floor(Math.random() * 3) - 1, br: -1 }, prevPh: null, prevRound: 0,
+  on() { return settings.music !== false && !Sfx.muted && !document.hidden; },
+  setup() {
+    if (this.slots) return true;
+    const a = Sfx.ac; if (!a) return false;
+    try {
+      this.lvG = a.createGain(); this.duckG = a.createGain(); this.lvG.gain.value = 0;
+      this.lvG.connect(this.duckG); this.duckG.connect(a.destination);
+      // deux lecteurs qui se relaient (fondu enchaîné) ; ils passent par Web Audio, ce qui permet de régler le volume partout (iPhone compris)
+      this.slots = [0, 1].map(() => {
+        const el = new Audio(); el.preload = 'auto';
+        const g = a.createGain(); g.gain.value = 0; a.createMediaElementSource(el).connect(g); g.connect(this.lvG);
+        return { el, g, name: '' };
+      });
+    } catch (e) { this.slots = null; return false; }
+    return true;
+  },
+  fade(sl, v, dur) { const now = Sfx.ac.currentTime, p = sl.g.gain; p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.linearRampToValueAtTime(v, now + dur); },
+  load(sl, name) { if (sl.name !== name) { sl.name = name; sl.el.src = 'assets/musique/' + name + '.mp3'; } },
+  start(sl) { sl.blocked = 0; const pr = sl.el.play(); if (pr && pr.catch) pr.catch(() => { sl.blocked = 1; }); },
+  play(name, loop, dur) {
+    const old = this.slots[this.ci], sl = this.slots[1 - this.ci]; this.ci = 1 - this.ci;
+    clearTimeout(old.stopT); clearTimeout(sl.stopT);
+    if (old.name) { this.fade(old, 0, dur); old.stopT = setTimeout(() => { old.el.pause(); this.preload(old); }, dur * 1000 + 150); }
+    this.load(sl, name); sl.el.loop = loop; sl.ending = 0;
+    try { sl.el.currentTime = 0; } catch (e) {}
+    sl.g.gain.value = 0; this.start(sl); this.fade(sl, 1, dur);
+  },
+  // le lecteur libre charge déjà la piste suivante, pour enchaîner sans trou
+  preload(sl) { const s = this.scene, l = MUSIC[s]; if (s && s !== 'home' && this.on()) this.load(sl, l[(this.idx[s] + 1) % l.length]); },
+  next(scene, dur) {
+    const l = MUSIC[scene];
+    if (scene === 'home') return this.play(l[0], true, dur);
+    this.idx[scene] = (this.idx[scene] + 1) % l.length; this.play(l[this.idx[scene]], false, dur);
+  },
+  // appelé à chaque image
+  tick() {
+    if (!Sfx.ac || !this.setup()) return;
+    const cur = this.slots[this.ci];
+    if (!this.on()) { for (const sl of this.slots) if (!sl.el.paused) sl.el.pause(); this.paused = true; return; }
+    if (this.paused) { this.paused = false; if (cur.name && !cur.el.ended) this.start(cur); }
+    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? 'classic' : 'home';
+    const ph = G.phase, newGame = (this.prevPh === 'matchEnd' || this.prevPh === 'brEnd') && ph !== this.prevPh && !REPLAY.on
+      || (scene === 'classic' && G.round < this.prevRound);
+    if (scene !== this.scene) { this.scene = scene; this.next(scene, cur.name ? 1.4 : 0.8); }
+    else if (newGame && scene !== 'home') this.next(scene, 1.6);   // nouvelle partie : piste suivante
+    else if (!cur.el.loop && cur.el.duration && cur.el.currentTime > cur.el.duration - 1.3 && !cur.ending) { cur.ending = 1; this.next(scene, 1.3); }
+    if (!REPLAY.on) { this.prevPh = ph; this.prevRound = G.round; }
+    // volume : plus bas en pause, pendant la cinématique de la giga bombe, et un peu sur l'écran de fin
+    let lv = MUS_VOL[scene];
+    if (G.paused && scene !== 'home') lv *= 0.45;
+    else if (ph === 'brEnd' && scene === 'br') lv *= 0.3;
+    else if (ph === 'matchEnd' && scene === 'classic') lv *= 0.8;
+    if (Math.abs(lv - this.lv) > 0.004) { this.lv = lv; this.lvG.gain.setTargetAtTime(lv, Sfx.ac.currentTime, 0.25); }
+  },
+  // une explosion proche baisse la musique un court instant (jusqu'à -40 %), puis elle remonte doucement
+  duck(v) {
+    if (!this.duckG) return;
+    const now = Sfx.ac.currentTime, p = this.duckG.gain, cur = Math.min(1, p.value), d = Math.min(cur, 1 - 0.4 * Math.min(1, v));
+    p.cancelScheduledValues(now); p.setValueAtTime(cur, now); p.linearRampToValueAtTime(d, now + 0.04); p.setTargetAtTime(1, now + 0.25, 0.4);
+  },
+  // un geste du joueur (clic, touche) relance la lecture si le navigateur l'avait refusée
+  unlock() {
+    if (!this.slots) return;
+    const sl = this.slots[this.ci]; if (sl.blocked && this.on()) this.start(sl);
+  },
+};
 const BOOM_FILES = ['classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy', 'mega'];
 const BOOM_SKIN = ['', 'classic', 'pumpkin', 'snow', 'retro', 'crystal', 'lava', 'gold', 'galaxy'];
 // le son suit le skin de bombe choisi ; la bombe du perso fait le son classique pour tous les persos
@@ -1289,6 +1365,7 @@ const Sfx = {
         const s = this.ac.createBufferSource(), g = this.ac.createGain();
         s.buffer = buf; s.playbackRate.value = 0.96 + Math.random() * 0.08;   // petite variation à chaque explosion
         g.gain.value = v * 1.2 * (now - this.lastDeath < 0.12 ? 0.12 : 1); s.connect(g); g.connect(this.out); s.start(now);
+        Music.duck(v);
         this.live = (this.live || []).filter(o => o.end > now); this.live.push({ g, end: now + buf.duration });
         return;
       }
@@ -4655,6 +4732,16 @@ function syncMute() {
   muteBtn.setAttribute('aria-label', Sfx.muted ? 'Remettre le son' : 'Couper le son');
 }
 function toggleMute() { Sfx.muted = !Sfx.muted; Sfx.init(); syncMute(); }
+const musicBtn = $('#btn-music');
+function syncMusicBtn() {
+  const off = settings.music === false;
+  musicBtn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.2V3.6l7-1.6v8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4.4" cy="12.3" r="1.9" fill="currentColor"/><circle cx="11.4" cy="10.6" r="1.9" fill="currentColor"/>'
+    + (off ? '<path d="M2 2l12 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' : '') + '</svg>';
+  musicBtn.classList.toggle('off', off);
+  musicBtn.setAttribute('aria-pressed', off ? 'true' : 'false');
+  musicBtn.setAttribute('aria-label', off ? 'Remettre la musique' : 'Couper la musique');
+}
+function toggleMusic() { settings.music = settings.music === false; saveSettings(); Sfx.init(); syncMusicBtn(); Music.tick(); }
 
 // Sélecteur de perso de l'accueil : aperçus animés (le perso choisi marche, les autres respirent)
 // Le même sélecteur existe aussi sur l'écran de fin (changer de perso avant la revanche, sans quitter le lobby)
@@ -5445,6 +5532,7 @@ $('#resume').addEventListener('click', resume);
 $('#quit').addEventListener('click', toMenu);
 $('#btn-pause').addEventListener('click', () => { if (G.paused) resume(); else pause(); });
 muteBtn.addEventListener('click', toggleMute);
+musicBtn.addEventListener('click', toggleMusic);
 
 /* ---------- Clavier ---------- */
 function removeFrom(a, v) { const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); }
@@ -5492,6 +5580,7 @@ window.addEventListener('keydown', e => {
     else if ((code === 'ArrowLeft' || code === 'KeyA') && !e.repeat) specCycle(-1);
     else if ((code === 'ArrowRight' || code === 'KeyD') && !e.repeat) specCycle(1);
     else if (code === 'KeyM') toggleMute();
+    else if (code === 'KeyN') toggleMusic();
     return;
   }
   if (code === 'Escape') { pause(); return; }
@@ -5499,6 +5588,7 @@ window.addEventListener('keydown', e => {
   if (!kb) {
     if (code === 'KeyP') pause();
     else if (code === 'KeyM') toggleMute();
+    else if (code === 'KeyN') toggleMusic();
     else if (code === 'KeyC' && G.mode === 'br' && inGame() && !e.repeat) cycleCam();
     else if (/^(Digit|Numpad)[1-4]$/.test(code) && inGame() && !e.repeat) {
       const pi = NET.role || G.mode === 'br' ? localIdx() : (code.startsWith('Numpad') && settings.mode === 'duo' ? 1 : 0);
@@ -6716,10 +6806,10 @@ function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
   if (REPLAY.on) {
     pollPads(); replayTick(dt); updateCamera(dt); render(); updateHud(); netTick(); if (G.mode === 'br') brHudTick(now);
-    requestAnimationFrame(loop); return;
+    Music.tick(); requestAnimationFrame(loop); return;
   }
   pollPads(); update(dt); recTick(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); syncSpecBar(); if (G.mode === 'br') brHudTick(now);
-  syncBg(); requestAnimationFrame(loop);
+  syncBg(); Music.tick(); requestAnimationFrame(loop);
 }
 // Onglet caché pendant une partie en ligne : le navigateur arrête requestAnimationFrame (et ralentit les minuteries).
 // Un minuteur dans un worker, qui n'est pas ralenti, fait alors tourner la partie et le réseau 30 fois par seconde, sans dessin :
@@ -6733,12 +6823,14 @@ if (bgWorker) bgWorker.onmessage = () => {
   if (!REPLAY.on) { update(dt); recTick(dt); xpTick(dt); }
   netTick(); syncBg();
 };
-document.addEventListener('visibilitychange', syncBg);
+document.addEventListener('visibilitychange', () => { syncBg(); Music.tick(); });
+// le son (et la musique de l'accueil) démarre au premier geste du joueur : les navigateurs l'exigent
+for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => { Sfx.init(); Music.unlock(); Music.tick(); }, { capture: true, passive: true });
 function boot(data) {
   data = data || {};
   if (data.settings) Object.assign(settings, data.settings);
   if (typeof data.muted === 'boolean') Sfx.muted = data.muted;
-  buildStatics(); syncMenu(); syncMute(); syncRumble(); renderKeyHelp(); buildCharPicker();
+  buildStatics(); syncMenu(); syncMute(); syncMusicBtn(); syncRumble(); renderKeyHelp(); buildCharPicker();
   for (const ch of CHARS.slice(1)) {
     const im = new Image();
     im.onload = () => { charImg[ch.key] = im; setupHud(); };
@@ -6753,7 +6845,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { leaveOnline, Sfx, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { leaveOnline, Sfx, Music, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
