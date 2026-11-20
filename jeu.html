@@ -423,6 +423,54 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .items canvas{width:40px;height:40px}
 .items b{display:block;font-size:17px;line-height:1.2}
 .items span{color:var(--muted);font-size:15px;line-height:1.3}
+.mbtn.camp{grid-column:1/-1;grid-template-columns:auto 1fr;align-items:center;column-gap:16px;border-color:rgba(130,200,255,.5);background:linear-gradient(135deg,rgba(80,150,255,.2),rgba(12,18,12,.55))}
+.mbtn.camp .ci{grid-row:1/3;display:flex;gap:4px}
+.mbtn.camp .ci i{width:12px;height:12px;border-radius:50%;background:rgba(243,229,192,.22);box-shadow:inset 0 0 0 2px rgba(243,229,192,.25)}
+.mbtn.camp .ci i.on{background:var(--gold);box-shadow:0 0 8px rgba(255,214,110,.7)}
+.box.camp{max-width:860px;width:100%}
+.camp-path{position:relative;display:grid;grid-template-columns:repeat(10,1fr);gap:10px 8px;width:100%;margin:14px 0 6px;padding:18px 14px 14px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.25));border:1px solid rgba(243,229,192,.14)}
+@media (max-width:640px){.camp-path{grid-template-columns:repeat(5,1fr)}}
+.camp-node{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--parchment);font:800 11px/1 var(--font-body);cursor:pointer}
+.camp-med{position:relative;width:100%;max-width:66px;aspect-ratio:1;border-radius:50%;padding:3px;background:linear-gradient(160deg,#4a4f4a,#1b201c);box-shadow:0 5px 0 rgba(0,0,0,.35),0 8px 16px rgba(0,0,0,.3);transition:transform .15s}
+.camp-med canvas{display:block;width:100%;height:100%;border-radius:50%;filter:grayscale(1) brightness(.5) contrast(.9);transition:filter 1.3s ease}
+.camp-node.done .camp-med{background:conic-gradient(from 200deg,#fff1a8,#e8b23a,#7a4d08,#e8b23a,#fff1a8)}
+.camp-node.done .camp-med canvas{filter:none}
+.camp-node.next .camp-med{background:linear-gradient(160deg,#9fd0ff,#2f6fd0);animation:campPulse 1.6s ease-in-out infinite}
+.camp-node.next .camp-med canvas{filter:grayscale(.85) brightness(.75)}
+.camp-node.soon .camp-med canvas{filter:grayscale(1) brightness(.32)}
+.camp-node[aria-pressed="true"] .camp-med{transform:translateY(-5px) scale(1.08);outline:3px solid var(--parchment);outline-offset:3px}
+.camp-node:hover .camp-med{transform:translateY(-3px)}
+.camp-node .cn{position:absolute;top:-6px;left:50%;transform:translateX(-50%);min-width:20px;padding:3px 6px;border-radius:999px;background:#1b201c;border:2px solid rgba(243,229,192,.35);font:800 11px/1 var(--font-body)}
+.camp-node.done .cn{background:#e8b23a;border-color:#fff1a8;color:#2a1508}
+.camp-node .ck{position:absolute;right:-2px;bottom:16px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#3fbf5a;color:#fff;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.camp-node .lk{position:absolute;right:0;bottom:18px;font-size:14px;filter:grayscale(1)}
+.camp-node .cl{opacity:.75;white-space:nowrap}
+.camp-node.done .cl{opacity:1;color:var(--gold)}
+.camp-node.unlock .camp-med{animation:campBurst 1.3s ease-out}
+@keyframes campPulse{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.35),0 0 0 0 rgba(120,190,255,.6)}50%{box-shadow:0 5px 0 rgba(0,0,0,.35),0 0 0 9px rgba(120,190,255,0)}}
+@keyframes campBurst{0%{transform:scale(1)}35%{transform:scale(1.28);box-shadow:0 0 0 0 rgba(255,214,110,.9),0 0 40px rgba(255,214,110,.9)}100%{transform:scale(1);box-shadow:0 0 0 22px rgba(255,214,110,0)}}
+.camp-bar{width:100%;height:8px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
+.camp-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#e8b23a,#fff1a8);transition:width 1s ease}
+.camp-card{width:min(560px,100%);margin:10px 0 8px;padding:14px 18px;border-radius:16px;background:rgba(10,16,10,.5);border:1px solid rgba(243,229,192,.16)}
+.camp-card h3{margin:0 0 6px;font-family:var(--font-display);font-weight:400;font-size:28px}
+.camp-card p{margin:4px 0;color:var(--muted);font-weight:700}
+.camp-card .camp-rules{color:var(--parchment);font-size:14px}
+#vs{position:fixed;inset:0;z-index:40;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;background:#0b0f0b;cursor:pointer}
+#vs[hidden]{display:none}
+.vs-side{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px}
+.vs-side.l{background:linear-gradient(120deg,var(--vc) -30%,#0b0f0b 85%);clip-path:polygon(0 0,100% 0,88% 100%,0 100%);animation:vsL .45s cubic-bezier(.2,.9,.3,1.2) both}
+.vs-side.r{background:linear-gradient(240deg,var(--vc) -30%,#0b0f0b 85%);clip-path:polygon(12% 0,100% 0,100% 100%,0 100%);animation:vsR .45s cubic-bezier(.2,.9,.3,1.2) .08s both}
+.vs-side canvas{width:min(34vw,300px);height:min(34vw,300px);filter:drop-shadow(0 12px 24px rgba(0,0,0,.6))}
+.vs-side b{font-family:var(--font-display);font-weight:400;font-size:clamp(26px,4.4vw,48px);text-shadow:0 4px 0 rgba(0,0,0,.5)}
+.vs-side span{font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:13px;color:var(--gold)}
+.vs-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--font-display);font-size:clamp(80px,15vw,170px);line-height:1;background:linear-gradient(180deg,#fff7c8,#ffd36e 45%,#c27a12 60%,#ffe7a0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:3px #4a2a06;filter:drop-shadow(0 8px 0 rgba(0,0,0,.45));animation:vsPop .5s cubic-bezier(.2,1.6,.4,1) .35s both}
+.vs-top{position:absolute;top:0;left:0;right:0;padding:16px;text-align:center;font-family:var(--font-display);font-size:clamp(24px,4vw,40px);color:var(--parchment);background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);animation:vsFade .4s .2s both}
+.vs-top small{display:block;font-family:var(--font-body);font-weight:800;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+@media (max-aspect-ratio:4/5){#vs{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.vs-side.l{clip-path:polygon(0 0,100% 0,100% 86%,0 100%)}.vs-side.r{clip-path:polygon(0 14%,100% 0,100% 100%,0 100%)}.vs-side canvas{width:min(28vh,240px);height:min(28vh,240px)}.vs-side.l{justify-content:flex-start;padding-top:74px}.vs-side.l span{order:-1}.vs-side.r{justify-content:flex-end;padding-bottom:40px}}
+@keyframes vsL{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes vsR{from{transform:translateX(100%)}to{transform:none}}
+@keyframes vsPop{from{transform:translate(-50%,-50%) scale(3) rotate(-8deg);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@keyframes vsFade{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
 .box{margin:auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:640px}
 .box h2{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,7vw,68px);line-height:.95;margin:0;text-shadow:0 4px 0 rgba(0,0,0,.45);text-wrap:balance}
 .score-line{font-family:var(--font-display);font-size:30px;margin:6px 0 22px;font-variant-numeric:tabular-nums}
@@ -566,6 +614,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
+      <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
       <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
       <button class="mbtn" id="btn-create" type="button"><b>Créer un lobby</b><span>Invite tes potes avec un code</span></button>
     </div>
@@ -804,6 +853,22 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <button type="button" id="spec-prev" aria-label="Joueur précédent">◀</button><button type="button" id="spec-next" aria-label="Joueur suivant">▶</button>
   <button type="button" id="spec-quit">Quitter <kbd>Échap</kbd></button>
 </div>
+<div id="camp" class="overlay" hidden>
+  <div class="box camp">
+    <p class="kicker">Mode campagne</p>
+    <h2>Campagne</h2>
+    <p class="rule" id="camp-prog"></p>
+    <div class="camp-path" id="camp-path" role="group" aria-label="Les 10 défis"></div>
+    <div class="camp-bar" aria-hidden="true"><i id="camp-fill"></i></div>
+    <div class="camp-card" id="camp-card" role="status"><h3 id="camp-name"></h3><p id="camp-desc"></p><p class="camp-rules" id="camp-rules"></p></div>
+    <div class="row">
+      <button class="cta" id="camp-go" type="button">Lancer le défi <kbd>Entrée</kbd></button>
+      <button class="ghost" id="camp-back" type="button">Retour <kbd>Échap</kbd></button>
+    </div>
+  </div>
+</div>
+<div id="vs" hidden aria-live="polite"></div>
+
 <div id="end" class="overlay" hidden>
   <div class="box">
     <p class="kicker" id="end-kicker">Fin de la partie</p>
@@ -818,6 +883,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="row">
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
       <button class="ghost" id="replay-btn" type="button" hidden>Revoir la manche <kbd>R</kbd></button>
+      <button class="ghost" id="end-camp" type="button" hidden>Campagne</button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
     </div>
   </div>
@@ -949,6 +1015,18 @@ const PALS = [
   { name: 'Soufre', coat: '#d6a21e', coatDark: '#9a7010', scarf: '#7a4bb3', scarfDark: '#55307f', helm: '#6b7688', helmLight: '#aab4c4', helmDark: '#434b59', ui: '#ffd34d' },
 ];
 const SPAWNS = [[1, 1, 'down'], [COLS - 2, ROWS - 2, 'up'], [COLS - 2, 1, 'down'], [1, ROWS - 2, 'up']];
+// Campagne : 10 défis, à faire dans l'ordre. Seul le premier est prêt ; les autres arrivent plus tard (foe : perso adverse, pour l'icône).
+// inset : épaisseur de mur ajoutée autour de l'arène (2 → arène de 9 × 7 cases au lieu de 13 × 11)
+const CAMP = [
+  { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
+  { foe: 2 }, { foe: 5 }, { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
+];
+const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
+const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
+function spawnOf(i) {
+  const s = SPAWNS[i] || SPAWNS[0], I = campInset();
+  return I ? [s[0] === 1 ? 1 + I : s[0] - I, s[1] === 1 ? 1 + I : s[1] - I, s[2]] : s;
+}
 const AI_LV = [
   { react: 0.38, think: 0.34, aggro: 0.25, item: 0.7, margin: 0.22, chase: 0.25, bombRate: 0.7 },
   { react: 0.16, think: 0.20, aggro: 0.65, item: 1.0, margin: 0.12, chase: 0.7,  bombRate: 0.95 },
@@ -1052,7 +1130,7 @@ const ACH = [
   { name: 'Fidèle', desc: 'Monter un perso au niveau 100', need: ['p100', 1] },
 ];
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po'];
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp'];   // cp : défis de campagne réussis
 function statPlace(place, n) { if (place === 1) statAdd('pa', 1); if (place >= 1 && place <= 3 && n > 3) statAdd('po', 1); }
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
@@ -1309,7 +1387,7 @@ function rankMatch() {
   const rank = []; ids.forEach((id, j) => { rank[id] = j && cmp(ids[j - 1], id) === 0 ? rank[ids[j - 1]] : j + 1; });
   G.ranking = rank; G.matchWin = ids.filter(id => rank[id] === 1);
 }
-const humansLocal = () => settings.mode === 'duo' ? 2 : 1;
+const humansLocal = () => G.camp ? 1 : settings.mode === 'duo' ? 2 : 1;
 const minBots = () => settings.mode === 'cpu' ? 1 : 0;
 function maxBots() {
   if (settings.mode === 'online') return NET.role === 'host' ? 3 - NET.links.length : 3;
@@ -1411,16 +1489,17 @@ const Sfx = {
    Carte
    ========================================================= */
 function genMap(seed) {
-  const r = mulberry(seed), g = G.grid;
+  const r = mulberry(seed), g = G.grid, I = campInset();   // I : murs en plus autour (arène réduite de la campagne)
   G.hidden.fill(-1); G.burn.fill(0); G.items.fill(-1); G.itemAge.fill(0); G.flameT.fill(0); G.flameBits.fill(0);
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     const k = idx(x, y);
-    if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) g[k] = WALL;
+    if (x <= I || y <= I || x >= COLS - 1 - I || y >= ROWS - 1 - I) g[k] = WALL;
     else if (x % 2 === 0 && y % 2 === 0) g[k] = PILLAR;
     else g[k] = EMPTY;
   }
-  const safe = new Set([idx(1, 1), idx(2, 1), idx(1, 2), idx(COLS - 2, ROWS - 2), idx(COLS - 3, ROWS - 2), idx(COLS - 2, ROWS - 3),
-    idx(COLS - 2, 1), idx(COLS - 3, 1), idx(COLS - 2, 2), idx(1, ROWS - 2), idx(2, ROWS - 2), idx(1, ROWS - 3)]);
+  const a = 1 + I, bx = COLS - 2 - I, by = ROWS - 2 - I;
+  const safe = new Set([idx(a, a), idx(a + 1, a), idx(a, a + 1), idx(bx, by), idx(bx - 1, by), idx(bx, by - 1),
+    idx(bx, a), idx(bx - 1, a), idx(bx, a + 1), idx(a, by), idx(a + 1, by), idx(a, by - 1)]);
   const pairs = [];
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
@@ -1431,7 +1510,7 @@ function genMap(seed) {
   const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4];
   for (let i = 0; i < bag.length && i < pairs.length; i++) { G.hidden[pairs[i][0]] = bag[i]; G.hidden[pairs[i][1]] = bag[i]; }
   // ordre de chute de la mort subite : spirale sur les 2 rangées du bord seulement
-  const order = []; let x0 = 1, y0 = 1, x1 = COLS - 2, y1 = ROWS - 2;
+  const order = []; let x0 = a, y0 = a, x1 = bx, y1 = by;
   for (let ring = 0; ring < SD_RINGS && x0 <= x1 && y0 <= y1; ring++) {
     for (let x = x0; x <= x1; x++) order.push(idx(x, y0));
     for (let y = y0 + 1; y <= y1; y++) order.push(idx(x1, y));
@@ -1459,7 +1538,7 @@ function makePlayer(i, lv, nick) {
   };
 }
 function resetPlayer(p) {
-  const sp = SPAWNS[p.id] || SPAWNS[0]; p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
+  const sp = spawnOf(p.id); p.x = sp[0]; p.y = sp[1]; p.face = sp[2];
   // hors battle royale, tout le monde a le coup de botte dès le départ (il n'est plus dans les caisses)
   p.speedLv = 0; p.maxBombs = 1; p.range = 2; p.kick = G.mode !== 'br'; p.throw = false; p.active = 0;
   p.alive = true; p.deathT = 0; p.deadTick = 0; p.phase = 0; p.moving = false; p.bombQueued = false;
@@ -3389,6 +3468,7 @@ function drawBrMini() {
 }
 // « Battle royale » : on cherche une partie déjà lancée (créneaux br-0 à br-3) ; sinon on lance la sienne et on l'ouvre aux autres
 function openBr() {
+  G.camp = null;
   if (NET.role) return;
   if (!peerReady()) { startBr(); brToast('Hors ligne : personne ne peut te rejoindre'); return; }
   showOnline('br'); setNetView(true, '', '');
@@ -3657,7 +3737,7 @@ function drawGround(c, seed, gc = COLS, gr = ROWS, spawns = true) {
     const light = r() < 0.5; g.addColorStop(0, light ? 'rgba(200,230,120,.13)' : 'rgba(40,80,30,.13)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  if (spawns) for (const [sx, sy] of SPAWNS) {
+  if (spawns) for (const [sx, sy] of [0, 1, 2, 3].map(spawnOf)) {
     const x = (sx + 0.5) * T, y = (sy + 0.5) * T, g = c.createRadialGradient(x, y, 4, x, y, 58);
     g.addColorStop(0, 'rgba(150,105,60,.55)'); g.addColorStop(0.6, 'rgba(150,105,60,.25)'); g.addColorStop(1, 'rgba(150,105,60,0)');
     c.fillStyle = g; c.fillRect(x - 60, y - 60, 120, 120);
@@ -4855,7 +4935,7 @@ function drawCharPicker(t) {
 function blurActive() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
 function startMatch() {
   Sfx.init();
-  G.mode = 'match'; G.paused = false;
+  G.mode = 'match'; G.paused = false; G.camp = null;
   const lv = AI_LV[clamp(settings.diff | 0, 0, 2)], list = [];
   for (let i = 0; i < humansLocal(); i++) list.push(makePlayer(i, null, i ? settings.name2 : settings.name));
   list[0].skin = settings.skin;
@@ -4866,7 +4946,7 @@ function startMatch() {
   blurActive(); saveSettings();
 }
 function toMenu() {
-  leaveOnline();
+  leaveOnline(); G.camp = null; $('#end-camp').hidden = true;
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
@@ -4902,7 +4982,8 @@ function pause() {
 }
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
-  renderEndXp(); $('#again').firstChild.textContent = 'Revanche ';
+  renderEndXp(); $('#again').firstChild.textContent = 'Revanche '; $('#end-camp').hidden = !G.camp;
+  if (G.camp) { showEndCamp(); return; }
   if (G.pointsMode) { showEndPoints(); reportMatch(); return; }
   setTimeout(reportMatch, 0);
   $('#end-score').style.whiteSpace = '';
@@ -4942,8 +5023,111 @@ function showEndPoints() {
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
+
+/* ---------- Campagne ---------- */
+const campEl = $('#camp'), vsEl = $('#vs');
+const campDone = () => clamp(statOf('cp'), 0, CAMP.length);          // défis réussis (ils se font dans l'ordre)
+const campReady = i => !!CAMP[i] && !!CAMP[i].name && (i <= campDone() || !!settings.admin);
+let campSel = 0, campJust = -1;
+function syncCampBtn() {
+  const d = campDone(), ci = $('#btn-camp .ci');
+  ci.innerHTML = CAMP.map((_, i) => `<i class="${i < d ? 'on' : ''}"></i>`).slice(0, 10).join('');
+  $('#camp-sub').textContent = d >= CAMP.length ? 'Campagne terminée !' : d ? `${d} / ${CAMP.length} défis réussis · défi ${d + 1} à relever` : '10 défis à relever, un par un';
+}
+function openCamp(just) {
+  Sfx.init(); menuEl.hidden = true; endEl.hidden = true; campEl.hidden = false;
+  campJust = Number.isInteger(just) ? just : -1;
+  campSel = campJust >= 0 && campReady(campJust + 1) ? campJust + 1 : Math.min(campDone(), CAMP.length - 1);
+  renderCamp();
+  try { $('#camp-go').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeCamp() { campEl.hidden = true; menuEl.hidden = false; syncCampBtn(); try { $('#btn-camp').focus({ preventScroll: true }); } catch (e) {} }
+function renderCamp() {
+  const d = campDone(), path = $('#camp-path');
+  $('#camp-prog').textContent = `${d} / ${CAMP.length} défi${d > 1 ? 's' : ''} réussi${d > 1 ? 's' : ''}`;
+  $('#camp-fill').style.width = (d / CAMP.length * 100) + '%';
+  path.innerHTML = '';
+  CAMP.forEach((c, i) => {
+    const b = document.createElement('button'); b.type = 'button';
+    const done = i < d, ready = campReady(i), soon = !c.name;
+    // un défi qu'on vient de réussir s'affiche d'abord grisé, puis se dégrise
+    const fresh = i === campJust;
+    b.className = 'camp-node' + (done && !fresh ? ' done' : '') + (!done && ready ? ' next' : '') + (soon ? ' soon' : '');
+    b.setAttribute('aria-pressed', String(i === campSel));
+    b.setAttribute('aria-label', `Défi ${i + 1}${soon ? ', bientôt' : done ? ', réussi' : ready ? ', à relever' : ', verrouillé'}`);
+    const med = document.createElement('span'); med.className = 'camp-med';
+    const cv = document.createElement('canvas'); cv.width = cv.height = 132; drawPortrait(cv, palFor(1), c.foe); med.appendChild(cv);
+    const cn = document.createElement('span'); cn.className = 'cn'; cn.textContent = i + 1;
+    const cl = document.createElement('span'); cl.className = 'cl'; cl.textContent = soon ? 'Bientôt' : done ? 'Réussi' : ready ? 'À relever' : 'Verrouillé';
+    b.append(med, cn, cl);
+    if (done) { const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓'; b.appendChild(ck); }
+    else if (!ready) { const lk = document.createElement('span'); lk.className = 'lk'; lk.textContent = '🔒'; b.appendChild(lk); }
+    if (fresh) setTimeout(() => { b.classList.add('done', 'unlock'); cl.textContent = 'Réussi'; Sfx.play('pickup'); }, 450);
+    b.addEventListener('click', () => { campSel = i; campJust = -1; renderCamp(); });
+    b.addEventListener('dblclick', () => { if (campReady(i)) startCamp(i); });
+    path.appendChild(b);
+  });
+  campJust = -1;
+  const c = CAMP[campSel], go = $('#camp-go');
+  $('#camp-name').textContent = c.name ? `Défi ${campSel + 1} · ${c.name}` : `Défi ${campSel + 1}`;
+  if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
+  else {
+    $('#camp-desc').textContent = c.desc;
+    $('#camp-rules').textContent = `Contre ${CHARS[c.foe].name} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`
+      + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
+  }
+  go.disabled = !campReady(campSel);
+  go.firstChild.textContent = campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
+}
+// écran « VS » avant le défi, puis la partie
+let vsT = 0, vsNext = null;
+function startCamp(i) {
+  if (!campReady(i)) return;
+  const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
+  vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
+    + `<div class="vs-side r" style="--vc:${foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Ordi ${AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
+  const cvs = vsEl.querySelectorAll('canvas'), bs = vsEl.querySelectorAll('.vs-side b');
+  drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin);
+  bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = CHARS[c.foe].name;
+  vsEl.querySelector('.vs-top').append(c.name);
+  campEl.hidden = true; vsEl.hidden = false; Sfx.play('pickup');
+  clearTimeout(vsT); vsNext = () => { vsNext = null; vsEl.hidden = true; startCampMatch(i); };
+  vsT = setTimeout(() => vsNext && vsNext(), 2400);
+}
+vsEl.addEventListener('click', () => { clearTimeout(vsT); if (vsNext) vsNext(); });
+function startCampMatch(i) {
+  const c = CAMP[i];
+  Sfx.init();
+  G.mode = 'match'; G.paused = false; G.camp = { i, ...c };
+  const me = makePlayer(0, null, settings.name); me.skin = settings.skin;
+  const foe = makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
+  setPlayers([me, foe]); G.round = 1; G.winsNeeded = c.wins;
+  newRound(); setupHud();
+  menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+  blurActive();
+}
+function showEndCamp() {
+  const c = G.camp, won = G.lastWinner === 0, first = won && c.i >= campDone();
+  if (won) statMax('cp', c.i + 1);
+  $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
+  const title = $('#end-title'); title.textContent = `Défi ${c.i + 1} · ${c.name}`; title.style.color = won ? '#ffd36e' : '#f3e5c0';
+  const es = $('#end-score'); es.style.whiteSpace = ''; es.style.fontSize = '';
+  es.textContent = `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
+  $('#end-note').textContent = won ? (first ? 'Retourne à la campagne pour le voir se dégriser.' : '') : `Il faut gagner ${c.wins} manche${c.wins > 1 ? 's' : ''} avant l'ordi. Tu peux réessayer autant de fois que tu veux.`;
+  $('#again').firstChild.textContent = won ? 'Rejouer ' : 'Réessayer ';
+  $('#again').hidden = false; pauseEl.hidden = true;
+  const ec = $('#end-camp'); ec.hidden = false; ec.dataset.just = first ? c.i : -1;
+  endEl.hidden = false;
+  try { (first ? ec : $('#again')).focus({ preventScroll: true }); } catch (e) {}
+}
+$('#btn-camp').addEventListener('click', () => openCamp());
+$('#camp-back').addEventListener('click', closeCamp);
+$('#camp-go').addEventListener('click', () => startCamp(campSel));
+$('#end-camp').addEventListener('click', () => { const j = +$('#end-camp').dataset.just; toMenu(); openCamp(j >= 0 ? j : undefined); });
+syncCampBtn();
 function onPlay() { if (settings.mode === 'online') settings.mode = 'cpu'; startMatch(); }
-function onAgain() { if (G.mode === 'br') { brReset(); return; } if (NET.role === 'host') startOnlineMatch(); else if (!NET.role) startMatch(); }
+function onAgain() { if (G.mode === 'br') { brReset(); return; } if (G.camp) { startCampMatch(G.camp.i); return; } if (NET.role === 'host') startOnlineMatch(); else if (!NET.role) startMatch(); }
 playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
@@ -5572,6 +5756,13 @@ window.addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
   if (!customEl.hidden) { if (code === 'Escape') closeCustom(); return; }
+  if (!vsEl.hidden) { if (code === 'Escape' || code === 'Enter' || code === 'Space') { e.preventDefault(); clearTimeout(vsT); if (vsNext) vsNext(); } return; }
+  if (!campEl.hidden) {
+    if (code === 'Escape') closeCamp();
+    else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { campSel = clamp(campSel + (code === 'ArrowLeft' ? -1 : 1), 0, CAMP.length - 1); renderCamp(); }
+    else if (code === 'Enter' && document.activeElement && document.activeElement.id !== 'camp-back' && !document.activeElement.classList.contains('camp-node')) { e.preventDefault(); startCamp(campSel); }
+    return;
+  }
   if (!profEl.hidden) { if (code === 'Escape') closeProfile(); return; }
   if (!accEl().hidden) { if (code === 'Escape') closeAccount(); return; }
   const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
@@ -5903,6 +6094,7 @@ function dropLink(L) {
   } else refreshHostLobby();
 }
 function startOnlineMatch() {
+  G.camp = null;
   if (NET.role !== 'host') return;
   const humans = 1 + NET.links.length;
   if (humans < 2 && NET.pub) return;
@@ -6071,6 +6263,7 @@ function rejoinAsGuest(id) {
   peer.on('error', err => guestPeerError(peer, err));
 }
 function guestInit(peer, code, pub) {
+  G.camp = null;
   Object.assign(NET, { spec: false, migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false, hostSlot: 0, role: 'guest', peer, link: null, code, lastQ: -1, lastFx: 0, gotSnap: false, bombSeq: 0, kickSeq: 0, kickReq: null, pendKick: null, stopSeq: 0, throwSeq: 0, throwReq: null, throwT: -9, emSeq: 0, emN: 0, emAt: -9, mi: -1, lastSeen: 0, me: 1, kinds: '', pub: !!pub, seek: null });
   Sfx.init();
   G.mode = 'match'; G.paused = false;
