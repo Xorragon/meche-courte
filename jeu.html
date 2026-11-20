@@ -332,6 +332,10 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .prof-rank canvas{width:32px;height:32px;flex:none}
 .prof-rank small{display:block;font-weight:700;opacity:.75}
 .prof-body h3{margin:16px 0 8px;font:800 13px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.prof-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.prof-tabs button{padding:6px 14px;border-radius:999px;border:1px solid rgba(243,229,192,.25);background:rgba(10,16,10,.45);color:var(--parchment);font:700 13px var(--font-body);cursor:pointer}
+.prof-tabs button[aria-selected="true"]{background:var(--gold);color:#2a1a06;border-color:var(--gold)}
+.prof-stats .prof-note{grid-column:1/-1;margin:0;font-size:12px;opacity:.7;background:none;border:0;padding:0}
 .prof-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .prof-stats div{padding:9px 10px;border-radius:12px;background:rgba(10,16,10,.45);border:1px solid rgba(243,229,192,.12)}
 .prof-stats b{display:block;font:400 22px/1.1 var(--font-display);color:var(--parchment)}
@@ -623,6 +627,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
+      <button class="ghost tiny prof-btn" type="button" id="btn-profile">Mon profil</button>
       <button class="elo-badge" id="elo-badge" type="button" hidden></button>
       <span class="nick-note" id="nick-note" role="status"></span>
     </form>
@@ -1176,8 +1181,10 @@ const ACH = [
   { name: 'Fidèle', desc: 'Monter un perso au niveau 100', need: ['p100', 1] },
 ];
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp'];   // cp : défis de campagne réussis
-function statPlace(place, n) { if (place === 1) statAdd('pa', 1); if (place >= 1 && place <= 3 && n > 3) statAdd('po', 1); }
+// g, w, k… : stats générales (tous modes). Matchs normaux (classique, en ligne, campagne) : ng parties, nw victoires, nk victimes.
+// Battle royale : bg parties, bw victoires (= top 1), bt top 3, bk victimes, ct contrats, ch coffres, o orbes. pa/po : anciens top 1/top 3 (tous modes), plus comptés.
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt'];   // cp : défis de campagne réussis
+function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('bt', 1); }   // top 3 : seulement en battle royale
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
 const presOfXp = x => Math.max(0, Math.min(PRES_MAX, Math.floor((x - XP_TOTAL[LV_MAX]) / PRES_XP)));
@@ -1186,6 +1193,8 @@ const COS_KINDS = { b: BOMB_SKINS, f: FLAME_SKINS, e: EMOTES, c: CARD_STYLES, p:
 const COS_LABEL = { b: 'bombe', f: 'flammes', e: 'emote', c: 'carte', p: 'phrase', t: 'succès' };
 const COS_DEF = () => ({ b: 0, f: 0, c: 0, p: 0, t: 0, e: [0, 1, 2, 3] });
 if (!settings.st || typeof settings.st !== 'object' || Array.isArray(settings.st)) settings.st = {};
+// stats par mode (2026-11-20) : un battle royale gagné est un top 1 et un top 3, on reprend ceux déjà gagnés
+if (settings.st.bt === undefined && Number(settings.st.bw) > 0) settings.st.bt = Math.floor(Number(settings.st.bw)) || 0;
 if (!settings.cos || typeof settings.cos !== 'object' || Array.isArray(settings.cos)) settings.cos = COS_DEF();
 if (!Array.isArray(settings.cos.e)) settings.cos.e = [0, 1, 2, 3];
 const lvGained = () => CHARS.reduce((a, _, i) => a + levelOfXp(realXpOf(i)) - 1, 0);
@@ -3742,22 +3751,21 @@ function statTick(dt, me, i) {
   vcPrevAlive = me.alive;
   const k = me.kills | 0;
   if (stPrevKills >= 0 && k > stPrevKills) {
-    statAdd('k', k - stPrevKills);
+    statAdd('k', k - stPrevKills); statAdd(G.mode === 'br' ? 'bk' : 'nk', k - stPrevKills);
     for (let j = stPrevKills; j < k; j++) stKillTimes.push(G.t);
     stKillTimes = stKillTimes.filter(x => G.t - x <= 5); statMax('mk', stKillTimes.length);
   }
   stPrevKills = k;
   if (G.mode === 'match' && G.phase === 'intro' && stPrevPhase !== 'intro' && G.round === 1) stDeaths = 0;
   if (G.mode === 'match' && G.phase === 'matchEnd' && stPrevPhase && stPrevPhase !== 'matchEnd') {
-    statAdd('g', 1);
-    if (G.pointsMode ? (G.matchWin || []).includes(i) : G.lastWinner === i) { statAdd('w', 1); if (!stDeaths) statAdd('fl', 1); }
-    statPlace(G.pointsMode ? (G.ranking && G.ranking[i]) | 0 : G.lastWinner === i ? 1 : 2, G.players.length);
+    statAdd('g', 1); statAdd('ng', 1);
+    if (G.pointsMode ? (G.matchWin || []).includes(i) : G.lastWinner === i) { statAdd('w', 1); statAdd('nw', 1); if (!stDeaths) statAdd('fl', 1); }
     stDeaths = 0;
   }
   if (G.mode === 'br') {
     if (G.phase === 'play') stBrT += dt;
     if (G.phase === 'brEnd' && stPrevPhase && stPrevPhase !== 'brEnd') {
-      if (!stBrCounted) statAdd('g', 1);
+      if (!stBrCounted) { statAdd('g', 1); statAdd('bg', 1); }
       stBrCounted = true; if (G.brWinner === i) { statAdd('w', 1); statAdd('bw', 1); }
       const rk = G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id);
       statPlace(rk.indexOf(me) + 1, G.players.length);
@@ -3771,7 +3779,7 @@ function xpTick(dt) {
   if (!me || me.ai || !inGame()) {
     xpPrevPhase = G.phase; xpPrevKills = 0;
     // battle royale quitté après 3 minutes de jeu : compte comme une partie
-    if (stBrT >= 180 && !stBrCounted) statAdd('g', 1);
+    if (stBrT >= 180 && !stBrCounted) { statAdd('g', 1); statAdd('bg', 1); }
     stPrevKills = -1; stPrevPhase = ''; stBrT = 0; stBrCounted = false; vcPrevAlive = true; G.vcard = null; stKillTimes = []; stDeaths = 0;
     return;
   }
@@ -5272,7 +5280,9 @@ function npcBoom(p) {
 // position à l'écran : sur le mur du bord, sans dépasser du cadre
 function npcDrawPos(p) {
   const R = T * 0.62;
-  return [clamp((p.x + 0.5) * T, R + 4, COLS * T - R - 4), clamp((p.y + 0.5) * T, R + 20, ROWS * T - R - 4)];
+  // ligne du haut : les pieds restent sur le mur du haut (et pas sur la première rangée jouable) ; drawNpcs le rapetisse pour qu'il tienne dans l'arène
+  const cy = p.y < 1 ? p.y * T + 46 + 7.8 * p.y - T * 0.62 : (p.y + 0.5) * T;
+  return [clamp((p.x + 0.5) * T, R + 4, COLS * T - R - 4), Math.min(cy, ROWS * T - R - 4)];
 }
 const lerpCol = (a, b, q) => { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), m = (s) => Math.round(((A >> s) & 255) + (((B >> s) & 255) - ((A >> s) & 255)) * q); return `rgb(${m(16)},${m(8)},${m(0)})`; };
 // Kaboum : une bombe sur pattes, lunettes d'aviateur et sourire de fou. o : rage (0 à 1), t, arm (bras levé), look, feet, swell
@@ -5346,7 +5356,7 @@ function drawNpcs(c, t) {
     const feet = y + T * 0.62;
     c.fillStyle = 'rgba(0,0,0,.25)'; ell(c, x, feet - 4, T * 0.42, T * 0.13); c.fill();
     const angry = (rg > 0) && sheetReady(KAB_RAGE);   // en rage : la planche « en colère » du joueur (sinon, teinte rouge)
-    bossFrame(c, name, x + jx, feet + jy, T * 1.45, { rage: rg && !angry ? rg * 0.5 : 0, flip: name === 'castS' && lx < 0, swell: S.blow ? swell : 0 }, angry ? KAB_RAGE : KAB_IMG);
+    bossFrame(c, name, x + jx, feet + jy, Math.min(T * 1.45, feet - 2), { rage: rg && !angry ? rg * 0.5 : 0, flip: name === 'castS' && lx < 0, swell: S.blow ? swell : 0 }, angry ? KAB_RAGE : KAB_IMG);
   } else drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
   if (S.blow && Math.sin(t * (20 + S.blow * 30)) > 0) { c.save(); c.globalAlpha = 0.45; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, T * 0.62 * swell, 0, TAU); c.fill(); c.restore(); }
 }
@@ -6223,7 +6233,7 @@ function openProfile(id, from) {
 function closeProfile() {
   profEl.hidden = true;
   if (profFrom === 'ranks') { ranksEl.hidden = false; try { $('#ranks-close').focus({ preventScroll: true }); } catch (e) {} }
-  else { menuEl.hidden = false; }
+  else { menuEl.hidden = false; try { $('#btn-profile').focus({ preventScroll: true }); } catch (e) {} }
 }
 const charIdx = key => Math.max(0, CHARS.findIndex(c => c.key === key));
 function profPortrait(cv, skin, locked, f) {
@@ -6234,6 +6244,13 @@ function profPortrait(cv, skin, locked, f) {
   if (locked) { c.fillStyle = '#2a2638'; c.beginPath(); c.arc(r, r, r * f, 0, TAU); c.fill(); c.fillStyle = 'rgba(243,229,192,.7)'; c.font = `${Math.round(r * 0.7)}px "Bagel Fat One", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', r, r + 2); }
   else c.drawImage(tmp, r * (1 - f), r * (1 - f), r * 2 * f, r * 2 * f);
 }
+// Statistiques du profil : générales (tous modes), matchs normaux (classique, en ligne, campagne), battle royale
+const PROF_STATS = {
+  all: [['g', 'Parties'], ['w', 'Victoires'], ['k', 'Victimes'], ['mk', 'Meilleure série'], ['b', 'Bombes posées'], ['kc', 'Bombes poussées'], ['t', 'Bombes lancées'], ['cp', 'Défis de campagne']],
+  norm: [['ng', 'Parties'], ['nw', 'Victoires'], ['%', 'Taux de victoire'], ['nk', 'Victimes'], ['fl', 'Victoires sans mourir']],
+  br: [['bg', 'Parties'], ['bw', 'Top 1'], ['bt', 'Top 3'], ['bk', 'Victimes'], ['ct', 'Contrats remplis'], ['ch', 'Coffres ouverts'], ['o', "Points d'orbes"]],
+};
+let profStatTab = 'all';
 function renderProfile(d) {
   const P = d.pub || {}, st = P.st || {}, mine = !!d.mine;
   $('#prof-kicker').textContent = mine ? 'Mon profil' : 'Profil';
@@ -6259,10 +6276,24 @@ function renderProfile(d) {
   if (d.loading || d.err || d.error) return;
   const sec = (title, cls) => { const h = document.createElement('h3'); h.textContent = title; const div = document.createElement('div'); div.className = cls; body.append(h, div); return div; };
   // statistiques
-  const sv = sec('Statistiques', 'prof-stats');
-  for (const [k, l] of [['g', 'Parties'], ['w', 'Victoires'], ['pa', 'Top 1'], ['po', 'Top 3'], ['k', 'Victimes'], ['bw', 'Battle royale gagnés'], ['ct', 'Contrats remplis'], ['ch', 'Coffres ouverts'], ['o', "Points d'orbes"], ['mk', 'Meilleure série']]) {
-    const div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.textContent = (Number(st[k]) | 0).toLocaleString('fr-FR'); sp.textContent = l; div.append(b, sp); sv.appendChild(div);
+  const tabs = document.createElement('div'); tabs.className = 'prof-tabs'; tabs.setAttribute('role', 'tablist');
+  const hSt = document.createElement('h3'); hSt.textContent = 'Statistiques'; body.append(hSt, tabs);
+  const sv = document.createElement('div'); sv.className = 'prof-stats'; body.appendChild(sv);
+  const showStats = m => {
+    profStatTab = m; sv.innerHTML = '';
+    tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.m === m)));
+    for (const [k, l] of PROF_STATS[m]) {
+      const div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+      const v = k === '%' ? (Number(st.ng) > 0 ? Math.round((Number(st.nw) || 0) / Number(st.ng) * 100) + ' %' : '—') : st[k] === undefined ? '—' : (Number(st[k]) | 0).toLocaleString('fr-FR');
+      b.textContent = v; sp.textContent = l; div.append(b, sp); sv.appendChild(div);
+    }
+    if (!mine && m !== 'all' && st.ng === undefined && st.bg === undefined) { const n = document.createElement('p'); n.className = 'prof-note'; n.textContent = "Ce joueur n'a pas encore les stats par mode (elles arrivent à sa prochaine partie)."; sv.appendChild(n); }
+  };
+  for (const [m, l] of [['all', 'Générales'], ['norm', 'Matchs normaux'], ['br', 'Battle royale']]) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = l; b.setAttribute('role', 'tab');
+    b.addEventListener('click', () => showStats(m)); tabs.appendChild(b);
   }
+  showStats(PROF_STATS[profStatTab] ? profStatTab : 'all');
   // persos
   const list = Object.entries(ch).filter(([k]) => CHARS.some(c2 => c2.key === k)).sort((a, b) => (b[1][0] - a[1][0]) || (b[1][1] - a[1][1])).slice(0, 8);
   const cv = sec(list.length ? 'Persos' : 'Persos (aucun niveau gagné pour l’instant)', 'prof-chars');
@@ -6293,6 +6324,7 @@ function renderProfile(d) {
 }
 $('#profile-close').addEventListener('click', closeProfile);
 $('#ranks-me').addEventListener('click', () => openProfile(null, 'ranks'));
+$('#btn-profile').addEventListener('click', () => openProfile(null, 'menu'));
 // Fin d'une partie en ligne : chaque joueur envoie le même résultat ; le serveur l'applique quand ils concordent
 let reportT = 0;
 function reportMatch() {
