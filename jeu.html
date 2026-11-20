@@ -4746,7 +4746,7 @@ function drawPortrait(cv, pal, skin) {
   c.save(); c.beginPath(); c.arc(26, 26, 26, 0, TAU); c.clip();
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
-  if (skin === NPC_SKIN) { drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
+  if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
@@ -5146,7 +5146,11 @@ function npcTick(p, dt) {
     if (Math.random() < dt * (rage ? 0.3 : 0.18)) S.dir = -S.dir;      // il change de sens quand il veut, mais fait aussi le tour de l'arène
     const L = ringLen(); S.u = ((S.u + S.dir * (rage ? 5.5 : 3.6) * dt) % L + L) % L;
   }
+  const ox = p.x, oy = p.y;
   [p.x, p.y] = ringPos(S.u); p.rx = p.x; p.ry = p.y;
+  const mx = p.x - ox, my = p.y - oy;
+  S.moving = Math.abs(mx) + Math.abs(my) > 1e-4;
+  if (S.moving) { S.look4 = Math.abs(mx) > Math.abs(my) ? (mx > 0 ? 'right' : 'left') : (my > 0 ? 'down' : 'up'); S.phase = (S.phase || 0) + dt * 7; }
   S.arm = Math.max(0, S.arm - dt * 3);
   if (rage) { S.steam -= dt; if (S.steam <= 0) { S.steam = 0.12; const [hx, hy] = npcDrawPos(p); addP({ kind: 'smoke', x: hx + (Math.random() - 0.5) * 30, y: hy - 30, vx: (Math.random() - 0.5) * 30, vy: -60 - Math.random() * 40, life: 0.6, max: 0.6, size: 5, color: '235,235,235' }); } }
   S.throwT -= dt;
@@ -5267,25 +5271,35 @@ function drawNpcs(c, t) {
   const npc = G.players.find(o => o.npc); if (!npc || !npc.st || !npc.alive) return;
   const S = npc.st, [x, y] = npcDrawPos(npc), rg = S.blow ? 1 : npcRage() ? 0.75 + 0.25 * Math.sin(t * 6) : 0;
   const swell = S.blow ? 1 + S.blow * 0.4 : 1;
-  drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
+  if (sheetReady(KAB_IMG)) {
+    // design du joueur : marche dans 4 directions, pose de lancer (bombe en main) tournée vers la case visée ; rage = teinte rouge
+    const sh = S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0, jx = sh ? (Math.random() - 0.5) * sh : 0, jy = sh ? (Math.random() - 0.5) * sh : 0;
+    const [lx, ly] = S.look || [0, 1], side = Math.abs(lx) > Math.abs(ly) * 0.4;
+    const name = S.blow ? 'castF' : S.arm > 0.15 ? (side ? 'castS' : 'castF') : S.moving ? (S.look4 || 'down') + (1 + (Math.floor(S.phase || 0) % 3)) : 'down0';
+    const feet = y + T * 0.62;
+    c.fillStyle = 'rgba(0,0,0,.25)'; ell(c, x, feet - 4, T * 0.42, T * 0.13); c.fill();
+    bossFrame(c, name, x + jx, feet + jy, T * 1.45, { rage: rg ? rg * 0.5 : 0, flip: name === 'castS' && lx < 0, swell: S.blow ? swell : 0 }, KAB_IMG);
+  } else drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
   if (S.blow && Math.sin(t * (20 + S.blow * 30)) > 0) { c.save(); c.globalAlpha = 0.45; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, T * 0.62 * swell, 0, TAU); c.fill(); c.restore(); }
 }
 
 /* ---------- Campagne, défi 3 : Grondor, le colosse de poudre ----------
    Un golem géant qui marche sur la grande arène vers l'équipe et lance des sorts annoncés par des cases rouges :
    croix de magma, rayon, onde de choc, pluie de bombes, mines. Sous la moitié de ses PV, il se déchaîne. */
-// Planche de Grondor (design du joueur) : 6 × 3 cases de 224 px, pieds à 214 px du haut de chaque case
-const BOSS_IMG = new Image(), BOSS_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 'down2', 'down3', 'left1', 'left2', 'left3', 'up1', 'up2', 'up3', 'right1', 'right2', 'right3'];
-BOSS_IMG.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); };
-BOSS_IMG.src = 'assets/boss-grondor.png';
-const bossReady = () => BOSS_IMG.complete && BOSS_IMG.naturalWidth > 0;
+// Planches des personnages de la campagne (designs du joueur) : 6 × 3 cases de 224 px, pieds à 214 px du haut de chaque case,
+// corps de 196 px de haut. Images : immobile ×4 directions, sort de face, sort de profil, puis 3 images de marche par direction.
+const SHEET_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 'down2', 'down3', 'left1', 'left2', 'left3', 'up1', 'up2', 'up3', 'right1', 'right2', 'right3'];
+function loadSheet(src) { const im = new Image(); im.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
+const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png');
+const sheetReady = im => im.complete && im.naturalWidth > 0, bossReady = () => sheetReady(BOSS_IMG);
 const bossTint = document.createElement('canvas'); bossTint.width = bossTint.height = 224;
-function bossFrame(c, name, x, feetY, h, o) {
-  const i = BOSS_FR.indexOf(name), sx = (i % 6) * 224, sy = ((i / 6) | 0) * 224, sc = h / 196;
+function bossFrame(c, name, x, feetY, h, o, img) {
+  img = img || BOSS_IMG;
+  const i = SHEET_FR.indexOf(name), sx = (i % 6) * 224, sy = ((i / 6) | 0) * 224, sc = h / 196;
   const t = bossTint.getContext('2d'); t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, 224, 224);
-  t.drawImage(BOSS_IMG, sx, sy, 224, 224, 0, 0, 224, 224);
+  t.drawImage(img, sx, sy, 224, 224, 0, 0, 224, 224);
   if (o.rage || o.hit) { t.globalCompositeOperation = 'source-atop'; t.fillStyle = o.hit ? `rgba(255,255,255,${o.hit})` : `rgba(255,40,20,${o.rage})`; t.fillRect(0, 0, 224, 224); }
-  c.save(); c.translate(x, feetY); if (o.flip) c.scale(-1, 1);
+  c.save(); c.translate(x, feetY); if (o.flip) c.scale(-1, 1); if (o.swell) c.scale(o.swell, o.swell);
   c.drawImage(bossTint, -112 * sc, -214 * sc, 224 * sc, 224 * sc); c.restore();
 }
 function makeBoss(c) {
