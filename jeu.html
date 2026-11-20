@@ -1034,13 +1034,13 @@ function allySafe(p, owner) {
   if (G.camp && G.camp.team) { const o = G.players[owner]; return !!o && o.team === p.team; }
   return false;
 }
-const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9;   // portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
+const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9, CLOWN_SKIN = 97, MIME_SKIN = 96;   // Clown et Mime (défi 3) : planches du joueur ; portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
-  { name: 'Deux contre deux', desc: 'Fais équipe avec le Chevalier contre la Sorcière et le Mage. Un équipier soufflé laisse une petite tombe : marche dessus à temps pour le relever ! La première équipe à 2 manches gagnantes remporte le défi.',
-    foe: 7, team: true, ally: 6, foes: [7, 3], foesTxt: 'la Sorcière et le Mage', lv: 1, wins: 2, tomb: 4,
+  { name: 'Deux contre deux', desc: 'Fais équipe avec le Chevalier contre le Clown et le Mime, deux inséparables : si l\'un tombe, l\'autre devient tout triste. Un équipier soufflé laisse une petite tombe : marche dessus à temps pour le relever ! La première équipe à 2 manches gagnantes remporte le défi.',
+    foe: CLOWN_SKIN, team: true, ally: 6, foes: [CLOWN_SKIN, MIME_SKIN], foesTxt: 'le Clown et le Mime', lv: 1, wins: 2, tomb: 4,
     // les deux équipiers partent ensemble dans le même coin, avec de la place (pas de caisse dans ces rectangles)
     spawns: { 0: [1, 1, 'right'], 2: [3, 1, 'down'], 1: [13, 11, 'left'], 3: [11, 11, 'up'] }, clear: [[1, 1, 5, 3], [9, 9, 13, 11]] },
   { foe: 1 },
@@ -1048,7 +1048,8 @@ const CAMP = [
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
   { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
-const foeName = c => c.npc || (c.foes ? c.foes.map(f => CHARS[f].name).join(' et ') : CHARS[c.foe].name);
+const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
+const foeName = c => c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe));
 const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
@@ -1853,6 +1854,7 @@ function placeBomb(p) {
   if (!p.alive || p.active >= p.maxBombs) return false;
   const cx = Math.round(p.x), cy = Math.round(p.y), k = idx(cx, cy);
   if (G.bombAt[k] || G.grid[k] !== EMPTY) return false;
+  p.placeT = G.t;
   const b = { x: cx, y: cy, owner: p, range: p.range, timer: FUSE, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
   for (const o of G.players) if (o.alive && Math.abs(o.x - cx) < 0.98 && Math.abs(o.y - cy) < 0.98) b.passers.add(o.id);
   G.bombs.push(b); p.active++;
@@ -4404,6 +4406,7 @@ function drawAura(c, x, y, tier, t, front, seed) {
   c.restore();
 }
 function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
+  if (SHEET_SKINS[skin]) { drawSheetChar(c, x, y, SHEET_SKINS[skin], pal, face, phase, moving, t, o || {}); return; }
   const ch = CHARS[skin], im = ch && charImg[ch.key];
   if (!skin || !im) { drawHero(c, x, y, pal, face, phase, moving, t, o); return; }
   o = o || {};
@@ -4681,7 +4684,7 @@ function render() {
     for (const [bx, by, b] of bombRows[y]) if (bx >= vx0 - 1 && bx <= vx1 + 1) drawBomb(c, (bx + 0.5) * T, (by + 0.5) * T, b, t);
     for (const p of heroRows[y]) {
       if (p.x < vx0 - 1 || p.x > vx1 + 1) continue;
-      const o = {};
+      const o = { p };
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
       else if (G.phase === 'brEnd' && G.megaOn && G.megaW === p.id) { o.hop = megaHop(G.megaT); }
@@ -4793,6 +4796,7 @@ function drawPortrait(cv, pal, skin) {
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
   if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
+  if (SHEET_SKINS[skin]) { const im = SHEET_SKINS[skin].happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
@@ -5336,13 +5340,32 @@ function drawNpcs(c, t) {
 // Planches des personnages de la campagne (designs du joueur) : 6 × 3 cases de 224 px, pieds à 214 px du haut de chaque case,
 // corps de 196 px de haut. Images : immobile ×4 directions, sort de face, sort de profil, puis 3 images de marche par direction.
 const SHEET_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 'down2', 'down3', 'left1', 'left2', 'left3', 'up1', 'up2', 'up3', 'right1', 'right2', 'right3'];
-function loadSheet(src) { const im = new Image(); im.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
+const SHEET_FR4 = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', ...['down', 'left', 'up', 'right'].flatMap(d => [1, 2, 3, 4].map(i => d + i))];   // planches à 4 images de marche (6 × 4 cases)
+function loadSheet(src, fr) { const im = new Image(); if (fr) im.fr = fr; im.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
 const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png'), KAB_RAGE = loadSheet('assets/npc-kaboum-rage.png');   // Kaboum en colère : planche à part
 const sheetReady = im => im.complete && im.naturalWidth > 0, bossReady = () => sheetReady(BOSS_IMG);
+// persos joueurs dessinés avec une planche (version joyeuse, et version triste quand leur coéquipier est tombé)
+const SHEET_SKINS = {
+  [CLOWN_SKIN]: { name: 'Clown', happy: loadSheet('assets/npc-clown.png', SHEET_FR4), sad: loadSheet('assets/npc-clown-triste.png', SHEET_FR4) },
+  [MIME_SKIN]: { name: 'Mime', happy: loadSheet('assets/npc-mime.png', SHEET_FR4), sad: loadSheet('assets/npc-mime-triste.png', SHEET_FR4) },
+};
+function drawSheetChar(c, x, y, SS, pal, face, phase, moving, t, o) {
+  const p = o.p, sad = !!(p && p.alive && G.camp && G.camp.team && G.players.some(q => q !== p && q.team === p.team && !q.alive));
+  const img = sad && sheetReady(SS.sad) ? SS.sad : SS.happy;
+  c.save(); c.translate(x, y);
+  if (!o.noShadow) { c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, 0, 15, 12, 4.2); c.fill(); c.strokeStyle = pal.ui; c.lineWidth = 2; c.globalAlpha = 0.85; ell(c, 0, 15, 13, 4.8); c.stroke(); c.globalAlpha = 1; }
+  if (o.dead !== undefined) { const d = o.dead; c.globalAlpha = Math.max(0, 1 - d); c.translate(0, -d * 12); c.rotate(d * 7); c.scale(1 - d * 0.5, 1 - d * 0.5); }
+  if (o.hop) c.translate(0, -o.hop);
+  const f = ['down', 'left', 'up', 'right'].includes(face) ? face : 'down';
+  const cast = p && p.alive && G.t - (p.placeT ?? -9) < 0.35;   // pose bombe juste après en avoir posé une
+  const name = cast ? 'castS' : moving ? f + (1 + (Math.floor(phase / (Math.PI / 2)) & 3)) : f + '0';
+  if (sheetReady(img)) bossFrame(c, name, 0, 17, T * 1.3, { flip: cast && f === 'left' }, img);
+  c.restore();
+}
 const bossTint = document.createElement('canvas'); bossTint.width = bossTint.height = 224;
 function bossFrame(c, name, x, feetY, h, o, img) {
   img = img || BOSS_IMG;
-  const i = SHEET_FR.indexOf(name), sx = (i % 6) * 224, sy = ((i / 6) | 0) * 224, sc = h / 196;
+  const i = (img.fr || SHEET_FR).indexOf(name), sx = (i % 6) * 224, sy = ((i / 6) | 0) * 224, sc = h / 196;
   const t = bossTint.getContext('2d'); t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, 224, 224);
   t.drawImage(img, sx, sy, 224, 224, 0, 0, 224, 224);
   if (o.rage || o.hit) { t.globalCompositeOperation = 'source-atop'; t.fillStyle = o.hit ? `rgba(255,255,255,${o.hit})` : `rgba(255,40,20,${o.rage})`; t.fillRect(0, 0, 224, 224); }
@@ -5772,15 +5795,15 @@ function startCampMatch(i) {
   if (c.team) {
     // 2 contre 2 : toi (0) et ton allié (2) en haut, les adversaires (1 et 3) en bas
     const al = makePlayer(2, AI_LV[c.lv], CHARS[c.ally].name); al.skin = c.ally;
-    const e1 = makePlayer(1, AI_LV[c.lv], CHARS[c.foes[0]].name); e1.skin = c.foes[0];
-    const e2 = makePlayer(3, AI_LV[c.lv], CHARS[c.foes[1]].name); e2.skin = c.foes[1];
+    const e1 = makePlayer(1, AI_LV[c.lv], skinName(c.foes[0])); e1.skin = c.foes[0];
+    const e2 = makePlayer(3, AI_LV[c.lv], skinName(c.foes[1])); e2.skin = c.foes[1];
     me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
     setPlayers([me, e1, al, e2]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
     newRound(); setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
-  const foe = c.npc ? makePlayer(1, null, c.npc) : makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
+  const foe = c.npc ? makePlayer(1, null, c.npc) : makePlayer(1, AI_LV[c.lv], skinName(c.foe)); foe.skin = c.foe;
   if (c.npc) { foe.npc = true; foe.cs = [0, 0, 0, 0, 0, 0]; }
   setPlayers([me, foe]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
   newRound(); setupHud();
