@@ -159,6 +159,15 @@ body.touch #touch{display:flex}
 #tbomb canvas{width:56px;height:56px}
 
 /* ---------- Surimpressions ---------- */
+.overlay.unlock{z-index:40}
+.box.unlbox{max-width:720px}
+.unl-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
+.unl-cards figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;animation:unlPop .6s cubic-bezier(.2,1.6,.4,1) both}
+.unl-cards figure:nth-child(2){animation-delay:.15s}
+.unl-cards img{width:min(260px,40vw);height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:22px;border:3px solid var(--gold);box-shadow:0 0 0 6px rgba(255,214,110,.15),0 14px 40px rgba(0,0,0,.5),0 0 40px rgba(255,214,110,.35)}
+.unl-cards figcaption{font:800 22px var(--font-display, inherit);color:var(--gold);letter-spacing:.02em}
+@keyframes unlPop{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.unl-cards figure{animation:none}}
 .overlay{position:fixed;inset:0;z-index:10;display:flex;padding:28px 18px;overflow:auto;background:rgba(8,14,10,.74);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 .overlay[hidden],.seg[hidden],button[hidden],.net-code[hidden]{display:none!important}
 .menu{width:min(1000px,100%);margin:auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px 56px;align-items:start}
@@ -397,7 +406,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ranktable tr.gap td{border:0;text-align:center;color:var(--muted);padding:2px}
 @media (max-width:560px){.ranktable th,.ranktable td{padding:6px 5px}.ranktable th:nth-child(5),.ranktable td:nth-child(5){display:none}}
 .net-players em{font-style:normal;font-weight:800;font-size:12px;color:var(--gold)}
-.charpick{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:min(600px,100%);margin:0 0 18px}
+.charpick{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;width:min(620px,100%);margin:0 0 18px}
 .charpick button{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;font:800 12.5px/1.1 var(--font-body);color:var(--parchment);background:rgba(12,18,12,.5);border:2px solid rgba(243,229,192,.22);border-radius:14px;padding:4px 2px 6px;cursor:pointer;transition:border-color .15s,background .15s}
 .charpick button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .charpick button:hover{border-color:rgba(243,229,192,.55)}
@@ -931,6 +940,15 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </div>
 </div>
 <div id="vs" hidden aria-live="polite"></div>
+<div id="unlock" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="unl-title">
+  <div class="box unlbox">
+    <p class="kicker">Défi réussi</p>
+    <h2 id="unl-title">Nouveaux persos débloqués !</h2>
+    <div class="unl-cards" id="unl-cards"></div>
+    <p class="rule" id="unl-text"></p>
+    <div class="row" id="unl-btns"><button class="ghost" id="unl-close" type="button">Continuer <kbd>Échap</kbd></button></div>
+  </div>
+</div>
 
 <div id="end" class="overlay" hidden>
   <div class="box">
@@ -1077,7 +1095,11 @@ const CHARS = [
   { key: 'ninja', name: 'Ninja' },
   { key: 'rodeur', name: 'Rôdeur', rev: true },
   { key: 'astral', name: 'Astral', elo: 1100, ph: 92, py: 12 },   // perso à débloquer : 1100 Elo au classement
+  // persos à débloquer en battant le Clown et le Mime (défi 3 de la campagne) ; dessinés avec les planches du joueur (SHEET_SKINS)
+  { key: 'clown', name: 'Clown', sheet: 97, camp: 3 },   // sheet : CLOWN_SKIN
+  { key: 'mime', name: 'Mime', sheet: 96, camp: 3 },     // sheet : MIME_SKIN
 ];
+const sheetOfSkin = k => SHEET_SKINS[k] || (CHARS[k] && CHARS[k].sheet != null ? SHEET_SKINS[CHARS[k].sheet] : null);
 const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]},"astral":{"down":[[0,0,70,150,35.0,150],[72,0,63,149,31.0,149],[137,0,74,150,35.0,150]],"up":[[213,0,71,151,36.0,151],[286,0,59,153,29.0,153],[347,0,75,152,36.0,152]],"right":[[424,0,70,150,35.0,150],[496,0,70,152,34.0,152],[568,0,76,149,36.0,149]],"bomb":[[646,0,59,72,30.0,72]],"big":[[707,0,120,220,59.0,220]]}};
 const charImg = {};
 const SPR_SCALE = 56 / 128;   // une image de marche (128 px) fait 56 px de haut dans l’arène
@@ -1161,9 +1183,10 @@ settings.name2 = cleanNick(settings.name2, 'Joueur 2');
 if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CHARS.length) settings.skin = 0;
 // Persos à débloquer : une fois l'Elo requis atteint, le perso reste débloqué dans ce navigateur (settings.unl)
 if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
-const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && ch.elo && !settings.unl[ch.key] && !(ELO.me && ELO.me.elo >= ch.elo)); };
+const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && !settings.unl[ch.key] && ((ch.elo && !(ELO.me && ELO.me.elo >= ch.elo)) || ch.camp)); };
+const lockText = ch => ch.camp ? `Défi ${ch.camp}` : `${ch.elo} Elo`;
 const charLocked = i => !settings.admin && charLockedReal(i);
-if (CHARS[settings.skin].elo && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
+if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp) && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
 
 // ---------- Expérience et niveaux, par perso (1 à 100), gardés dans le navigateur (settings.xp[clé] = XP total)
 // XP gagnée : 10 par point marqué + 10 par manche jouée (battle royale : 3 points par victime, 1 point par 45 s en vie).
@@ -1484,7 +1507,7 @@ const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
 function assignChars(list) {
   const used = new Set(list.filter(p => Number.isInteger(p.skin)).map(p => p.skin));
   // les ordis ne prennent jamais un perso à débloquer
-  const free = CHARS.map((_, i) => i).filter(i => !CHARS[i].elo), pool = shuffled(free.filter(i => !used.has(i)));
+  const free = CHARS.map((_, i) => i).filter(i => !CHARS[i].elo && !CHARS[i].camp), pool = shuffled(free.filter(i => !used.has(i)));
   for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : free[(Math.random() * free.length) | 0];
 }
 function setPlayers(list) {
@@ -3403,7 +3426,8 @@ function cardPortrait(p) {
   if (!cv) {
     cv = document.createElement('canvas'); cv.width = cv.height = 104; drawPortrait(cv, p.pal, p.skin);
     const ch = CHARS[p.skin], im = ch && charImg[ch.key];
-    if (!p.skin || (im && im.complete && im.naturalWidth)) cardPortraits[key] = cv;
+    const SS = sheetOfSkin(p.skin);
+    if (SS ? sheetReady(SS.happy) : (!p.skin || (im && im.complete && im.naturalWidth))) cardPortraits[key] = cv;
   }
   return cv;
 }
@@ -4488,7 +4512,7 @@ function drawAura(c, x, y, tier, t, front, seed) {
   c.restore();
 }
 function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
-  if (SHEET_SKINS[skin]) { drawSheetChar(c, x, y, SHEET_SKINS[skin], pal, face, phase, moving, t, o || {}); return; }
+  { const SS = sheetOfSkin(skin); if (SS) { drawSheetChar(c, x, y, SS, pal, face, phase, moving, t, o || {}); return; } }
   const ch = CHARS[skin], im = ch && charImg[ch.key];
   if (!skin || !im) { drawHero(c, x, y, pal, face, phase, moving, t, o); return; }
   o = o || {};
@@ -4878,7 +4902,7 @@ function drawPortrait(cv, pal, skin) {
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
   if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
-  if (SHEET_SKINS[skin]) { const im = SHEET_SKINS[skin].happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; }
+  { const SS = sheetOfSkin(skin); if (SS) { const im = SS.happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; } }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
@@ -5058,7 +5082,7 @@ function buildCharPicker() {
     b.addEventListener('click', () => {
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
-        if (hint) { hint.textContent = `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
+        if (hint) { hint.textContent = ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
         return;
       }
       if (hint) hint.textContent = '';
@@ -5074,9 +5098,9 @@ function syncCharPicker() {
   charBtns.forEach(({ b, i }) => {
     const lk = charLocked(i);
     b.setAttribute('aria-checked', String(i === settings.skin)); b.classList.toggle('locked', lk);
-    b.setAttribute('aria-label', lk ? `${CHARS[i].name}, à débloquer à ${CHARS[i].elo} Elo` : CHARS[i].name);
+    b.setAttribute('aria-label', lk ? `${CHARS[i].name}, à débloquer : ${CHARS[i].camp ? 'défi ' + CHARS[i].camp + ' de la campagne' : CHARS[i].elo + ' Elo'}` : CHARS[i].name);
     const pr = lk ? 0 : presOf(i);
-    b.querySelector('span').textContent = lk ? `${CHARS[i].elo} Elo` : CHARS[i].name + (pr ? ` ★${pr}` : '');
+    b.querySelector('span').textContent = lk ? lockText(CHARS[i]) : CHARS[i].name + (pr ? ` ★${pr}` : '');
   });
 }
 // Perso pas encore débloqué : seulement son ombre (dessin rempli d'une couleur sombre unie)
@@ -5976,6 +6000,7 @@ function guestCampEnd(d) {
     NET.campEndMi = NET.mi;
     NET.campCredit = won && campDone() === i;           // c'était aussi ton prochain défi : il est validé pour toi
     if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); }
+    if (won) campUnlock(i);   // battre le Clown et le Mime avec un ami les débloque aussi
     guestToLobby('');
     $('#net-title').textContent = 'Campagne de ton ami';
   }
@@ -5983,6 +6008,32 @@ function guestCampEnd(d) {
   $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ' Il est validé dans ta campagne.' : ''}`;
   $('#net-wait-text').textContent = "En attente du prochain défi de ton ami…";
 }
+// Persos débloqués en réussissant un défi (CHARS[].camp = numéro du défi) : fenêtre avec leur image
+function campUnlock(i) {
+  const fresh = CHARS.filter(ch => ch.camp === i + 1 && !settings.unl[ch.key]);
+  if (!fresh.length) return;
+  for (const ch of fresh) settings.unl[ch.key] = true;
+  saveSettings();   // saveSettings → progChanged : les persos débloqués sont aussi gardés sur le compte
+  syncCharPicker(); showUnlock(fresh);
+}
+const unlockEl = $('#unlock');
+function showUnlock(list) {
+  const box = $('#unl-cards'); box.innerHTML = ''; const btns = $('#unl-btns'); btns.querySelectorAll('.unl-pick').forEach(b => b.remove());
+  for (const ch of list) {
+    const fig = document.createElement('figure'), im = document.createElement('img'), cap = document.createElement('figcaption');
+    im.src = `assets/unlock-${ch.key}.jpg`; im.alt = `${ch.name}, tout joyeux`; im.width = 400; im.height = 500; cap.textContent = ch.name;
+    fig.append(im, cap); box.appendChild(fig);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'cta unl-pick'; b.textContent = `Jouer le ${ch.name}`;
+    b.addEventListener('click', () => { settings.skin = CHARS.indexOf(ch); saveSettings(); syncCharPicker(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); closeUnlock(); });
+    btns.insertBefore(b, $('#unl-close'));
+  }
+  $('#unl-title').textContent = list.length > 1 ? 'Nouveaux persos débloqués !' : 'Nouveau perso débloqué !';
+  $('#unl-text').textContent = list.length > 1 ? `${list.map(c => 'le ' + c.name).join(' et ').replace(/^l/, 'L')} rejoignent tes artificiers. Choisis-les dans le sélecteur de persos.` : `Le ${list[0].name} rejoint tes artificiers.`;
+  unlockEl.hidden = false; Sfx.init(); Sfx.play('win');
+  try { btns.querySelector('.unl-pick').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeUnlock() { unlockEl.hidden = true; }
+$('#unl-close').addEventListener('click', closeUnlock);
 function showEndCamp() {
   const c = G.camp, won = G.lastWinner === 0, first = won && c.i >= campDone();
   if (won) statMax('cp', c.i + 1);
@@ -5998,6 +6049,7 @@ function showEndCamp() {
     const keep = NET.role === 'host' && NET.campLobby;   // salon avec des amis : il reste ouvert pour le défi suivant
     if (keep) { NET.started = false; for (const L of NET.links) { L.slot = -1; if (L.conn.open) { try { L.conn.send({ t: 'campend', i: c.i, won: won ? 1 : 0, text }); } catch (e) {} } } }
     toMenu(keep); openCamp(first ? c.i : undefined, res);
+    if (won) campUnlock(c.i);
   }, 350);
   return;
   $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
@@ -6857,6 +6909,7 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
+  if (!unlockEl.hidden) { if (code === 'Escape') { e.preventDefault(); closeUnlock(); } return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
   if (!customEl.hidden) { if (code === 'Escape') closeCustom(); return; }
@@ -8208,12 +8261,14 @@ function boot(data) {
   else if (typeof settings.muted === 'boolean') Sfx.muted = settings.muted;   // son coupé : gardé d'une visite à l'autre
   buildStatics(); syncMenu(); syncMute(); syncMusicBtn(); syncRumble(); renderKeyHelp(); buildCharPicker();
   for (const ch of CHARS.slice(1)) {
+    if (ch.sheet != null) continue;   // Clown, Mime : planches chargées avec SHEET_SKINS
     const im = new Image();
     im.onload = () => { charImg[ch.key] = im; setupHud(); };
     im.src = 'assets/perso-' + ch.key + '.png';
   }
   resize(); toMenu();
   refreshMe(); renderAccount(); renderAdminPill(); pullProg();
+  setTimeout(() => { for (let k = 0; k < campDone(); k++) if (!unlockEl.hidden || !CHARS.some(ch => ch.camp === k + 1 && !settings.unl[ch.key])) continue; else if (!inGame()) campUnlock(k); }, 1800);
   const q = new URLSearchParams(location.search), pc = (q.get('partie') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (pc.length === 4) openJoin(pc);
   if (document.fonts && document.fonts.load) {
