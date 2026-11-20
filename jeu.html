@@ -4747,7 +4747,7 @@ function drawPortrait(cv, pal, skin) {
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
   if (skin === NPC_SKIN) { drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
-  if (skin === BOSS_SKIN) { drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
+  if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
     // grand portrait de face, cadré sur la tête
@@ -5274,10 +5274,24 @@ function drawNpcs(c, t) {
 /* ---------- Campagne, défi 3 : Grondor, le colosse de poudre ----------
    Un golem géant qui marche sur la grande arène vers l'équipe et lance des sorts annoncés par des cases rouges :
    croix de magma, rayon, onde de choc, pluie de bombes, mines. Sous la moitié de ses PV, il se déchaîne. */
+// Planche de Grondor (design du joueur) : 6 × 3 cases de 224 px, pieds à 214 px du haut de chaque case
+const BOSS_IMG = new Image(), BOSS_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 'down2', 'down3', 'left1', 'left2', 'left3', 'up1', 'up2', 'up3', 'right1', 'right2', 'right3'];
+BOSS_IMG.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); };
+BOSS_IMG.src = 'assets/boss-grondor.png';
+const bossReady = () => BOSS_IMG.complete && BOSS_IMG.naturalWidth > 0;
+const bossTint = document.createElement('canvas'); bossTint.width = bossTint.height = 224;
+function bossFrame(c, name, x, feetY, h, o) {
+  const i = BOSS_FR.indexOf(name), sx = (i % 6) * 224, sy = ((i / 6) | 0) * 224, sc = h / 196;
+  const t = bossTint.getContext('2d'); t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, 224, 224);
+  t.drawImage(BOSS_IMG, sx, sy, 224, 224, 0, 0, 224, 224);
+  if (o.rage || o.hit) { t.globalCompositeOperation = 'source-atop'; t.fillStyle = o.hit ? `rgba(255,255,255,${o.hit})` : `rgba(255,40,20,${o.rage})`; t.fillRect(0, 0, 224, 224); }
+  c.save(); c.translate(x, feetY); if (o.flip) c.scale(-1, 1);
+  c.drawImage(bossTint, -112 * sc, -214 * sc, 224 * sc, 224 * sc); c.restore();
+}
 function makeBoss(c) {
   const x = (COLS / 2) | 0, y = (ROWS / 2) | 0;
   return { id: BOSS_ID, npc: true, name: c.npc, skin: BOSS_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#5b5048', ui: '#ff6a2a' }, x, y, tx: x, ty: y, hp: c.hp, max: c.hp, alive: true, deadT: 0,
-    active: 0, range: 3, path: [], pathT: 0, castT: 3, cast: 0, hitT: 0, stuck: 0, rage: false, phase: 0, face: 1 };
+    active: 0, range: 3, path: [], pathT: 0, castT: 3, cast: 0, hitT: 0, stuck: 0, rage: false, phase: 0, face: 1, dir: 'down', moving: false, pose: '' };
 }
 const bossAt = (x, y) => !!(G.boss && G.boss.alive && Math.abs(G.boss.x - x) < 0.95 && Math.abs(G.boss.y - y) < 0.95);
 function bossDamage(n) {
@@ -5342,7 +5356,8 @@ function bossTick(B, dt) {
     }
   }
   // sort en cours de préparation : il reste sur place
-  if (B.cast > 0) { B.cast -= dt; return; }
+  B.moving = false;
+  if (B.cast > 0) { B.cast -= dt; if (B.cast <= 0) B.pose = ''; return; }
   B.castT -= dt;
   if (B.castT <= 0 && team.length) { bossCast(B, team); B.castT = (B.rage ? 2.3 : 3.4) * (0.85 + Math.random() * 0.3); return; }
   // marche
@@ -5357,7 +5372,8 @@ function bossTick(B, dt) {
       const dx = nx - B.x, dy = ny - B.y, d = Math.hypot(dx, dy);
       if (d <= sp) { B.x = nx; B.y = ny; B.path.shift(); } else { B.x += dx / d * sp; B.y += dy / d * sp; }
       if (Math.abs(dx) > 0.01) B.face = Math.sign(dx);
-      B.phase += dt * 6; B.stuck = 0;
+      if (d > 0.01) B.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      B.phase += dt * 6; B.stuck = 0; B.moving = true;
     }
   } else B.stuck += dt;
   // coincé derrière des caisses : il les fait sauter
@@ -5399,6 +5415,9 @@ function bossCast(B, team, force) {
   let kind = force;
   if (!kind) { let r = Math.random() * opts.reduce((a, o) => a + o[1], 0); for (const [n, w] of opts) { r -= w; if (r <= 0) { kind = n; break; } } kind = kind || 'croix'; }
   B.spell = kind; B.spellT = G.t;
+  // pose : il tire au canon (rayon, pluie) tourné vers sa cible, ou se plante face à nous (croix, onde, mines)
+  B.pose = kind === 'rayon' || kind === 'pluie' ? 'castS' : 'castF'; B.face = tx >= bx ? 1 : -1;
+  if (B.pose === 'castF') B.dir = 'down';
   const R = B.rage;
   if (kind === 'croix') {
     // croix de magma : une énorme explosion en croix, qui casse les caisses
@@ -5495,7 +5514,12 @@ function drawBoss(c, t) {
   const B = G.boss; if (!B || (!B.alive && B.deadT > 0.25)) return;
   const x = (B.x + 0.5) * T, y = (B.y + 0.5) * T - 10;
   c.save(); if (!B.alive) c.globalAlpha = 1 - B.deadT * 4;
-  drawGolem(c, x, y, T * 0.95, { t, rage: B.rage, walk: B.phase, cast: B.cast > 0, face: B.face, hit: B.hitT > 0 ? 0.7 : 0 });
+  if (bossReady()) {
+    c.fillStyle = 'rgba(0,0,0,.28)'; ell(c, x, (B.y + 0.5) * T + 16, T * 0.62, T * 0.18); c.fill();
+    const name = B.cast > 0 && B.pose ? B.pose : B.moving ? B.dir + (1 + (Math.floor(B.phase) % 3)) : B.dir + '0';
+    const rage = B.rage ? 0.22 + 0.14 * Math.sin(t * 8) : 0;
+    bossFrame(c, name, x, (B.y + 0.5) * T + 18, T * 2.05, { rage, hit: B.hitT > 0 ? 0.75 : 0, flip: name === 'castS' && B.face < 0 });
+  } else drawGolem(c, x, y, T * 0.95, { t, rage: B.rage, walk: B.phase, cast: B.cast > 0, face: B.face, hit: B.hitT > 0 ? 0.7 : 0 });
   c.restore();
 }
 // barre de vie en haut de l'arène, et flèche vers le boss quand il est hors de l'écran
