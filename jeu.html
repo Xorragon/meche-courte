@@ -449,6 +449,10 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .camp-node.unlock .camp-med{animation:campBurst 1.3s ease-out}
 @keyframes campPulse{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.35),0 0 0 0 rgba(120,190,255,.6)}50%{box-shadow:0 5px 0 rgba(0,0,0,.35),0 0 0 9px rgba(120,190,255,0)}}
 @keyframes campBurst{0%{transform:scale(1)}35%{transform:scale(1.28);box-shadow:0 0 0 0 rgba(255,214,110,.9),0 0 40px rgba(255,214,110,.9)}100%{transform:scale(1);box-shadow:0 0 0 22px rgba(255,214,110,0)}}
+.camp-res{margin:6px 0 0;padding:8px 16px;border-radius:999px;font-weight:800;font-size:15px}
+.camp-res[hidden]{display:none}
+.camp-res.ok{background:rgba(255,214,110,.16);color:var(--gold);border:1px solid rgba(255,214,110,.5)}
+.camp-res.ko{background:rgba(255,90,70,.12);color:#ffb3a6;border:1px solid rgba(255,120,100,.4)}
 .camp-bar{width:100%;height:8px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
 .camp-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#e8b23a,#fff1a8);transition:width 1s ease}
 .camp-card{width:min(560px,100%);margin:10px 0 8px;padding:14px 18px;border-radius:16px;background:rgba(10,16,10,.5);border:1px solid rgba(243,229,192,.16)}
@@ -863,6 +867,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="kicker">Mode campagne</p>
     <h2>Campagne</h2>
     <p class="rule" id="camp-prog"></p>
+    <p class="camp-res" id="camp-res" role="status" hidden></p>
     <div class="camp-path" id="camp-path" role="group" aria-label="Les 10 défis"></div>
     <div class="camp-bar" aria-hidden="true"><i id="camp-fill"></i></div>
     <div class="camp-card" id="camp-card" role="status"><h3 id="camp-name"></h3><p id="camp-desc"></p><p class="camp-rules" id="camp-rules"></p></div>
@@ -1022,20 +1027,22 @@ const PALS = [
 const SPAWNS = [[1, 1, 'down'], [COLS - 2, ROWS - 2, 'up'], [COLS - 2, 1, 'down'], [1, ROWS - 2, 'up']];
 // Campagne : 10 défis, à faire dans l'ordre. Seul le premier est prêt ; les autres arrivent plus tard (foe : perso adverse, pour l'icône).
 // inset : épaisseur de mur ajoutée autour de l'arène (2 → arène de 9 × 7 cases au lieu de 13 × 11)
-const NPC_SKIN = 99;   // « perso » des personnages non jouables de la campagne (Kaboum)
+const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9;   // portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
   { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
     foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
-  { foe: 5 }, { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
+  { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui explose au contact et fait double dégât !',
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 27, rows: 21, allies: 3, allyLv: 1, wins: 1, time: 600 },
+  { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
 ];
 const foeName = c => c.npc || CHARS[c.foe].name;
 const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
 function spawnOf(i) {
-  const s = SPAWNS[i] || SPAWNS[0], I = campInset();
-  return I ? [s[0] === 1 ? 1 + I : s[0] - I, s[1] === 1 ? 1 + I : s[1] - I, s[2]] : s;
+  const I = campInset(), a = 1 + I, bx = COLS - 2 - I, by = ROWS - 2 - I;   // les 4 coins (taille de carte quelconque)
+  return [[a, a, 'down'], [bx, by, 'up'], [bx, a, 'down'], [a, by, 'up']][i] || [a, a, 'down'];
 }
 const AI_LV = [
   { react: 0.38, think: 0.34, aggro: 0.25, item: 0.7, margin: 0.22, chase: 0.25, bombRate: 0.7 },
@@ -1371,7 +1378,8 @@ const NET = {
 };
 const localIdx = () => NET.role === 'guest' ? NET.me : (NET.hostSlot | 0);
 // spectateur : personne n'est « toi » ; la caméra et la carte du joueur suivent NET.follow
-const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : localIdx();
+// défi du boss : une fois mort, on suit un allié encore en vie
+const viewIdx = () => NET.role === 'guest' && NET.spec ? NET.follow | 0 : G.camp && G.camp.boss && G.players[0] && !G.players[0].alive && G.players.some(p => p.alive) ? G.players.findIndex(p => p.alive) : localIdx();
 const inGame = () => G.mode === 'match' || G.mode === 'br';
 // À 3 ou 4 artificiers : 3 manches en tout, classement aux points (place dans chaque manche)
 const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
@@ -1518,7 +1526,8 @@ function genMap(seed) {
     if (!campFlag('noCrates') && r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
   }
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
-  const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4];
+  const bag = [];   // grande carte : plus de bonus cachés, en proportion
+  for (let r0 = Math.max(1, Math.round(N / 195)); r0 > 0; r0--) bag.push(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4);
   for (let i = 0; i < bag.length && i < pairs.length; i++) { G.hidden[pairs[i][0]] = bag[i]; G.hidden[pairs[i][1]] = bag[i]; }
   // ordre de chute de la mort subite : spirale sur les 2 rangées du bord seulement
   const order = []; let x0 = a, y0 = a, x1 = bx, y1 = by;
@@ -1530,6 +1539,11 @@ function genMap(seed) {
     x0++; y0++; x1--; y1--;
   }
   G.sdOrder = order.filter(k => g[k] !== PILLAR);
+  // défi du boss : le centre est dégagé pour son arrivée
+  if (campFlag('boss')) {
+    const cx = (COLS / 2) | 0, cy = (ROWS / 2) | 0;
+    for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 2; x <= cx + 2; x++) { const k = idx(x, y); if (g[k] === CRATE) { g[k] = EMPTY; G.hidden[k] = -1; } }
+  }
 }
 
 /* =========================================================
@@ -1558,13 +1572,14 @@ function resetPlayer(p) {
 const speedOf = p => BASE_SPEED + SPEED_STEP * p.speedLv;
 
 function newRound() {
-  setMapSize(VCOLS, VROWS);
+  setMapSize(campFlag('cols') || VCOLS, campFlag('rows') || VROWS); G.camSnap = true;
   G.seed = (Math.random() * 2147483647) | 0;
   genMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
-  G.time = campFlag('survive') || ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
+  G.time = campFlag('survive') || campFlag('time') || ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
   G.phase = 'intro'; G.phaseT = 1.7; G.endTimer = 0; G.lastWinner = -2; G.introBeep = false;
-  G.lobs = []; G.rageFlash = 0; G.campT = 0;
+  G.lobs = []; G.rageFlash = 0; G.campT = 0; G.warn = [];
+  G.boss = campFlag('boss') ? makeBoss(G.camp) : null;
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   groundDirty = true;
 }
@@ -1594,6 +1609,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   for (const f of G.falling) if (f.k === k) return true;
   if (ignorePlayers) return false;
   for (const p of G.players) if (p.alive && Math.abs(p.x - x) < 0.9 && Math.abs(p.y - y) < 0.9) return true;
+  if (bossAt(x, y)) return true;
   return false;
 }
 
@@ -1801,7 +1817,7 @@ function doKick(bx, by, dx, dy, p) {
   const b = G.bombAt[idx(bx, by)];
   if (!b || b.mdx || b.mdy || bombBlocked(b.x + dx, b.y + dy, b)) return;
   b.mdx = dx; b.mdy = dy; b.prog = 0; b.stopReq = false; b.passers.clear();
-  if (p) p.lastKicked = b;
+  if (p) { p.lastKicked = b; b.kickBy = p.id; }
   if (p && p.id === localIdx() && !p.ai && !p.remote) statAdd('kc', 1);
   fx('kick', b.x, b.y, dx, dy);
 }
@@ -1826,7 +1842,7 @@ function placeBomb(p) {
   fx('drop', cx, cy);
   return true;
 }
-function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; }
+function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; if (G.bossHit) G.bossHit.add(k); }
 function explode(b) {
   const i = G.bombs.indexOf(b); if (i < 0) return;
   G.bombs.splice(i, 1);
@@ -1834,6 +1850,9 @@ function explode(b) {
   const [cx, cy] = bombCell(b), k0 = idx(cx, cy);
   G.bombAt[k0] = null;
   const who = b.owner.id;
+  // une explosion de l'équipe (ou une bombe du boss renvoyée par l'équipe) qui touche le boss : 1 dégât, 2 si elle a été poussée contre lui
+  const hurt = G.boss && G.boss.alive && (b.owner !== G.boss || b.kickBy !== undefined);
+  if (hurt) G.bossHit = new Set();
   igniteCell(k0, 16, who);
   for (const [dx, dy, bit] of NB) {
     let prev = k0;
@@ -1847,6 +1866,7 @@ function explode(b) {
       prev = k;
     }
   }
+  if (hurt) { const hit = [...G.bossHit].some(k => bossAt(k % COLS, (k / COLS) | 0)); G.bossHit = null; if (hit) bossDamage(b.kickHit ? 2 : 1); }
   rebuildBombAt();
   fx('boom', cx, cy, who);
 }
@@ -1862,7 +1882,7 @@ function updateBombs(dt) {
       // La bombe ne vérifie les joueurs qu'au moment de s'engager dans la case suivante :
       // une fois lancée vers une case, elle y va sans revenir en arrière.
       const nx = b.x + b.mdx, ny = b.y + b.mdy;
-      if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
+      if (bombBlocked(nx, ny, b, b.prog > 0)) { if (bossAt(nx, ny)) { b.timer = Math.min(b.timer, 0.05); b.kickHit = true; } stopBomb(b); }
       else {
         b.prog += KICK_SPEED * dt;
         if (b.prog >= 1) {
@@ -2176,6 +2196,8 @@ function computeDanger(extra) {
     bl.push({ k: idx(x, y), x, y, r: b.range, t: Math.max(0, b.timer) });
   }
   if (extra) bl.push({ k: idx(extra.x, extra.y), x: extra.x, y: extra.y, r: extra.r, t: extra.t });
+  // bombes en vol (Kaboum, Grondor) : comptées comme des bombes déjà posées sur leur case d'arrivée
+  for (const l of G.lobs || []) bl.push({ k: l.k, x: l.k % COLS, y: (l.k / COLS) | 0, r: l.range || 2, t: Math.max(0, l.dur - l.t) + l.fuse });
   const bset = new Map(); bl.forEach((b, i) => bset.set(b.k, i));
   const cells = bl.map(b => blast(b.x, b.y, b.r, bset));
   for (let it = 0; it < 8; it++) {
@@ -2191,6 +2213,8 @@ function computeDanger(extra) {
     const e = bl[i].t + FLAME_DUR; if (e > E[k]) E[k] = e;
   }
   for (let k = 0; k < N; k++) if (G.flameT[k] > 0) { S[k] = 0; if (G.flameT[k] > E[k]) E[k] = G.flameT[k]; }
+  // cases annoncées par un sort du boss
+  for (const w of G.warn || []) { const r = Math.max(0, w.dur - w.t); for (const k of w.cells) { S[k] = Math.min(S[k], r); E[k] = Math.max(E[k], r + FLAME_DUR); } }
   for (const f of G.falling) { S[f.k] = Math.min(S[f.k], f.t); E[f.k] = Infinity; }
   if (G.sudden) {
     let c = 0;
@@ -2204,6 +2228,7 @@ function computeDanger(extra) {
 }
 function passableAI(k, extraK) {
   if (G.grid[k] !== EMPTY || G.bombAt[k] || k === extraK) return false;
+  if (G.bossBlock && G.bossBlock.has(k)) return false;   // ne pas aller se coller au boss
   for (const f of G.falling) if (f.k === k) return false;
   return true;
 }
@@ -2331,7 +2356,7 @@ function thinkInner(p) {
     return;
   }
   // adversaires vivants, le plus proche en premier
-  let eks = G.players.filter(o => o !== p && o.alive && !(o.shield > 0))
+  let eks = G.boss ? (G.boss.alive ? [G.boss] : []) : G.players.filter(o => o !== p && o.alive && !(o.shield > 0))
     .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)));
   if (G.mode === 'br') eks = eks.filter(o => Math.abs(o.x - p.x) + Math.abs(o.y - p.y) <= 14).slice(0, 5);
   eks = eks.map(o => idx(Math.round(o.x), Math.round(o.y)));
@@ -2567,7 +2592,7 @@ function update(dt) {
     if (G.time <= 0) {
       G.time = 0;
       // défi de survie : pas de mort subite, c'est Kaboum qui explose
-      if (!G.sudden && !campFlag('survive')) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
+      if (!G.sudden && !campFlag('survive') && !campFlag('boss')) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
     }
     if (G.sudden) {
       G.sdTimer -= dt;
@@ -2592,9 +2617,11 @@ function update(dt) {
   } else {
     for (const p of G.players) p.moving = false;
   }
+  if (G.boss && G.phase === 'play') bossTick(G.boss, dt);
   updateBombs(dt);
   updateThrown(dt);
   if (G.lobs && G.lobs.length) updateLobs(dt);
+  if (G.warn && G.warn.length) updateWarn(dt);
   updateFlames(dt);
   updateFalling(dt);
   updateFlying(dt, true);
@@ -2604,7 +2631,8 @@ function update(dt) {
       if (p.moving) p.phase += dt * speedOf(p) * 3.3;
       if (G.phase === 'play') {
         const k = idx(Math.round(p.x), Math.round(p.y));
-        if (G.flameT[k] > 0) { kill(p, G.flameOwner[k]); continue; }
+        // défi du boss : les bombes de l'équipe ne blessent pas l'équipe
+        if (G.flameT[k] > 0 && !(G.boss && G.flameOwner[k] !== BOSS_ID)) { kill(p, G.flameOwner[k]); continue; }
         if (G.items[k] >= 0 && G.itemAge[k] > 0.05) pickup(p, k);
       }
       if (p.shield > 0) p.shield = Math.max(0, p.shield - dt);
@@ -2614,7 +2642,11 @@ function update(dt) {
       if (G.mode === 'br' && p.deathT >= BR_RESPAWN) brSpawn(p);
     }
   }
-  if (G.phase === 'play' && G.mode !== 'br') {
+  if (G.phase === 'play' && G.boss) {
+    // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
+    if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
+    else if (!G.players.some(p => p.alive) || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }
+  } else if (G.phase === 'play' && G.mode !== 'br') {
     const alive = G.players.filter(p => p.alive);
     // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
     const humansGone = G.mode === 'match' && G.players.length > 2 && G.players.some(p => !p.ai) && !alive.some(p => !p.ai);
@@ -3718,6 +3750,7 @@ function endRound() {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 function afterRound() {
+  if (G.camp && G.camp.boss) { G.phase = 'matchEnd'; showEnd(); return; }
   if (G.pointsMode) {
     if (G.round >= POINT_ROUNDS) {
       if (G.mode === 'match') { G.phase = 'matchEnd'; showEnd(); return; }
@@ -4565,6 +4598,7 @@ function render() {
     c.fillStyle = `rgba(20,10,5,${(0.15 + p * 0.35).toFixed(3)})`; ell(c, x, y + 8, 8 + p * 16, 4 + p * 9); c.fill();
   }
 
+  if (G.warn && G.warn.length) drawWarn(c, t);
   const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [], topB = [];
   const top3 = G.mode === 'br' && G.phase === 'play' ? brTop3() : null;
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
@@ -4622,7 +4656,9 @@ function render() {
     c.fillStyle = `rgba(15,25,10,${(0.32 - Math.min(0.2, h * 0.12)).toFixed(3)})`; ell(c, gx, gy + 15, 11 - Math.min(5, h * 3), 3.8 - Math.min(1.5, h)); c.fill();
     c.save(); c.translate(gx, gy - h * T); c.rotate((f.dx || f.dy) * f.t * 9); drawBomb(c, 0, 0, f.b, t); c.restore();
   }
-  if (G.camp && G.camp.npc) drawNpcs(c, t);
+  if (G.lobs && G.lobs.length) drawLobs(c, t);
+  if (G.camp && G.camp.npc && !G.camp.boss) drawNpcs(c, t);
+  if (G.boss) drawBoss(c, t);
   drawParticles(c);
   for (const [mx, my, r] of topB) drawTopMark(c, mx, my, r, t);
   for (const [ex, ey, p] of emoB) drawEmoteBubble(c, ex, ey, p.emote.n, G.t - p.emote.at, p.pal.ui);
@@ -4655,8 +4691,12 @@ function render() {
   if (G.phase === 'intro') {
     const tt = G.phaseT;
     if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Poussez vos bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
+  } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive)) {
+    const a = Math.min(1, (2.8 - G.phaseT) * 4), won = G.lastWinner === 0;
+    drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : 'Tu as tenu bon') : G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer', won ? '#ffd36e' : '#f3e5c0', a);
   } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
     const a = Math.min(1, (3.2 - G.phaseT) * 4);
     const ids = G.players.map((_, i) => i).sort((x, y) => G.places[x] - G.places[y]);
@@ -4671,7 +4711,8 @@ function render() {
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   }
   if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', "L'arène rétrécit, puis des bonus tombent du ciel", '#ff7a2f', Math.min(1, G.suddenFlash * 2));
-  if (G.rageFlash > 0 && G.phase === 'play') drawBanner(c, 'Kaboum enrage !', 'Ses bombes volent et explosent plus vite', '#ff3b2f', Math.min(1, G.rageFlash * 2));
+  if (G.rageFlash > 0 && G.phase === 'play' && G.rageMsg) drawBanner(c, G.rageMsg[0], G.rageMsg[1], '#ff3b2f', Math.min(1, G.rageFlash * 2));
+  if (G.boss && inGame()) drawBossBar(c, t);
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
 
@@ -4692,6 +4733,7 @@ function drawPortrait(cv, pal, skin) {
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
   if (skin === NPC_SKIN) { drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
+  if (skin === BOSS_SKIN) { drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
     // grand portrait de face, cadré sur la tête
@@ -4736,7 +4778,7 @@ function setupHud() {
     const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
-    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && G.camp.boss && p.ai ? 'Allié' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
@@ -5071,7 +5113,7 @@ function npcReset(p) {
 const npcRage = () => { const c = G.camp; return c && G.time <= c.rageAt ? 1 : 0; };
 function npcTick(p, dt) {
   const S = p.st || (npcReset(p), p.st), rage = npcRage();
-  if (rage && !S.raged) { S.raged = true; G.rageFlash = 2.2; fx('snd', 'sudden'); if (!reduceMotion) G.shake = Math.max(G.shake, 8); }
+  if (rage && !S.raged) { S.raged = true; G.rageFlash = 2.2; G.rageMsg = ['Kaboum enrage !', 'Ses bombes volent et explosent plus vite']; fx('snd', 'sudden'); if (!reduceMotion) G.shake = Math.max(G.shake, 8); }
   // fin du chrono : il gonfle, devient écarlate, puis explose tout seul (ses bombes au sol s'éteignent)
   if (G.time <= 0) {
     if (!S.blow) {
@@ -5115,7 +5157,7 @@ function npcThrow(p, rage) {
     if (near.length) pool = near;
   }
   const k = pool[(Math.random() * pool.length) | 0];
-  G.lobs.push({ k, sx: p.x, sy: p.y, t: 0, dur: rage ? 0.65 : 1.0, fuse: rage ? 1.7 : 2.6 });
+  G.lobs.push({ k, sx: p.x, sy: p.y, t: 0, dur: rage ? 0.65 : 1.0, fuse: rage ? 1.7 : 2.6, owner: p });
   p.st.look = [k % COLS - p.x, ((k / COLS) | 0) - p.y];
   if (nearView(p.x, p.y)) Sfx.play('throw');
 }
@@ -5126,10 +5168,11 @@ function updateLobs(dt) {
     if (l.t < l.dur) continue;
     G.lobs.splice(i, 1);
     const x = l.k % COLS, y = (l.k / COLS) | 0;
-    if (!npc || G.grid[l.k] !== EMPTY || G.bombAt[l.k]) { fx('land', x, y); continue; }
-    const b = { x, y, owner: npc, range: 2, timer: l.fuse, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
+    const own = l.owner || npc;
+    if (!own || G.grid[l.k] !== EMPTY || G.bombAt[l.k]) { fx('land', x, y); continue; }
+    const b = { x, y, owner: own, range: l.range || 2, timer: l.fuse, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
     for (const o of G.players) if (o.alive && !o.npc && Math.abs(o.x - x) < 0.98 && Math.abs(o.y - y) < 0.98) b.passers.add(o.id);
-    G.bombs.push(b); npc.active++; rebuildBombAt();
+    G.bombs.push(b); own.active = (own.active | 0) + 1; rebuildBombAt();
     fx('land', x, y);
   }
 }
@@ -5197,20 +5240,270 @@ function drawKaboum(c, x, y, R, o) {
   if (ar > 0.2) { c.fillStyle = '#20232b'; c.beginPath(); c.arc(23, -6 - ar * 12, 6, 0, TAU); c.fill(); c.fillStyle = '#ffd166'; c.beginPath(); c.arc(26, -12 - ar * 12, 1.8, 0, TAU); c.fill(); }
   c.restore();
 }
-function drawNpcs(c, t) {
-  const npc = G.players.find(o => o.npc); if (!npc || !npc.st) return;
+function drawLobs(c, t) {
   // bombes en vol : ombre qui grandit sur la case visée, bombe en cloche
   for (const l of G.lobs || []) {
     const q = Math.min(1, l.t / l.dur), tx = l.k % COLS, ty = (l.k / COLS) | 0;
     const gx = (l.sx + (tx - l.sx) * q + 0.5) * T, gy = (l.sy + (ty - l.sy) * q + 0.5) * T, h = Math.sin(Math.PI * q) * T * 2.4;
     c.fillStyle = `rgba(120,20,10,${(0.12 + 0.3 * q).toFixed(3)})`; ell(c, (tx + 0.5) * T, (ty + 0.5) * T + 12, 6 + 10 * q, 2.5 + 4 * q); c.fill();
-    c.save(); c.translate(gx, gy - h); c.rotate(q * 9); drawBomb(c, 0, 0, { owner: npc, timer: l.fuse, range: 2 }, t); c.restore();
+    c.save(); c.translate(gx, gy - h); c.rotate(q * 9); drawBomb(c, 0, 0, { owner: l.owner, timer: l.fuse, range: 2 }, t); c.restore();
   }
-  if (!npc.alive) return;
+}
+function drawNpcs(c, t) {
+  const npc = G.players.find(o => o.npc); if (!npc || !npc.st || !npc.alive) return;
   const S = npc.st, [x, y] = npcDrawPos(npc), rg = S.blow ? 1 : npcRage() ? 0.75 + 0.25 * Math.sin(t * 6) : 0;
   const swell = S.blow ? 1 + S.blow * 0.4 : 1;
   drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
   if (S.blow && Math.sin(t * (20 + S.blow * 30)) > 0) { c.save(); c.globalAlpha = 0.45; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, T * 0.62 * swell, 0, TAU); c.fill(); c.restore(); }
+}
+
+/* ---------- Campagne, défi 3 : Grondor, le colosse de poudre ----------
+   Un golem géant qui marche sur la grande arène vers l'équipe et lance des sorts annoncés par des cases rouges :
+   croix de magma, rayon, onde de choc, pluie de bombes, mines. Sous la moitié de ses PV, il se déchaîne. */
+function makeBoss(c) {
+  const x = (COLS / 2) | 0, y = (ROWS / 2) | 0;
+  return { id: BOSS_ID, npc: true, name: c.npc, skin: BOSS_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#5b5048', ui: '#ff6a2a' }, x, y, tx: x, ty: y, hp: c.hp, max: c.hp, alive: true, deadT: 0,
+    active: 0, range: 3, path: [], pathT: 0, castT: 3, cast: 0, hitT: 0, stuck: 0, rage: false, phase: 0, face: 1 };
+}
+const bossAt = (x, y) => !!(G.boss && G.boss.alive && Math.abs(G.boss.x - x) < 0.95 && Math.abs(G.boss.y - y) < 0.95);
+function bossDamage(n) {
+  const B = G.boss; if (!B || !B.alive) return;
+  B.hp = Math.max(0, B.hp - n); B.hitT = 0.18;
+  addP({ kind: 'text', x: (B.x + 0.5) * T + (Math.random() - 0.5) * 20, y: (B.y + 0.5) * T - 46, vx: 0, vy: -50, life: 0.9, max: 0.9, size: n > 1 ? 24 : 18, color: n > 1 ? '#ffd166' : '#fff3e0', text: `-${n}` });
+  Sfx.play('thud');
+  if (!B.rage && B.hp <= B.max / 2) { B.rage = true; G.rageFlash = 2.2; G.rageMsg = [`${B.name} se déchaîne !`, 'Ses sorts s\'enchaînent plus vite et frappent plus fort']; fx('snd', 'sudden'); }
+  if (B.hp <= 0) {
+    B.alive = false; B.deadT = 0; G.warn.length = 0; G.bossBlock = null;
+    const x = (B.x + 0.5) * T, y = (B.y + 0.5) * T;
+    Sfx.boom('mega', 1); setTimeout(() => Sfx.boom('classic', 1), 160);
+    if (!reduceMotion) G.shake = 24; rumble(1, 1, 900);
+    for (let i = 0; i < 40; i++) addP({ kind: 'chip', x: x + (Math.random() - 0.5) * 40, y: y + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 420, vy: -180 - Math.random() * 300, g: 700, life: 1.2, max: 1.2, size: 5 + Math.random() * 6, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16, color: Math.random() < 0.5 ? '#5b5048' : '#ff8a3d' });
+    for (let i = 0; i < 70; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
+  }
+}
+function bossEnd(won) {
+  if (G.phase !== 'play') return;
+  G.lastWinner = won ? 0 : -1; if (won) G.scores[0]++;
+  G.phase = 'roundEnd'; G.phaseT = 2.8;
+  fx('snd', won ? 'match' : 'draw');
+}
+const bossFree = k => G.grid[k] === EMPTY && !G.bombAt[k];
+function bossPath(B) {
+  // le chemin le plus court vers le membre de l'équipe le plus proche (les caisses et les bombes bloquent)
+  const sk = idx(Math.round(B.x), Math.round(B.y)), goals = new Set();
+  for (const p of G.players) if (p.alive) goals.add(idx(Math.round(p.x), Math.round(p.y)));
+  const prev = new Int32Array(N).fill(-2); prev[sk] = -1; const q = [sk]; let qi = 0, end = -1;
+  while (qi < q.length) {
+    const k = q[qi++]; if (goals.has(k) && k !== sk) { end = k; break; }
+    const x = k % COLS, y = (k / COLS) | 0;
+    // il passe à travers les caisses (il les écrase en chemin), pas à travers les bombes
+    for (const [dx, dy] of shuffled(NB)) { const nk = idx(x + dx, y + dy); if (prev[nk] !== -2 || !(bossFree(nk) || G.grid[nk] === CRATE || goals.has(nk))) continue; prev[nk] = k; q.push(nk); }
+  }
+  if (end < 0) return [];
+  const out = []; for (let k = prev[end]; k !== -1 && k !== sk; k = prev[k]) out.push(k);   // on s'arrête juste avant la cible
+  return out.reverse();
+}
+function bossTick(B, dt) {
+  B.hitT = Math.max(0, B.hitT - dt);
+  if (!B.alive) { B.deadT += dt; return; }
+  const team = G.players.filter(p => p.alive);
+  // contact : écrasé par le colosse
+  for (const p of team) if (!(p.shield > 0) && Math.abs(p.x - B.x) < 0.8 && Math.abs(p.y - B.y) < 0.8) kill(p, BOSS_ID);
+  // cases interdites aux alliés : sur lui et juste à côté
+  const bk = idx(Math.round(B.x), Math.round(B.y)); G.bossBlock = new Set([bk, bk - 1, bk + 1, bk - COLS, bk + COLS]);
+  // les alliés poussent les bombes alignées avec le boss
+  for (const p of team) {
+    if (!p.ai) continue;
+    p.kickCd = (p.kickCd || 0) - dt; if (p.kickCd > 0) continue;
+    const sx = Math.round(p.x), sy = Math.round(p.y); if (Math.abs(p.x - sx) + Math.abs(p.y - sy) > 0.15) continue;
+    for (const [dx, dy] of NB) {
+      const b = G.bombAt[idx(sx + dx, sy + dy)]; if (!b || b.mdx || b.mdy || b.timer < 0.25) continue;
+      let hit = false;
+      for (let s2 = 1; s2 <= 14; s2++) {
+        const x = b.x + dx * s2, y = b.y + dy * s2;
+        if (bossAt(x, y)) { hit = true; break; }
+        const k = idx(x, y); if (G.grid[k] !== EMPTY || G.bombAt[k]) break;
+      }
+      if (hit && !bombBlocked(b.x + dx, b.y + dy, b, true)) { doKick(b.x, b.y, dx, dy, p); p.kickCd = 1.2; break; }
+    }
+  }
+  // sort en cours de préparation : il reste sur place
+  if (B.cast > 0) { B.cast -= dt; return; }
+  B.castT -= dt;
+  if (B.castT <= 0 && team.length) { bossCast(B, team); B.castT = (B.rage ? 2.3 : 3.4) * (0.85 + Math.random() * 0.3); return; }
+  // marche
+  B.pathT -= dt;
+  if (B.pathT <= 0 || !B.path.length) { B.path = bossPath(B); B.pathT = 0.6; }
+  const sp = (B.rage ? 2.1 : 1.6) * dt;
+  if (B.path.length) {
+    const k = B.path[0], nx = k % COLS, ny = (k / COLS) | 0;
+    if (G.grid[k] === CRATE) { if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', nx, ny); B.cast = 0.35; } }   // il écrase la caisse
+    else if (!bossFree(k)) { B.path = []; B.stuck += dt; }
+    else {
+      const dx = nx - B.x, dy = ny - B.y, d = Math.hypot(dx, dy);
+      if (d <= sp) { B.x = nx; B.y = ny; B.path.shift(); } else { B.x += dx / d * sp; B.y += dy / d * sp; }
+      if (Math.abs(dx) > 0.01) B.face = Math.sign(dx);
+      B.phase += dt * 6; B.stuck = 0;
+    }
+  } else B.stuck += dt;
+  // coincé derrière des caisses : il les fait sauter
+  if (B.stuck > 2.5) { B.stuck = 0; bossCast(B, team, 'croix'); }
+}
+function warnCells(cells, dur, fire, delay) { if (cells.length) G.warn.push({ cells, t: -(delay || 0), dur, fire }); }
+function updateWarn(dt) {
+  for (let i = G.warn.length - 1; i >= 0; i--) {
+    const w = G.warn[i]; w.t += dt;
+    if (w.t >= w.dur) { G.warn.splice(i, 1); w.fire(); }
+  }
+}
+// une case touchée par un sort : caisse qui brûle, bonus détruit, bombe qui part, flammes
+function bossBurn(k) {
+  const g = G.grid[k], x = k % COLS, y = (k / COLS) | 0;
+  if (g === WALL || g === PILLAR || g === STONE) return;
+  if (g === CRATE) { if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } return; }
+  if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; }
+  const ob = G.bombAt[k]; if (ob) ob.timer = Math.min(ob.timer, CHAIN_DELAY);
+  igniteCell(k, 31, BOSS_ID);
+}
+function bossLine(x, y, dx, dy, max, through) {
+  const out = [];
+  for (let s2 = 1; s2 <= max; s2++) {
+    const k = idx(x + dx * s2, y + dy * s2), g = G.grid[k];
+    if (x + dx * s2 < 0 || y + dy * s2 < 0 || x + dx * s2 >= COLS || y + dy * s2 >= ROWS || g === WALL || g === PILLAR || g === STONE) break;
+    out.push(k); if (g === CRATE && !through) break;
+  }
+  return out;
+}
+function bossCast(B, team, force) {
+  const bx = Math.round(B.x), by = Math.round(B.y); B.x = bx; B.y = by; B.path = [];
+  const tg = team.slice().sort((a, b) => Math.hypot(a.x - bx, a.y - by) - Math.hypot(b.x - bx, b.y - by))[0];
+  const tx = Math.round(tg.x), ty = Math.round(tg.y), dist = Math.max(Math.abs(tx - bx), Math.abs(ty - by));
+  const aligned = (tx === bx || ty === by) && dist <= 13;
+  const opts = [['croix', 2], ['pluie', 2], ['mines', 1.2]];
+  if (aligned) opts.push(['rayon', 3.5]); else opts.push(['rayon', 1]);
+  if (dist <= 3) opts.push(['onde', 3]);
+  let kind = force;
+  if (!kind) { let r = Math.random() * opts.reduce((a, o) => a + o[1], 0); for (const [n, w] of opts) { r -= w; if (r <= 0) { kind = n; break; } } kind = kind || 'croix'; }
+  B.spell = kind; B.spellT = G.t;
+  const R = B.rage;
+  if (kind === 'croix') {
+    // croix de magma : une énorme explosion en croix, qui casse les caisses
+    const range = R ? 8 : 6, cells = blast(bx, by, range);
+    B.cast = 1.0; warnCells(cells, 1.0, () => { const b = { x: bx, y: by, owner: B, range, timer: 0, mdx: 0, mdy: 0, prog: 0, passers: new Set() }; G.bombs.push(b); B.active++; explode(b); if (!reduceMotion) G.shake = Math.max(G.shake, 8); });
+  } else if (kind === 'rayon') {
+    // rayon : une ligne de feu qui traverse les caisses, vers le joueur le plus proche (enragé : dans les deux sens)
+    const ax = Math.abs(tx - bx) >= Math.abs(ty - by), dx = ax ? Math.sign(tx - bx) || 1 : 0, dy = ax ? 0 : Math.sign(ty - by) || 1;
+    let cells = bossLine(bx, by, dx, dy, 16, true);
+    if (R) cells = cells.concat(bossLine(bx, by, -dx, -dy, 16, true));
+    B.cast = 1.1; B.face = dx || B.face;
+    warnCells(cells, 1.1, () => { for (const k of cells) bossBurn(k); Sfx.boom('classic', 1, earVol(bx, by)); if (!reduceMotion) G.shake = Math.max(G.shake, 6); });
+  } else if (kind === 'onde') {
+    // onde de choc : des anneaux de feu qui s'éloignent de lui
+    const waves = R ? 3 : 2; B.cast = 0.9;
+    for (let w = 0; w < waves; w++) {
+      const r = 2 + w, cells = [];
+      for (let y = by - r; y <= by + r; y++) for (let x = bx - r; x <= bx + r; x++) {
+        if (Math.max(Math.abs(x - bx), Math.abs(y - by)) !== r || x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue;
+        const g = G.grid[idx(x, y)]; if (g === EMPTY || g === CRATE) cells.push(idx(x, y));
+      }
+      warnCells(cells, 0.9, () => { for (const k of cells) bossBurn(k); Sfx.boom('classic', 0.7, earVol(bx, by)); }, w * 0.4);
+    }
+  } else if (kind === 'pluie') {
+    // pluie de bombes : lancées en cloche près de chaque membre de l'équipe
+    const n = R ? 7 : 4, used = new Set(); B.cast = 0.5;
+    for (let j = 0; j < n; j++) {
+      const p = team[j % team.length], cands = [];
+      for (let y = Math.round(p.y) - 2; y <= Math.round(p.y) + 2; y++) for (let x = Math.round(p.x) - 2; x <= Math.round(p.x) + 2; x++) {
+        if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue;
+        const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k] && !used.has(k) && !G.lobs.some(l => l.k === k)) cands.push(k);
+      }
+      if (!cands.length) continue;
+      const k = cands[(Math.random() * cands.length) | 0]; used.add(k);
+      G.lobs.push({ k, sx: bx, sy: by - 0.6, t: -j * 0.08, dur: 1.1, fuse: R ? 1.8 : 2.2, range: 2, owner: B });
+    }
+    Sfx.play('throw');
+  } else {
+    // mines : des bombes posées tout autour de lui
+    const n = R ? 6 : 4, cands = [];
+    for (let y = by - 2; y <= by + 2; y++) for (let x = bx - 2; x <= bx + 2; x++) {
+      const d = Math.abs(x - bx) + Math.abs(y - by); if (d < 1 || d > 2) continue;
+      const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k] && !G.players.some(o => o.alive && Math.round(o.x) === x && Math.round(o.y) === y)) cands.push(k);
+    }
+    B.cast = 0.6;
+    for (const k of shuffled(cands).slice(0, n)) { G.bombs.push({ x: k % COLS, y: (k / COLS) | 0, owner: B, range: 3, timer: 2.6, mdx: 0, mdy: 0, prog: 0, passers: new Set() }); B.active++; fx('land', k % COLS, (k / COLS) | 0); }
+    rebuildBombAt();
+  }
+}
+// Grondor : un golem de roche fendue, avec du magma qui brille dans les fissures et un mortier sur l'épaule
+function drawGolem(c, x, y, R, o) {
+  const t = o.t || 0, rg = o.rage ? 1 : 0, k = R / 24, wk = o.walk ? Math.sin(o.walk) : 0;
+  c.save(); c.translate(x, y); c.scale(k * (o.face || 1), k);
+  const glow = rg ? '#ff3b1f' : '#ff8a2a', pulse = 0.65 + 0.35 * Math.sin(t * (rg ? 9 : 4));
+  if (!o.portrait) { c.fillStyle = 'rgba(0,0,0,.3)'; ell(c, 0, 24, 26, 7); c.fill(); }
+  // jambes
+  c.fillStyle = '#4a4038';
+  c.beginPath(); c.roundRect ? c.roundRect(-15, 10 + wk * 2, 11, 14, 4) : c.rect(-15, 10, 11, 14); c.fill();
+  c.beginPath(); c.roundRect ? c.roundRect(4, 10 - wk * 2, 11, 14, 4) : c.rect(4, 10, 11, 14); c.fill();
+  // mortier sur l'épaule
+  c.fillStyle = '#2b2f36'; c.save(); c.translate(10, -18); c.rotate(-0.5); c.fillRect(-5, -14, 10, 16); c.fillStyle = '#16181c'; ell(c, 0, -14, 5, 2.2); c.fill(); c.restore();
+  // corps
+  const g = c.createRadialGradient(-6, -8, 4, 0, 0, 28); g.addColorStop(0, '#8c7d6e'); g.addColorStop(1, '#3d342d');
+  c.fillStyle = g; c.beginPath(); c.moveTo(-20, 12); c.quadraticCurveTo(-26, -6, -14, -20); c.quadraticCurveTo(0, -27, 14, -20); c.quadraticCurveTo(26, -6, 20, 12); c.quadraticCurveTo(0, 18, -20, 12); c.fill();
+  c.lineWidth = 1.6; c.strokeStyle = 'rgba(0,0,0,.5)'; c.stroke();
+  // fissures de magma
+  c.save(); c.shadowColor = glow; c.shadowBlur = 8 * pulse; c.strokeStyle = glow; c.globalAlpha = 0.55 + 0.45 * pulse; c.lineWidth = 1.8; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-12, 8); c.lineTo(-7, 1); c.lineTo(-10, -6); c.moveTo(8, 10); c.lineTo(5, 3); c.lineTo(10, -3); c.lineTo(7, -10);
+  if (rg) { c.moveTo(-2, 12); c.lineTo(1, 5); c.lineTo(-2, -1); c.moveTo(-16, -4); c.lineTo(-11, -12); c.moveTo(15, 2); c.lineTo(18, -8); }
+  c.stroke(); c.restore();
+  // tête et yeux
+  c.fillStyle = '#5d5248'; c.beginPath(); c.ellipse(0, -18, 10, 7.5, 0, 0, TAU); c.fill(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 1.2; c.stroke();
+  c.fillStyle = '#2a221c'; c.fillRect(-9, -22, 18, 3);
+  c.save(); c.shadowColor = rg ? '#ff2a1a' : '#ffd166'; c.shadowBlur = 10; c.fillStyle = rg ? '#ff4a2a' : '#ffe08a';
+  ell(c, -4, -18, 2.4, 1.6 + (rg ? 0 : 0.4)); c.fill(); ell(c, 4, -18, 2.4, 1.6 + (rg ? 0 : 0.4)); c.fill(); c.restore();
+  // poings (levés pendant un sort)
+  const up = o.cast ? 1 : 0;
+  c.fillStyle = '#6a5d51'; c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 1.2;
+  c.beginPath(); c.arc(-25, 4 - up * 16 - wk, 7.5, 0, TAU); c.fill(); c.stroke();
+  c.beginPath(); c.arc(25, 4 - up * 16 + wk, 7.5, 0, TAU); c.fill(); c.stroke();
+  if (up) { c.save(); c.globalAlpha = pulse; c.fillStyle = glow; c.beginPath(); c.arc(-25, -12, 3, 0, TAU); c.arc(25, -12, 3, 0, TAU); c.fill(); c.restore(); }
+  if (o.hit) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = `rgba(255,255,255,${o.hit})`; c.fillRect(-32, -34, 64, 64); }
+  c.restore();
+}
+function drawWarn(c, t) {
+  for (const w of G.warn) {
+    if (w.t < 0) continue;
+    const q = w.t / w.dur, a = (0.18 + 0.4 * q) * (0.7 + 0.3 * Math.sin(t * 24));
+    c.fillStyle = `rgba(255,30,15,${a.toFixed(3)})`; c.strokeStyle = `rgba(255,90,60,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2;
+    for (const k of w.cells) { const x = (k % COLS) * T, y = ((k / COLS) | 0) * T; c.fillRect(x + 3, y + 3, T - 6, T - 6); c.strokeRect(x + 4, y + 4, T - 8, T - 8); }
+  }
+}
+function drawBoss(c, t) {
+  const B = G.boss; if (!B || (!B.alive && B.deadT > 0.25)) return;
+  const x = (B.x + 0.5) * T, y = (B.y + 0.5) * T - 10;
+  c.save(); if (!B.alive) c.globalAlpha = 1 - B.deadT * 4;
+  drawGolem(c, x, y, T * 0.95, { t, rage: B.rage, walk: B.phase, cast: B.cast > 0, face: B.face, hit: B.hitT > 0 ? 0.7 : 0 });
+  c.restore();
+}
+// barre de vie en haut de l'arène, et flèche vers le boss quand il est hors de l'écran
+function drawBossBar(c, t) {
+  const B = G.boss; if (!B) return;
+  const w = Math.min(440, W - 180), x = (W - w) / 2, y = 12;
+  c.save();
+  c.fillStyle = 'rgba(10,14,10,.72)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
+  c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = B.rage ? '#ff8a6a' : '#f3e5c0';
+  c.fillText(B.name + (B.rage ? ' · déchaîné' : ''), x, y + 1);
+  c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.8)'; c.fillText(`${B.hp} / ${B.max} PV`, x + w, y + 1); c.textAlign = 'left';
+  c.fillStyle = '#2a1512'; rr(c, x, y + 19, w, 11, 5.5); c.fill();
+  const f = B.hp / B.max, gr = c.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, '#ff3b2f'); gr.addColorStop(1, '#ffb03b');
+  if (f > 0) { c.fillStyle = B.hitT > 0 ? '#ffffff' : gr; rr(c, x, y + 19, Math.max(11, w * f), 11, 5.5); c.fill(); }
+  c.restore();
+  if (!B.alive) return;
+  const sx = (B.x + 0.5) * T - G.cam.x, sy = (B.y + 0.5) * T - G.cam.y;
+  if (sx > 0 && sx < W && sy > 0 && sy < H) return;
+  const cx = clamp(sx, 26, W - 26), cy = clamp(sy, 70, H - 26), ang = Math.atan2(sy - cy, sx - cx);
+  c.save(); c.translate(cx, cy); c.rotate(ang); c.globalAlpha = 0.75 + 0.25 * Math.sin(t * 6);
+  c.fillStyle = '#ff3b2f'; c.strokeStyle = '#2a0c08'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(16, 0); c.lineTo(-8, -11); c.lineTo(-3, 0); c.lineTo(-8, 11); c.closePath(); c.fill(); c.stroke(); c.restore();
 }
 /* ---------- Campagne ---------- */
 const campEl = $('#camp'), vsEl = $('#vs');
@@ -5222,10 +5515,11 @@ function syncCampBtn() {
   ci.innerHTML = CAMP.map((_, i) => `<i class="${i < d ? 'on' : ''}"></i>`).slice(0, 10).join('');
   $('#camp-sub').textContent = d >= CAMP.length ? 'Campagne terminée !' : d ? `${d} / ${CAMP.length} défis réussis · défi ${d + 1} à relever` : '10 défis à relever, un par un';
 }
-function openCamp(just) {
+let campRes = null;
+function openCamp(just, res) {
   Sfx.init(); menuEl.hidden = true; endEl.hidden = true; campEl.hidden = false;
-  campJust = Number.isInteger(just) ? just : -1;
-  campSel = campJust >= 0 && campReady(campJust + 1) ? campJust + 1 : Math.min(campDone(), CAMP.length - 1);
+  campJust = Number.isInteger(just) ? just : -1; campRes = res || null;
+  campSel = campRes && !campRes.won ? campRes.i : campJust >= 0 && campReady(campJust + 1) ? campJust + 1 : Math.min(campDone(), CAMP.length - 1);
   renderCamp();
   try { $('#camp-go').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -5251,7 +5545,7 @@ function renderCamp() {
     if (done) { const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓'; b.appendChild(ck); }
     else if (!ready) { const lk = document.createElement('span'); lk.className = 'lk'; lk.textContent = '🔒'; b.appendChild(lk); }
     if (fresh) setTimeout(() => { b.classList.add('done', 'unlock'); cl.textContent = 'Réussi'; Sfx.play('pickup'); }, 450);
-    b.addEventListener('click', () => { campSel = i; campJust = -1; renderCamp(); });
+    b.addEventListener('click', () => { campSel = i; campJust = -1; campRes = null; renderCamp(); });
     b.addEventListener('dblclick', () => { if (campReady(i)) startCamp(i); });
     path.appendChild(b);
   });
@@ -5261,12 +5555,17 @@ function renderCamp() {
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
     $('#camp-desc').textContent = c.desc;
-    $('#camp-rules').textContent = (c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
+    $('#camp-rules').textContent = (c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · vos propres bombes ne blessent pas l'équipe · ${c.time / 60} minutes au plus`
+      : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
-  go.firstChild.textContent = campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
+  go.firstChild.textContent = campRes && !campRes.won && campRes.i === campSel ? 'Réessayer ' : campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
+  // résultat du défi qu'on vient de jouer
+  const rs = $('#camp-res');
+  if (campRes) { rs.hidden = false; rs.className = 'camp-res ' + (campRes.won ? 'ok' : 'ko'); rs.textContent = `Défi ${campRes.i + 1} ${campRes.won ? 'réussi !' : 'raté'} · ${campRes.text}`; }
+  else rs.hidden = true;
 }
 // écran « VS » avant le défi, puis la partie
 let vsT = 0, vsNext = null;
@@ -5274,8 +5573,9 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.npc ? 'Boss' : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.npc ? 'Boss' : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
+  if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = `Toi + ${c.allies} alliés`;
   const cvs = vsEl.querySelectorAll('canvas'), bs = vsEl.querySelectorAll('.vs-side b');
   drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin);
   bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = foeName(c);
@@ -5290,9 +5590,17 @@ function startCampMatch(i) {
   Sfx.init();
   G.mode = 'match'; G.paused = false; G.camp = { i, ...c };
   const me = makePlayer(0, null, settings.name); me.skin = settings.skin;
+  if (c.boss) {
+    // défi du boss : le joueur et ses alliés (ordis) ; le boss n'est pas un joueur (G.boss)
+    const list = [me]; for (let j = 1; j <= c.allies; j++) list.push(makePlayer(j, AI_LV[c.allyLv]));
+    setPlayers(list); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
+    newRound(); setupHud();
+    menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+    blurActive(); return;
+  }
   const foe = c.npc ? makePlayer(1, null, c.npc) : makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
   if (c.npc) { foe.npc = true; foe.cs = [0, 0, 0, 0, 0, 0]; }
-  setPlayers([me, foe]); G.round = 1; G.winsNeeded = c.wins;
+  setPlayers([me, foe]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
   newRound(); setupHud();
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
   blurActive();
@@ -5300,6 +5608,14 @@ function startCampMatch(i) {
 function showEndCamp() {
   const c = G.camp, won = G.lastWinner === 0, first = won && c.i >= campDone();
   if (won) statMax('cp', c.i + 1);
+  // retour direct à l'écran de la campagne (courbe de progression), avec le résultat ; un court délai laisse compter l'XP et les stats
+  const text = c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
+    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `Toute l'équipe a été soufflée : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
+  const res = { i: c.i, won, text };
+  endEl.hidden = true; pauseEl.hidden = true;
+  setTimeout(() => { if (G.camp && G.camp.i === c.i && G.phase === 'matchEnd') { toMenu(); openCamp(first ? c.i : undefined, res); } }, 350);
+  return;
   $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
   const title = $('#end-title'); title.textContent = `Défi ${c.i + 1} · ${c.name}`; title.style.color = won ? '#ffd36e' : '#f3e5c0';
   const es = $('#end-score'); es.style.whiteSpace = ''; es.style.fontSize = '';
@@ -7254,7 +7570,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { leaveOnline, Sfx, Music, startCampMatch, AI_LV, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
