@@ -1984,7 +1984,7 @@ function kill(p, by) {
   if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
-  if (campFlag('tomb')) { if (G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb }); return; }   // jamais de bonus éjectés en 2 contre 2
+  if (campFlag('tomb') && G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb });   // ses bonus sont éjectés quand même : relevé, il repart sans
   scatterLoot(p);
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
@@ -5377,7 +5377,7 @@ function teamTick(dt) {
     const mate = G.players.find(o => o.alive && o.team === tb.p.team && Math.abs(o.x - tb.x) < 0.6 && Math.abs(o.y - tb.y) < 0.6);
     if (mate) {
       const q = tb.p; G.tombs.splice(i, 1);
-      Object.assign(q, { alive: true, deathT: 0, x: tb.x, y: tb.y, rx: tb.x, ry: tb.y, shield: 1.5, moving: false, killedBy: -1 });
+      Object.assign(q, { alive: true, deathT: 0, x: tb.x, y: tb.y, rx: tb.x, ry: tb.y, shield: 1.5, moving: false, killedBy: -1 });   // sans ses bonus (éjectés à sa mort)
       if (q.ai) { q.ai.path = []; q.ai.cd = 0; q.ai.goal = -1; }
       const cx = (tb.x + 0.5) * T, cy = (tb.y + 0.5) * T;
       for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 140; addP({ kind: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.7, max: 0.7, size: 3, color: j % 2 ? '#fff3b0' : '#7fe0ff' }); }
