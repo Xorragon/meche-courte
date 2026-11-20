@@ -1195,11 +1195,12 @@ function botCos(p) {
   return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
 }
 // ===== Musique =====
-// Accueil : home-03 en boucle. Écran de la campagne (pas pendant les défis) : royale-01 en boucle. Partie classique : une piste par partie, en rotation (01, 03, 04), et la suivante enchaîne si la partie dure.
+// Accueil : home-03 en boucle. Écran de la campagne (pas pendant les défis) : royale-01 en boucle.
+// Défis contre un boss (Kaboum, Grondor) : bomby en boucle, puis bomby-venere quand le boss enrage. Partie classique : une piste par partie, en rotation (01, 03, 04), et la suivante enchaîne si la partie dure.
 // Battle royale : in-game-02 puis royale-05, 06, 07, à la suite, en boucle.
 // Fichiers normalisés au même volume (-16 LUFS). En jeu, la musique reste sous les bruitages et se baisse un instant à chaque explosion.
-const MUSIC = { home: ['home-03'], camp: ['royale-01'], classic: ['in-game-01', 'in-game-03', 'in-game-04'], br: ['in-game-02', 'royale-05', 'royale-06', 'royale-07'] };
-const MUS_VOL = { home: 0.45, camp: 0.45, classic: 0.25, br: 0.22 };   // en jeu, nettement sous les bruitages
+const MUSIC = { home: ['home-03'], camp: ['royale-01'], boss: ['bomby'], rage: ['bomby-venere'], classic: ['in-game-01', 'in-game-03', 'in-game-04'], br: ['in-game-02', 'royale-05', 'royale-06', 'royale-07'] };
+const MUS_VOL = { home: 0.45, camp: 0.45, boss: 0.26, rage: 0.28, classic: 0.25, br: 0.22 };   // en jeu, nettement sous les bruitages
 const Music = {
   slots: null, ci: 0, scene: null, lv: -1, idx: { classic: Math.floor(Math.random() * 3) - 1, br: -1 }, prevPh: null, prevRound: 0,
   on() { return settings.music !== false && !Sfx.muted && !document.hidden; },
@@ -1230,10 +1231,10 @@ const Music = {
     sl.g.gain.value = 0; this.start(sl); this.fade(sl, 1, dur);
   },
   // le lecteur libre charge déjà la piste suivante, pour enchaîner sans trou
-  preload(sl) { const s = this.scene, l = MUSIC[s]; if (s && s !== 'home' && s !== 'camp' && this.on()) this.load(sl, l[(this.idx[s] + 1) % l.length]); },
+  preload(sl) { const s = this.scene, l = MUSIC[s]; if (s && l.length > 1 && this.on()) this.load(sl, l[(this.idx[s] + 1) % l.length]); },
   next(scene, dur) {
     const l = MUSIC[scene];
-    if (scene === 'home' || scene === 'camp') return this.play(l[0], true, dur);
+    if (l.length === 1) return this.play(l[0], true, dur);   // piste unique : en boucle
     this.idx[scene] = (this.idx[scene] + 1) % l.length; this.play(l[this.idx[scene]], false, dur);
   },
   // appelé à chaque image
@@ -1242,12 +1243,13 @@ const Music = {
     const cur = this.slots[this.ci];
     if (!this.on()) { for (const sl of this.slots) if (!sl.el.paused) sl.el.pause(); this.paused = true; return; }
     if (this.paused) { this.paused = false; if (cur.name && !cur.el.ended) this.start(cur); }
-    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? 'classic'
+    const raging = (G.boss && G.boss.rage) || (G.camp && G.camp.survive && G.phase === 'play' && G.time <= G.camp.rageAt);
+    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? (G.camp && G.camp.npc ? (raging ? 'rage' : 'boss') : 'classic')
       : (!document.getElementById('camp').hidden || !document.getElementById('vs').hidden) ? 'camp' : 'home';
     const ph = G.phase, newGame = (this.prevPh === 'matchEnd' || this.prevPh === 'brEnd') && ph !== this.prevPh && !REPLAY.on
       || (scene === 'classic' && G.round < this.prevRound);
     if (scene !== this.scene) { this.scene = scene; this.next(scene, cur.name ? 1.4 : 0.8); }
-    else if (newGame && scene !== 'home' && scene !== 'camp') this.next(scene, 1.6);   // nouvelle partie : piste suivante
+    else if (newGame && MUSIC[scene].length > 1) this.next(scene, 1.6);   // nouvelle partie : piste suivante
     else if (!cur.el.loop && cur.el.duration && cur.el.currentTime > cur.el.duration - 1.3 && !cur.ending) { cur.ending = 1; this.next(scene, 1.3); }
     if (!REPLAY.on) { this.prevPh = ph; this.prevRound = G.round; }
     // volume : plus bas en pause, pendant la cinématique de la giga bombe, et un peu sur l'écran de fin
@@ -2668,8 +2670,9 @@ function update(dt) {
   }
   if (G.phase === 'play' && campFlag('team')) {
     // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne)
-    const teams = new Set(G.players.filter(p => p.alive).map(p => p.team));
-    if (teams.size <= 1) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(); }
+    // et dès que le joueur est soufflé : dans tous les défis, la partie s'arrête quand il ne reste que des ordis
+    const teams = new Set(G.players.filter(p => p.alive).map(p => p.team)), meDead = !G.players[0].alive;
+    if (teams.size <= 1 || meDead) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(meDead); }
   } else if (G.phase === 'play' && G.boss) {
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
@@ -5343,8 +5346,8 @@ function bossDamage(n) {
     for (let i = 0; i < 70; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
   }
 }
-function teamEndRound() {
-  const alive = G.players.filter(p => p.alive), t = alive.length ? alive[0].team : -1;
+function teamEndRound(meDead) {
+  const alive = G.players.filter(p => p.alive), t = meDead ? (alive.some(p => p.team === 1) ? 1 : -1) : alive.length ? alive[0].team : -1;   // joueur soufflé : la manche va aux adversaires
   let w = -1;
   if (t >= 0) { w = t === 0 ? 0 : 1; for (const p of G.players) if (p.team === t) G.scores[p.id]++; }
   G.lastWinner = w; G.phase = 'roundEnd'; G.phaseT = 2.8;
