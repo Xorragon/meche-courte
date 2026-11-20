@@ -248,6 +248,37 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 #spec-bar button{padding:6px 10px;border-radius:999px;border:1px solid rgba(243,229,192,.3);background:rgba(243,229,192,.08);color:var(--parchment);font:800 13px/1 var(--font-body);cursor:pointer}
 #spec-bar button[hidden]{display:none}
 #spec-bar kbd{font-size:10px}
+.fr-count{display:inline-block;min-width:18px;padding:1px 5px;margin-left:6px;border-radius:999px;background:#ff6a2a;color:#fff;font-size:11px;line-height:16px;box-shadow:0 0 6px #ff6a2a}
+.fr-count[hidden]{display:none}
+.box.frbox{max-width:620px;width:100%}
+.frbox section{width:100%}
+.frbox h3{margin:14px 0 6px;font:800 12px var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.fr-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:100%}
+.fr-list li{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:12px;background:rgba(10,16,10,.45);border:1px solid rgba(243,229,192,.12);text-align:left}
+.fr-list li.off{opacity:.55}
+.fr-list li .nm{flex:1;min-width:0;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-list li .nm small{display:block;font-weight:600;font-size:12px;opacity:.75}
+.fr-list li .dot{width:9px;height:9px;border-radius:50%;background:#666;flex:none}
+.fr-list li .dot.on{background:#5ee07a;box-shadow:0 0 6px #5ee07a}
+.fr-list li button{padding:5px 11px;font-size:13px}
+.fr-list .empty{justify-content:center;opacity:.7;font-weight:600}
+.fr-grp{width:100%;margin:4px 0 2px;padding:10px 12px;border-radius:14px;background:rgba(255,214,110,.08);border:1px solid rgba(255,214,110,.3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;font-weight:700}
+.fr-add{width:100%;margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fr-add .txt{width:200px}
+.fr-pop{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:rgba(14,22,14,.96);border:1px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.5);font-weight:800;max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
+.fr-pop[hidden]{display:none}
+.fr-pop button{padding:6px 14px;font-size:14px}
+.net-fr{width:min(420px,100%);margin:12px auto 0}
+.net-fr .opt-label{text-align:center}
+.net-modes{gap:10px}
+.end-fr{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0 10px}
+.end-fr[hidden]{display:none}
+.end-fr span{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;background:rgba(10,16,10,.5);border:1px solid rgba(243,229,192,.2);font-weight:700;font-size:13px}
+.end-fr button{padding:4px 10px;font-size:12px}
+.ranktable td.fr{width:1%;white-space:nowrap}
+.ranktable td.fr button{padding:3px 9px;font-size:12px}
+.prof-fr{align-self:center;width:auto;margin:4px 0 2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .cos-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff6a2a;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px #ff6a2a}
 .cos-dot[hidden]{display:none}
 .custombox{max-width:720px;width:min(720px,100%)}
@@ -628,6 +659,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
       <button class="ghost tiny prof-btn" type="button" id="btn-profile">Mon profil</button>
+      <button class="ghost tiny fr-btn" type="button" id="btn-friends">Amis<b class="fr-count" id="fr-count" hidden></b></button>
       <button class="elo-badge" id="elo-badge" type="button" hidden></button>
       <span class="nick-note" id="nick-note" role="status"></span>
     </form>
@@ -640,7 +672,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
       <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
       <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
-      <button class="mbtn" id="btn-create" type="button"><b>Créer un lobby</b><span>Invite tes potes avec un code</span></button>
+      <button class="mbtn" id="btn-create" type="button"><b>Créer un groupe</b><span>Invite tes amis, puis lancez le mode de votre choix</span></button>
     </div>
     <div class="mlinks">
       <button class="ghost tiny cos-btn" type="button" id="btn-custom">Personnaliser<i class="cos-dot" hidden></i></button>
@@ -770,7 +802,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <h2>Classement Elo</h2>
     <p class="rule" id="ranks-status" role="status"></p>
     <table class="ranktable">
-      <thead><tr><th scope="col">Rang</th><th scope="col">Pseudo</th><th scope="col">Elo</th><th scope="col">Parties</th><th scope="col">Victoires</th></tr></thead>
+      <thead><tr><th scope="col">Rang</th><th scope="col">Pseudo</th><th scope="col">Elo</th><th scope="col">Parties</th><th scope="col">Victoires</th><th scope="col"><span class="sr">Ami</span></th></tr></thead>
       <tbody id="ranks-body"></tbody>
     </table>
     <p class="rule small">Clique sur un joueur pour voir son profil.</p>
@@ -833,6 +865,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="row" style="margin-top:24px">
       <button class="cta" id="resume" type="button">Reprendre <kbd>Échap</kbd></button>
       <button class="ghost" id="quit" type="button">Quitter la partie</button>
+      <button class="ghost" id="pause-group" type="button" hidden>Retour au groupe</button>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="ghost tiny" type="button" id="btn-keys2">Changer les touches</button>
@@ -906,6 +939,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="score-line" id="end-score">3 – 1</p>
     <p class="rule" id="end-note" style="margin:-10px 0 8px"></p>
     <p class="end-elo" id="end-elo" role="status"></p>
+    <div class="end-fr" id="end-fr" hidden></div>
     <div class="char-xp end" id="end-xp" hidden></div>
     <p class="end-pick-lb">Ton perso pour la revanche</p>
     <div class="charpick mini" id="end-charpick" role="radiogroup" aria-label="Ton perso pour la revanche"></div>
@@ -914,10 +948,31 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="cta" id="again" type="button">Revanche <kbd>Entrée</kbd></button>
       <button class="ghost" id="replay-btn" type="button" hidden>Revoir la manche <kbd>R</kbd></button>
       <button class="ghost" id="end-camp" type="button" hidden>Campagne</button>
+      <button class="ghost" id="end-group" type="button" hidden>Retour au groupe</button>
       <button class="ghost" id="tomenu" type="button">Menu <kbd>Échap</kbd></button>
     </div>
   </div>
 </div>
+
+<div id="friends" class="overlay" hidden>
+  <div class="box frbox">
+    <p class="kicker">Jouer ensemble</p>
+    <h2>Amis</h2>
+    <p class="rule" id="fr-status" role="status"></p>
+    <div class="fr-grp" id="fr-grp"></div>
+    <section id="fr-inv-sec" hidden><h3>Invitations</h3><ul class="fr-list" id="fr-inv"></ul></section>
+    <section id="fr-inc-sec" hidden><h3>Demandes reçues</h3><ul class="fr-list" id="fr-inc"></ul></section>
+    <section><h3 id="fr-list-h">Tes amis</h3><ul class="fr-list" id="fr-list"></ul></section>
+    <section id="fr-out-sec" hidden><h3>Demandes envoyées</h3><ul class="fr-list" id="fr-out"></ul></section>
+    <form class="fr-add" id="fr-add" autocomplete="off">
+      <label class="opt-label" for="fr-name">Ajouter un ami par son pseudo</label>
+      <div class="row"><input id="fr-name" class="txt" maxlength="16" spellcheck="false" autocapitalize="off" placeholder="Pseudo exact"><button class="cta" type="submit" id="fr-add-btn">Demander</button></div>
+      <p class="rule small">Tu peux aussi demander quelqu'un en ami depuis son profil (dans le classement) ou à la fin d'une partie en ligne.</p>
+    </form>
+    <div class="row" style="margin-top:12px"><button class="ghost" id="fr-close" type="button">Retour <kbd>Échap</kbd></button></div>
+  </div>
+</div>
+<div class="fr-pop" id="fr-pop" role="alert" hidden><span id="fr-pop-txt"></span><button class="cta" type="button" id="fr-pop-go">Rejoindre</button><button class="ghost" type="button" id="fr-pop-no">Plus tard</button></div>
 
 <div id="online" class="overlay" hidden>
   <div class="box online">
@@ -937,6 +992,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <ul class="net-players" id="net-players" aria-label="Joueurs dans la partie"></ul>
       <p class="rule small" id="net-cfg"></p>
       <div class="row" style="margin-top:14px"><button class="ghost" id="net-invite" type="button" hidden>Copier le lien d'invitation</button></div>
+      <div class="net-fr" id="net-fr" hidden><p class="opt-label">Inviter des amis</p><ul class="fr-list" id="net-fr-list"></ul></div>
       <div id="net-host-ctrl" class="setup" hidden>
         <div class="opts">
           <div class="opt">
@@ -967,6 +1023,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
           </div>
         </div>
         <button class="cta" id="net-start" type="button">Lancer la partie</button>
+        <p class="opt-label" style="margin-top:14px">Ou lancer un autre mode avec le groupe</p>
+        <div class="row net-modes"><button class="ghost" id="net-br" type="button">Battle royale</button><button class="ghost" id="net-camp" type="button">Campagne</button></div>
       </div>
     </div>
     <p class="rule small" style="margin-top:22px">La connexion se fait directement entre vos navigateurs. Certains réseaux d'entreprise ou d'école la bloquent : dans ce cas, essayez depuis une connexion perso ou un partage 4G.</p>
@@ -3232,7 +3290,7 @@ function showBrEnd() {
   $('#end-elo').textContent = '';
   $('#again').hidden = NET.role === 'guest';
   $('#again').firstChild.textContent = 'Nouvelle partie ';
-  renderEndXp();
+  renderEndXp(); renderEndFriends(); syncEndGroup();
   endEl.hidden = false;
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -5090,7 +5148,7 @@ function drawCharPicker(t) {
     }
   });
 }
-function blurActive() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+function blurActive() { hideFrPop(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
 function startMatch() {
   Sfx.init();
   G.mode = 'match'; G.paused = false; G.camp = null;
@@ -5104,7 +5162,7 @@ function startMatch() {
   blurActive(); saveSettings();
 }
 function toMenu(keepNet) {
-  if (!keepNet) leaveOnline(); G.camp = null; $('#end-camp').hidden = true;
+  if (!keepNet) leaveOnline(); G.camp = null; $('#end-fr').hidden = true; $('#end-group').hidden = true; $('#end-camp').hidden = true;
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
@@ -5122,12 +5180,14 @@ function openSolo() {
 }
 function closeSolo() { soloEl.hidden = true; menuEl.hidden = false; try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {} }
 function openHelp() { renderKeyHelp(); menuEl.hidden = true; helpEl.hidden = false; try { $('#help-close').focus({ preventScroll: true }); } catch (e) {} }
+function hideFrPop() { const p = document.getElementById('fr-pop'); if (p) p.hidden = true; }
 function closeHelp() { helpEl.hidden = true; menuEl.hidden = false; try { $('#btn-help').focus({ preventScroll: true }); } catch (e) {} }
 function pause() {
   if (!inGame() || G.phase === 'matchEnd' || G.paused || !endEl.hidden) return;
   if (NET.role) {
     syncCamBtn();
     $('#pause-kicker').textContent = 'Partie en ligne'; $('#pause-title').textContent = 'La partie continue';
+    $('#pause-group').hidden = !inGroupHost();
     pauseEl.hidden = false; G.players[localIdx()].dirStack.length = 0;
     try { $('#resume').focus({ preventScroll: true }); } catch (e) {}
     return;
@@ -5141,6 +5201,7 @@ function pause() {
 function resume() { G.paused = false; pauseEl.hidden = true; blurActive(); }
 function showEnd() {
   if (G.camp && NET.role === 'guest') { setTimeout(() => guestCampEnd(null), 350); return; }   // défi joué chez un ami : retour à son salon
+  if (!G.camp) { renderEndFriends(); syncEndGroup(); }
   renderEndXp(); $('#again').firstChild.textContent = 'Revanche '; $('#end-camp').hidden = !G.camp;
   if (G.camp) { showEndCamp(); return; }
   if (G.pointsMode) { showEndPoints(); reportMatch(); return; }
@@ -5738,7 +5799,9 @@ function openCamp(just, res) {
   renderCamp();
   try { $('#camp-go').focus({ preventScroll: true }); } catch (e) {}
 }
-function closeCamp() { if (NET.campLobby) leaveOnline(); campEl.hidden = true; menuEl.hidden = false; syncCampBtn(); try { $('#btn-camp').focus({ preventScroll: true }); } catch (e) {} }
+function closeCamp() {
+  if (NET.campLobby && NET.role === 'host' && !NET.campOnly) { NET.campLobby = false; campEl.hidden = true; showGroup(); return; }   // campagne lancée depuis le groupe : retour au groupe
+  if (NET.campLobby) leaveOnline(); campEl.hidden = true; menuEl.hidden = false; syncCampBtn(); try { $('#btn-camp').focus({ preventScroll: true }); } catch (e) {} }
 function renderCamp() {
   const d = campDone(), path = $('#camp-path');
   $('#camp-prog').textContent = `${d} / ${CAMP.length} défi${d > 1 ? 's' : ''} réussi${d > 1 ? 's' : ''}`;
@@ -5864,7 +5927,7 @@ function campNetStart() {
 let campCoopMsg = '';
 function renderCampCoop() {
   const on = NET.role === 'host' && NET.campLobby, c = CAMP[campSel], n = campAllies(c), fr = campFriends(), note = $('#camp-coop-note');
-  $('#camp-inv').textContent = on ? 'Fermer le salon' : 'Inviter des amis';
+  $('#camp-inv').textContent = on ? (NET.campOnly ? 'Fermer le salon' : 'Retour au groupe') : 'Inviter des amis';
   $('#camp-codebox').hidden = !on;
   const ul = $('#camp-mates'); ul.innerHTML = '';
   if (!on) { note.textContent = campCoopMsg || 'Joue la campagne avec des amis : ils remplacent tes alliés ordis.'; return; }
@@ -5882,16 +5945,27 @@ function renderCampCoop() {
 }
 $('#camp-inv').addEventListener('click', () => {
   campCoopMsg = '';
-  if (NET.role === 'host' && NET.campLobby) { leaveOnline(); renderCampCoop(); return; }
+  if (NET.role === 'host' && NET.campLobby) { if (!NET.campOnly) { closeCamp(); return; } leaveOnline(); renderCampCoop(); return; }
   if (!peerReady()) { campCoopMsg = "Le module de jeu en ligne n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."; renderCampCoop(); return; }
   if (NET.role) { campCoopMsg = 'Quitte d\'abord ton autre partie en ligne.'; renderCampCoop(); return; }
-  NET.campLobby = true; hostGame(); renderCampCoop();
+  NET.campLobby = true; NET.campOnly = true; hostGame(); renderCampCoop();
 });
 $('#camp-link').addEventListener('click', () => {
   const btn = $('#camp-link'), url = location.origin + location.pathname + '?partie=' + (NET.code || '');
   const done = ok => { btn.textContent = ok ? 'Lien copié !' : url; setTimeout(() => { btn.textContent = 'Copier le lien'; }, 2500); };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); }
 });
+// chez l'ami : retour à l'attente dans le groupe (fin d'un défi, ou l'hôte revient au groupe)
+function guestToLobby(status) {
+  if (NET.role !== 'guest') return;
+  NET.gotSnap = false; G.camp = null; G.boss = null; G.tombs = []; G.warn = []; G.megaOn = false; G.megaRing = null; clearTimeout(NET.brEndT);
+  $('#br-ui').hidden = true; resetDemoPlayers(); endEl.hidden = true; pauseEl.hidden = true;
+  showOnline(NET.view || 'join'); setNetView(true, NET.code, '');
+  $('#net-title').textContent = 'Groupe de ton ami';
+  $('#net-status').textContent = status || 'Tu es dans le groupe.';
+  $('#net-wait-text').textContent = "En attente que ton ami lance un mode…";
+  renderNetFriends(); frPoll();
+}
 // chez l'ami : fin du défi, retour à l'attente dans le salon de l'hôte
 function guestCampEnd(d) {
   if (NET.role !== 'guest') return;
@@ -5902,9 +5976,7 @@ function guestCampEnd(d) {
     NET.campEndMi = NET.mi;
     NET.campCredit = won && campDone() === i;           // c'était aussi ton prochain défi : il est validé pour toi
     if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); }
-    NET.gotSnap = false; G.camp = null; G.boss = null; G.tombs = []; G.warn = [];
-    resetDemoPlayers(); endEl.hidden = true; pauseEl.hidden = true;
-    showOnline(NET.view || 'join'); setNetView(true, NET.code, '');
+    guestToLobby('');
     $('#net-title').textContent = 'Campagne de ton ami';
   }
   const text = d && typeof d.text === 'string' ? ' ' + d.text.slice(0, 160) : '';
@@ -6184,12 +6256,13 @@ async function openRanks() {
       const rk = rankOf(p.elo), sp = document.createElement('span'); sp.className = 'rk-name rk-' + RANK_TIERS[rk.tier].key; sp.textContent = ' · ' + rk.label; tr.children[2].appendChild(sp);
       tr.tabIndex = 0; tr.setAttribute('role', 'button'); tr.title = `Voir le profil de ${p.name}`;
       const go = () => openProfile(p.id === myAid() ? null : p.id, 'ranks');
+      const tf = document.createElement('td'); tf.className = 'fr'; if (p.id !== myAid()) tf.appendChild(friendBtn(p.id, true)); tr.appendChild(tf);
       tr.addEventListener('click', go); tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       body.appendChild(tr);
     };
     d.top.forEach(p => row(p, p.id === myAid()));
     if (d.me && !d.top.some(p => p.id === d.me.id)) {
-      const gap = document.createElement('tr'); gap.className = 'gap'; gap.innerHTML = '<td colspan="5">⋯</td>'; body.appendChild(gap);
+      const gap = document.createElement('tr'); gap.className = 'gap'; gap.innerHTML = '<td colspan="6">⋯</td>'; body.appendChild(gap);
       row(d.me, true);
     }
     st.textContent = d.total ? `${d.total} joueur${d.total > 1 ? 's' : ''} classé${d.total > 1 ? 's' : ''}.` + (d.me && !d.me.games ? ' Joue une partie en ligne pour entrer au classement.' : '')
@@ -6222,8 +6295,10 @@ async function pushPub() {
   try { const r = await rpc('mc_pub', { p_id: a.id, p_secret: a.secret, p_pub: pub }); if (r && r.ok) { settings.pubSig = sig; try { localStorage.setItem('meche-courte', JSON.stringify(settings)); } catch (e) {} } } catch (e) {}
 }
 const profEl = $('#profile'); let profFrom = 'menu';
+let profId = null;
 function openProfile(id, from) {
-  profFrom = from || 'menu'; ranksEl.hidden = true; menuEl.hidden = true; profEl.hidden = false;
+  profFrom = from || 'menu'; ranksEl.hidden = true; menuEl.hidden = true; friendsEl.hidden = true; profEl.hidden = false;
+  profId = id && id !== myAid() ? id : null;
   try { $('#profile-close').focus({ preventScroll: true }); } catch (e) {}
   const mine = !id || id === myAid();
   if (mine) { renderProfile({ ...(ELO.me || {}), name: settings.name, pub: pubOf(), mine: true }); pushPub(); return; }
@@ -6233,6 +6308,7 @@ function openProfile(id, from) {
 function closeProfile() {
   profEl.hidden = true;
   if (profFrom === 'ranks') { ranksEl.hidden = false; try { $('#ranks-close').focus({ preventScroll: true }); } catch (e) {} }
+  else if (profFrom === 'friends') openFriends();
   else { menuEl.hidden = false; try { $('#btn-profile').focus({ preventScroll: true }); } catch (e) {} }
 }
 const charIdx = key => Math.max(0, CHARS.findIndex(c => c.key === key));
@@ -6271,6 +6347,8 @@ function renderProfile(d) {
     const sm = document.createElement('small'); sm.textContent = d.games ? `${plural(d.games, 'partie classée', 'parties classées')}, ${plural(d.wins | 0, 'gagnée', 'gagnées')}` : 'Pas encore de partie classée';
     rkTxt.append(b, sm);
   } else rkTxt.textContent = d.loading ? '' : 'Pas encore classé';
+  { const old = $('#prof-fr'); if (old) old.remove(); }
+  if (!mine && profId && !d.loading && !d.err && !d.error) { const fb = friendBtn(profId); fb.id = 'prof-fr'; fb.classList.add('prof-fr'); $('#prof-name').after(fb); }
   $('#prof-status').textContent = d.loading ? 'Chargement…' : d.err ? "Ce profil n'est pas joignable pour l'instant." : d.error ? 'Profil introuvable.' : !mine && !Object.keys(P).length ? "Ce joueur n'a pas encore partagé son profil (il le sera à sa prochaine visite)." : '';
   const body = $('#prof-body'); body.innerHTML = '';
   if (d.loading || d.err || d.error) return;
@@ -6325,6 +6403,190 @@ function renderProfile(d) {
 $('#profile-close').addEventListener('click', closeProfile);
 $('#ranks-me').addEventListener('click', () => openProfile(null, 'ranks'));
 $('#btn-profile').addEventListener('click', () => openProfile(null, 'menu'));
+/* ---------- Amis : demandes (profil, classement, fin de partie, pseudo), présence, invitations dans un groupe ----------
+   Serveur : game.friends, game.invites, mc_friends (liste + présence), mc_friend_req / _ans / _del / _name, mc_invite, mc_invite_drop. */
+const friendsEl = $('#friends');
+const FR = { list: [], inc: [], out: [], inv: [], at: 0, busy: false, ok: false, err: '', sent: {}, gone: new Set(), del: '' };
+const frArr = v => Array.isArray(v) ? v.filter(x => x && typeof x.id === 'string' && /^[a-z0-9]{12}$/.test(x.id)).slice(0, 200) : [];
+const frAct = () => G.mode === 'br' ? 'br' : G.camp ? 'camp' : inGame() ? 'partie' : NET.role && (NET.role === 'host' || NET.role === 'guest') ? 'groupe' : 'menu';
+const FR_ACT = { menu: 'à l\'accueil', groupe: 'dans un groupe', partie: 'en partie', br: 'en battle royale', camp: 'en campagne' };
+const frState = id => FR.list.some(f => f.id === id) ? 'friend' : FR.inc.some(f => f.id === id) ? 'inc' : FR.out.some(f => f.id === id) ? 'out' : 'none';
+async function frAuth() { if (!settings.account) await ensureAccount().catch(() => {}); const a = settings.account; return a && a.id && a.secret ? { p_id: a.id, p_secret: a.secret } : null; }
+async function frPoll() {
+  if (FR.busy) return; const au = await frAuth(); if (!au) return;
+  FR.busy = true;
+  try {
+    const r = await rpc('mc_friends', { ...au, p_act: frAct() });
+    if (r && !r.error) Object.assign(FR, { list: frArr(r.friends), inc: frArr(r.inc), out: frArr(r.out), inv: frArr(r.inv).filter(v => /^[a-z0-9]{4}$/.test(v.code)), ok: true, err: '' });
+    else FR.err = (r && r.error) || 'net';
+  } catch (e) { FR.err = 'net'; }
+  FR.at = Date.now(); FR.busy = false; frChanged();
+}
+setInterval(() => { const busyScreen = !friendsEl.hidden || !menuEl.hidden || !onlineEl.hidden; if (Date.now() - FR.at > (busyScreen ? 10000 : 45000)) frPoll(); }, 3000);
+async function frCall(fn, args, okMsg) {
+  const au = await frAuth(); if (!au) { frMsg('Ton compte de classement n\'est pas joignable pour l\'instant.'); return null; }
+  try { const r = await rpc(fn, { ...au, ...args }); if (r && r.error) { frMsg(FR_ERR[r.error] || 'Ça n\'a pas marché, réessaie.'); return r; } if (okMsg) frMsg(typeof okMsg === 'function' ? okMsg(r) : okMsg); FR.at = 0; frPoll(); return r; }
+  catch (e) { frMsg("Le serveur n'est pas joignable pour l'instant."); return null; }
+}
+const FR_ERR = { self: "C'est toi !", unknown: 'Aucun joueur ne porte ce pseudo.', limit: 'Tu as trop de demandes en attente.', friend: "Vous n'êtes pas encore amis.", code: 'Groupe introuvable.', auth: 'Ton compte n\'est pas reconnu.' };
+function frMsg(t) { if (!friendsEl.hidden) $('#fr-status').textContent = t; else xpToast(t, true); }
+function frRequest(id) { return frCall('mc_friend_req', { p_to: id }, r => r && r.state === 'friends' ? 'Vous êtes maintenant amis !' : 'Demande d\'ami envoyée.'); }
+// bouton « Demander en ami » qui suit l'état (profil, classement, fin de partie)
+function friendBtn(id, small) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost tiny'; b.dataset.fr = id;
+  syncFriendBtn(b, small);
+  b.addEventListener('click', e => { e.stopPropagation(); const st = frState(id); if (st === 'none') { b.disabled = true; b.textContent = '…'; frRequest(id).then(() => syncFriendBtn(b, small)); } else if (st === 'inc') { frCall('mc_friend_ans', { p_from: id, p_ok: true }, 'Vous êtes maintenant amis !').then(() => syncFriendBtn(b, small)); } });
+  b.addEventListener('keydown', e => e.stopPropagation());
+  return b;
+}
+function syncFriendBtn(b, small) {
+  const st = frState(b.dataset.fr); small = small ?? b.classList.contains('sm');
+  b.textContent = st === 'friend' ? (small ? 'Ami ✓' : 'Ami ✓') : st === 'out' ? (small ? 'Demandé' : 'Demande envoyée') : st === 'inc' ? (small ? 'Accepter' : 'Accepter sa demande') : (small ? '+ Ami' : 'Demander en ami');
+  b.disabled = st === 'friend' || st === 'out';
+  if (small) b.classList.add('sm');
+}
+function frChanged() {
+  const n = FR.inc.length + FR.inv.filter(v => !FR.gone.has(v.id + v.code)).length, c = $('#fr-count');
+  c.hidden = !n; c.textContent = n;
+  document.querySelectorAll('button[data-fr]').forEach(b => syncFriendBtn(b));
+  if (!friendsEl.hidden) renderFriends();
+  renderNetFriends(); frPop();
+}
+// fenêtre d'invitation dans un groupe (hors partie)
+function frPop() {
+  const pop = $('#fr-pop'), v = FR.inv.find(x => !FR.gone.has(x.id + x.code) && x.code !== NET.code);
+  const can = !!v && !(inGame() && G.mode !== 'demo') && !(NET.role === 'guest' && NET.gotSnap) && friendsEl.hidden;
+  pop.hidden = !can; if (!can) return;
+  pop.dataset.id = v.id; pop.dataset.code = v.code;
+  $('#fr-pop-txt').textContent = `${cleanNick(v.name, 'Un ami')} t'invite dans son groupe`;
+}
+$('#fr-pop-go').addEventListener('click', () => { const p = $('#fr-pop'); frJoin({ id: p.dataset.id, code: p.dataset.code }); });
+$('#fr-pop-no').addEventListener('click', () => { const p = $('#fr-pop'); FR.gone.add(p.dataset.id + p.dataset.code); frChanged(); });
+function frJoin(v) {
+  FR.gone.add(v.id + v.code); $('#fr-pop').hidden = true;
+  frCall('mc_invite_drop', { p_from: v.id });
+  if (inGame() && G.mode !== 'demo') { frMsg('Termine ta partie avant de rejoindre le groupe.'); return; }
+  if (NET.role) leaveOnline();
+  friendsEl.hidden = true; campEl.hidden = true; profEl.hidden = true; ranksEl.hidden = true; customEl.hidden = true; endEl.hidden = true;
+  openJoin(v.code); joinGame(v.code);
+}
+// inviter un ami dans son groupe (on crée le groupe s'il n'y en a pas)
+function frInvite(id) {
+  if (!(NET.role === 'host' && !NET.pub && !NET.br) && !(NET.role === 'guest' && !NET.pub && NET.code && /^[a-z0-9]{4}$/.test(NET.code))) {
+    if (NET.role || (inGame() && G.mode !== 'demo')) { frMsg('Quitte ta partie en cours pour créer un groupe.'); return; }
+    friendsEl.hidden = true; createLobby();
+  }
+  if (!NET.code) return;
+  FR.sent[id] = Date.now();
+  frCall('mc_invite', { p_to: id, p_code: NET.code }, 'Invitation envoyée !'); renderNetFriends(); if (!friendsEl.hidden) renderFriends();
+}
+function frRow(ul, f, btns, sub, on) {
+  const li = document.createElement('li'); if (on === false) li.className = 'off';
+  const dot = document.createElement('i'); dot.className = 'dot' + (on ? ' on' : ''); if (on !== undefined) li.appendChild(dot);
+  const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = cleanNick(f.name, 'Joueur');
+  if (sub) { const sm = document.createElement('small'); sm.textContent = sub; nm.appendChild(sm); }
+  li.appendChild(nm);
+  for (const [label, fn, cls] of btns) { const b = document.createElement('button'); b.type = 'button'; b.className = cls || 'ghost'; b.textContent = label; if (fn) b.addEventListener('click', fn); else b.disabled = true; li.appendChild(b); }
+  ul.appendChild(li);
+}
+const inMyGroup = id => NET.role === 'host' && NET.links.some(L => L.aid === id && L.conn.open);
+const frInvited = id => FR.sent[id] && Date.now() - FR.sent[id] < 90000;
+function renderFriends() {
+  const st = $('#fr-status');
+  if (!FR.ok) st.textContent = FR.err ? "La liste d'amis n'est pas joignable pour l'instant." : 'Chargement…';
+  else if (st.dataset.auto !== '0') st.textContent = '';
+  // groupe
+  const g = $('#fr-grp'); g.innerHTML = '';
+  const inGrp = (NET.role === 'host' && !NET.pub && !NET.br && NET.code) || (NET.role === 'guest' && !NET.pub && !NET.spec);
+  const t = document.createElement('span');
+  t.textContent = inGrp ? (NET.role === 'host' ? `Ton groupe · code ${String(NET.code).toUpperCase()} · ${1 + NET.links.filter(L => L.conn.open).length} joueur(s)` : 'Tu es dans le groupe d\'un ami') : "Crée un groupe, invite tes amis, puis lancez le mode de votre choix.";
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'cta';
+  b.textContent = inGrp ? 'Ouvrir le groupe' : 'Créer un groupe';
+  b.addEventListener('click', () => { friendsEl.hidden = true; if (inGrp) showGroup(); else createLobby(); });
+  g.append(t, b);
+  // invitations
+  const inv = FR.inv.filter(v => v.code !== NET.code), ui = $('#fr-inv'); ui.innerHTML = '';
+  $('#fr-inv-sec').hidden = !inv.length;
+  for (const v of inv) frRow(ui, v, [['Rejoindre', () => frJoin(v), 'cta'], ['Ignorer', () => { FR.gone.add(v.id + v.code); frCall('mc_invite_drop', { p_from: v.id }); }]], `t'invite dans son groupe · il y a ${Math.max(1, Math.round((v.age | 0) / 60))} min`);
+  // demandes reçues
+  const uc = $('#fr-inc'); uc.innerHTML = ''; $('#fr-inc-sec').hidden = !FR.inc.length;
+  for (const f of FR.inc) frRow(uc, f, [['Accepter', () => frCall('mc_friend_ans', { p_from: f.id, p_ok: true }, `${cleanNick(f.name, 'Joueur')} est maintenant ton ami !`), 'cta'], ['Refuser', () => frCall('mc_friend_ans', { p_from: f.id, p_ok: false }, 'Demande refusée.')]], 'veut être ton ami');
+  // amis
+  const ul = $('#fr-list'); ul.innerHTML = '';
+  const onN = FR.list.filter(f => f.on).length;
+  $('#fr-list-h').textContent = FR.list.length ? `Tes amis · ${onN} en ligne sur ${FR.list.length}` : 'Tes amis';
+  if (!FR.list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = FR.ok ? "Pas encore d'ami : ajoute quelqu'un par son pseudo, depuis le classement ou à la fin d'une partie en ligne." : '…'; ul.appendChild(li); }
+  for (const f of FR.list) {
+    const btns = [];
+    if (inMyGroup(f.id)) btns.push(['Dans ton groupe', null]);
+    else if (f.on) btns.push([frInvited(f.id) ? 'Invité ✓' : 'Inviter', frInvited(f.id) ? null : () => frInvite(f.id), 'cta']);
+    btns.push(['Profil', () => openProfile(f.id, 'friends')]);
+    btns.push([FR.del === f.id ? 'Sûr ?' : 'Retirer', () => { if (FR.del !== f.id) { FR.del = f.id; renderFriends(); return; } FR.del = ''; frCall('mc_friend_del', { p_other: f.id }, `${cleanNick(f.name, 'Joueur')} n'est plus ton ami.`); }]);
+    frRow(ul, f, btns, (f.on ? 'En ligne · ' + (FR_ACT[f.act] || 'à l\'accueil') : 'Hors ligne') + (f.elo > 0 ? ` · ${f.elo} Elo` : ''), !!f.on);
+  }
+  // demandes envoyées
+  const uo = $('#fr-out'); uo.innerHTML = ''; $('#fr-out-sec').hidden = !FR.out.length;
+  for (const f of FR.out) frRow(uo, f, [['Annuler', () => frCall('mc_friend_del', { p_other: f.id }, 'Demande annulée.')]], 'en attente de sa réponse');
+}
+function openFriends() {
+  menuEl.hidden = true; profEl.hidden = true; friendsEl.hidden = false; $('#fr-pop').hidden = true; $('#fr-status').textContent = '';
+  renderFriends(); frPoll();
+  try { $('#fr-close').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeFriends() { friendsEl.hidden = true; menuEl.hidden = false; frPop(); try { $('#btn-friends').focus({ preventScroll: true }); } catch (e) {} }
+$('#btn-friends').addEventListener('click', openFriends);
+$('#fr-close').addEventListener('click', closeFriends);
+$('#fr-add').addEventListener('submit', e => {
+  e.preventDefault(); const n = $('#fr-name').value.trim(); if (!n) return;
+  frCall('mc_friend_name', { p_name: n }, r => r && r.state === 'friends' ? `${cleanNick(r.name, n)} et toi êtes maintenant amis !` : `Demande envoyée à ${cleanNick(r && r.name, n)}.`).then(r => { if (r && !r.error) $('#fr-name').value = ''; });
+});
+// dans le groupe : liste des amis à inviter
+function renderNetFriends() {
+  const box = $('#net-fr'); if (!box) return;
+  const inGrp = (NET.role === 'host' && !NET.pub && !NET.br && !NET.started) || (NET.role === 'guest' && !NET.pub && !NET.spec && !NET.gotSnap);
+  box.hidden = !inGrp || !FR.ok; if (box.hidden) return;
+  const ul = $('#net-fr-list'); ul.innerHTML = '';
+  const on = FR.list.filter(f => f.on), off = FR.list.length - on.length;
+  if (!FR.list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = "Pas encore d'ami : ajoute-en depuis « Amis » à l'accueil."; ul.appendChild(li); return; }
+  for (const f of on.slice(0, 8)) frRow(ul, f, [inMyGroup(f.id) ? ['Dans le groupe', null] : [frInvited(f.id) ? 'Invité ✓' : 'Inviter', frInvited(f.id) ? null : () => frInvite(f.id), 'cta']], FR_ACT[f.act] || 'en ligne', true);
+  if (!on.length || off) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = on.length ? `${off} ami${off > 1 ? 's' : ''} hors ligne` : `Aucun ami en ligne (${off} hors ligne)`; ul.appendChild(li); }
+}
+// fin d'une partie en ligne : demander les autres joueurs en ami
+function renderEndFriends() {
+  const box = $('#end-fr'); box.innerHTML = '';
+  const me = myAid(), ps = NET.role && !NET.spec ? G.players.filter(p => !p.ai && !p.isBot && p.aid && /^[a-z0-9]{12}$/.test(p.aid) && p.aid !== me) : [];
+  box.hidden = !ps.length; if (!ps.length) return;
+  for (const p of ps.slice(0, 8)) { const sp = document.createElement('span'); sp.textContent = nameOf(p.id); sp.appendChild(friendBtn(p.aid, true)); box.appendChild(sp); }
+}
+/* ---------- Groupe : le salon en ligne privé ; l'hôte lance une partie classique, la campagne ou un battle royale, puis tout le monde revient au groupe ---------- */
+const inGroupHost = () => NET.role === 'host' && !NET.pub && !NET.spec && !!NET.code && /^[a-z0-9]{4}$/.test(NET.code);
+function syncEndGroup() { $('#end-group').hidden = !inGroupHost(); }
+function showGroup() {
+  menuEl.hidden = true; campEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; friendsEl.hidden = true;
+  showOnline(NET.role === 'host' ? 'create' : 'join'); setNetView(true, NET.code, '');
+  if (NET.role === 'host') refreshHostLobby();
+}
+function groupBack() {
+  if (!inGroupHost()) return;
+  NET.started = false; NET.campLobby = false; NET.grpBr = false; G.paused = false;
+  for (const L of NET.links) { L.slot = -1; if (L.conn.open) { try { L.conn.send({ t: 'grpback' }); } catch (e) {} } }
+  toMenu(true); showGroup(); frPoll();
+  $('#net-status').textContent = 'Retour au groupe.';
+}
+$('#end-group').addEventListener('click', groupBack);
+$('#pause-group').addEventListener('click', groupBack);
+// battle royale privé du groupe : sur la connexion du groupe, des ordis complètent jusqu'à 30
+function groupBr() {
+  if (!inGroupHost() || NET.started) return;
+  const links = NET.links.filter(L => L.conn.open);
+  NET.campLobby = false; startBr();
+  NET.started = true; NET.grpBr = true; NET.mi++; NET.events = [];
+  NET.mid = Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]).join('');
+  for (const L of links) { L.slot = -1; brAddHuman(L); }
+  setupHud(); brToast('Battle royale du groupe : vous êtes ' + (1 + links.length) + ', les ordis complètent');
+}
+$('#net-br').addEventListener('click', groupBr);
+$('#net-camp').addEventListener('click', () => { if (!inGroupHost() || NET.started) return; NET.campLobby = true; NET.campOnly = false; onlineEl.hidden = true; openCamp(); });
 // Fin d'une partie en ligne : chaque joueur envoie le même résultat ; le serveur l'applique quand ils concordent
 let reportT = 0;
 function reportMatch() {
@@ -6602,10 +6864,11 @@ window.addEventListener('keydown', e => {
   if (!campEl.hidden) {
     if (code === 'Escape') closeCamp();
     else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { campSel = clamp(campSel + (code === 'ArrowLeft' ? -1 : 1), 0, CAMP.length - 1); renderCamp(); }
-    else if (code === 'Enter' && document.activeElement && document.activeElement.id !== 'camp-back' && !document.activeElement.classList.contains('camp-node')) { e.preventDefault(); startCamp(campSel); }
+    else if (code === 'Enter' && document.activeElement && (document.activeElement.tagName !== 'BUTTON' || document.activeElement.id === 'camp-go') && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); startCamp(campSel); }
     return;
   }
   if (!profEl.hidden) { if (code === 'Escape') closeProfile(); return; }
+  if (!friendsEl.hidden) { if (code === 'Escape') closeFriends(); return; }
   if (!accEl().hidden) { if (code === 'Escape') closeAccount(); return; }
   const inMenus = !menuEl.hidden || !soloEl.hidden || !helpEl.hidden || !onlineEl.hidden || !ranksEl.hidden;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code) && !(inMenus && code === 'Space')) e.preventDefault();
@@ -6721,7 +6984,7 @@ const peerReady = () => typeof window.Peer === 'function';
 // Écran en ligne : 3 vues (rejoindre avec un code, ton lobby, partie publique)
 const NET_VIEWS = {
   join: ['Jouer en ligne', 'Rejoindre un lobby'],
-  create: ['Jouer en ligne', 'Ton lobby'],
+  create: ['Jouer en ligne', 'Ton groupe'],
   search: ['Jouer en ligne', 'Partie publique'],
   br: ['30 artificiers', 'Battle royale'],
 };
@@ -6789,7 +7052,7 @@ function failOnline(msg) {
   dropPeer();
   if (NET.seek) clearTimeout(NET.seek.timer);
   if (NET.wseek) clearTimeout(NET.wseek.timer);
-  Object.assign(NET, { role: null, campLobby: false, campEndMi: 0, campCredit: false, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, spec: false, wseek: null });
+  Object.assign(NET, { role: null, campOnly: false, grpBr: false, campLobby: false, campEndMi: 0, campCredit: false, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, spec: false, wseek: null });
   setNetView(false); renderLobby(msg); syncMenu();
   try { (NET.view === 'join' ? $('#net-code-in') : $('#net-retry')).focus({ preventScroll: true }); } catch (e) {}
 }
@@ -6845,11 +7108,12 @@ function refreshHostLobby() {
   else {
     $('#net-cfg').textContent = '';
     $('#net-wait-text').textContent = n
-      ? `${n} pote${n > 1 ? 's' : ''} dans le lobby. Règle la partie, puis lance quand tout le monde est là.`
-      : "Donne ce code à tes potes (ou envoie le lien d'invitation) : ils cliquent sur « Rejoindre avec un code » et l'entrent. Jusqu'à 3 potes.";
+      ? `${n} ami${n > 1 ? 's' : ''} dans le groupe. Lance une partie classique (réglages ci-dessous), un battle royale ou la campagne.`
+      : "Invite tes amis ci-dessous, ou donne-leur ce code (ou le lien) : « Rejoindre avec un code » à l'accueil. Jusqu'à 3 amis.";
   }
   NET.links.forEach((L, i) => { if (L.conn.open) { try { L.conn.send(lobbyMsg(i + 1)); } catch (e) {} } });
   if (NET.campLobby) renderCampCoop();
+  renderNetFriends();
 }
 function hostGame(e, attempt = 0, pub = null) {
   if (NET.role || !peerReady()) return;
@@ -6859,7 +7123,7 @@ function hostGame(e, attempt = 0, pub = null) {
   Object.assign(NET, { role: 'host', hostSlot: 0, peer, links: [], specs: [], code, events: [], started: false, sendT: 0, pub: !!pub, cdEnd: 0, pubN: 0 });
   peer.on('open', () => {
     if (NET.peer !== peer) return;
-    $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Lobby créé.';
+    $('#net-status').textContent = pub ? "Aucune partie en attente : tu en ouvres une, les prochains joueurs qui cherchent te rejoindront." : 'Groupe créé.';
     setNetView(true, code, ''); refreshHostLobby();
   });
   peer.on('connection', conn => {
@@ -7124,7 +7388,7 @@ function guestOpened(conn) {
   if (NET.link !== conn) return;
   NET.lastSeen = performance.now();
   $('#net-wait-text').textContent = NET.pub ? 'Partie trouvée !' : "Connecté ! En attente que l'hôte lance la partie…";
-  if (!NET.pub) { $('#net-title').textContent = 'Lobby de ton pote'; $('#net-status').textContent = 'Tu es dans le lobby.'; }
+  if (!NET.pub) { $('#net-title').textContent = 'Groupe de ton ami'; $('#net-status').textContent = 'Tu es dans le groupe.'; }
   sendGuest();
 }
 function attachGuestConn(conn) {
@@ -7301,7 +7565,8 @@ function onGuestData(d) {
       const list = Array.isArray(d.list) ? d.list.slice(0, 4).map(x => ({ k: x && x.k === 'b' ? 'b' : 'h', n: x && x.n, e: x && x.e, s: x && x.s })) : [];
       renderNetPlayers(list, num(d.you) | 0);
       $('#net-cfg').textContent = cfgText({ list, pub: d.pub, cfg: d.cfg, camp: d.camp });
-      if (d.camp && !NET.campEndMi) $('#net-title').textContent = 'Campagne de ton ami';
+      if (!d.pub) $('#net-title').textContent = d.camp ? 'Campagne de ton ami' : 'Groupe de ton ami';
+      renderNetFriends();
       if (d.pub) $('#net-wait-text').textContent = pubWaitText(list.filter(x => x.k === 'h').length, typeof d.cd === 'number' ? d.cd : -1);
     }
   } else if (d.t === 's') {
@@ -7315,6 +7580,7 @@ function onGuestData(d) {
   }
   else if (d.t === 'campwait') { if (!NET.gotSnap) $('#net-wait-text').textContent = `Ton ami joue le défi ${(num(d.i) | 0) + 1} sans toi (pas d'allié à remplacer, ou plus de place) : tu joueras au prochain défi.`; }
   else if (d.t === 'campend') guestCampEnd(d);
+  else if (d.t === 'grpback') guestToLobby(NET.gotSnap ? 'Retour au groupe.' : '');
   else if (d.t === 'specwait') $('#net-wait-text').textContent = "La partie n'a pas encore commencé : elle s'affichera dès son lancement.";
   else if (d.t === 'specfull') backToLobby('Il y a déjà trop de spectateurs sur cette partie.');
   else if (d.t === 'bye') { if (NET.gotSnap) { if (d.mig) hostLost(true); else opponentLeft("L'hôte a quitté la partie."); } else backToLobby(NET.pub ? "Le joueur qui ouvrait la partie publique est parti." : "L'hôte a fermé le lobby."); }
@@ -7324,7 +7590,7 @@ function leaveOnline() {
   else if (NET.link && NET.link.open) { try { NET.link.send({ t: 'bye' }); } catch (e) {} }
   if (NET.seek) clearTimeout(NET.seek.timer);
   dropPeer();
-  Object.assign(NET, { role: null, campLobby: false, campEndMi: 0, campCredit: false, hostSlot: 0, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '', migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false });
+  Object.assign(NET, { role: null, campOnly: false, grpBr: false, campLobby: false, campEndMi: 0, campCredit: false, hostSlot: 0, code: null, gotSnap: false, started: false, lastSeen: 0, pub: false, seek: null, cdEnd: 0, pubN: 0, br: false, specs: [], spec: false, follow: 0, followSet: false, wseek: null, watchId: '', migrating: null, migBad: [], peerIds: null, pendConns: [], rejoining: false });
   G.specN = 0; syncSpecBar();
 }
 function opponentLeft(msg) {
@@ -7518,7 +7784,8 @@ function decodeSnap(s) {
     if (first || !Object.prototype.hasOwnProperty.call(FX, e[1])) continue;
     try { const a0 = e[1] === 'snd' ? String(e[2]) : num(e[2]); FX[e[1]](a0, num(e[3]), num(e[4]), num(e[5])); recEvent(e[1], a0, num(e[3]), num(e[4]), num(e[5])); } catch (err) {}
   }
-  if (cp) { G.pointsMode = false; if (G.mode !== 'match') { G.mode = 'match'; hudDirty = true; } decodeCamp(cp, first || newMatch); }
+  if (!br && G.mode !== 'match') { G.mode = 'match'; hudDirty = true; }   // aussi après un retour au groupe (accueil en démo)
+  if (cp) { G.pointsMode = false; decodeCamp(cp, first || newMatch); }
   if (num(s.wn) !== G.winsNeeded) { G.winsNeeded = clamp(num(s.wn) | 0, 1, 9); hudDirty = true; }
   if (hudDirty) setupHud();
   rebuildBombAt();
