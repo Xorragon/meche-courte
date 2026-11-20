@@ -1017,10 +1017,15 @@ const PALS = [
 const SPAWNS = [[1, 1, 'down'], [COLS - 2, ROWS - 2, 'up'], [COLS - 2, 1, 'down'], [1, ROWS - 2, 'up']];
 // Campagne : 10 défis, à faire dans l'ordre. Seul le premier est prêt ; les autres arrivent plus tard (foe : perso adverse, pour l'icône).
 // inset : épaisseur de mur ajoutée autour de l'arène (2 → arène de 9 × 7 cases au lieu de 13 × 11)
+const NPC_SKIN = 99;   // « perso » des personnages non jouables de la campagne (Kaboum)
 const CAMP = [
   { name: 'Premier duel', desc: 'Un ordi débutant t\'attend sur une petite arène. Idéal pour se faire la main.', foe: 4, lv: 0, inset: 2, wins: 2 },
-  { foe: 2 }, { foe: 5 }, { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
+  { name: 'La pluie de bombes', desc: 'Kaboum, l\'artificier fou, tourne autour de l\'arène et te lance des bombes dans tous les sens. Tiens une minute sans te faire souffler !',
+    foe: NPC_SKIN, npc: 'Kaboum', survive: 60, rageAt: 30, noCrates: true, inset: 0, wins: 1 },
+  { foe: 5 }, { foe: 1 }, { foe: 8 }, { foe: 6 }, { foe: 7 }, { foe: 10 }, { foe: 11 }, { foe: 3 },
 ];
+const foeName = c => c.npc || CHARS[c.foe].name;
+const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 const AI_LV_NAME = ['niveau 1', 'niveau 2', 'niveau 3'];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
 function spawnOf(i) {
@@ -1504,7 +1509,7 @@ function genMap(seed) {
   for (let k = 0; k < N; k++) {
     const m = N - 1 - k; // symétrie centrale : la carte est équitable pour les deux coins
     if (m < k || g[k] !== EMPTY || safe.has(k)) continue;
-    if (r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
+    if (!campFlag('noCrates') && r() < 0.8) { g[k] = CRATE; g[m] = CRATE; if (m !== k) pairs.push([k, m]); }
   }
   for (let i = pairs.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
   const bag = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 4];
@@ -1551,9 +1556,10 @@ function newRound() {
   G.seed = (Math.random() * 2147483647) | 0;
   genMap(G.seed);
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
-  G.time = ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
+  G.time = campFlag('survive') || ROUND_TIME; G.sudden = false; G.sdIdx = 0; G.sdTimer = 0; G.suddenFlash = 0; G.rainT = 0; G.sdT = 0;
   G.phase = 'intro'; G.phaseT = 1.7; G.endTimer = 0; G.lastWinner = -2; G.introBeep = false;
-  for (const p of G.players) resetPlayer(p);
+  G.lobs = []; G.rageFlash = 0; G.campT = 0;
+  for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   groundDirty = true;
 }
 
@@ -1919,6 +1925,7 @@ function kill(p, by) {
     if (kp.ai && Math.random() < 0.22) kp.emPend = G.t + 0.4 + Math.random() * 0.5;   // un ordi fanfaronne parfois
   }
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
+  if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
   fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
   scatterLoot(p);
 }
@@ -1978,7 +1985,7 @@ const nearView = (x, y) => G.mode !== 'br' || (Math.abs((x + 0.5) * T - (G.cam.x
 const onScreen = (x, y, m) => (x + 0.5) * T >= G.cam.x - m && (x + 0.5) * T <= G.cam.x + W + m && (y + 0.5) * T >= G.cam.y - m && (y + 0.5) * T <= G.cam.y + H + m;
 function earVol(x, y) {
   let ears = [];
-  if (!REPLAY.on && !NET.spec) ears = (NET.role ? [G.players[localIdx()]] : G.players.filter(p => !p.ai)).filter(p => p && p.alive);
+  if (!REPLAY.on && !NET.spec) ears = (NET.role ? [G.players[localIdx()]] : G.players.filter(p => !p.ai && !p.npc)).filter(p => p && p.alive);
   let d;
   if (ears.length) d = Math.min(...ears.map(p => Math.hypot(p.x - x, p.y - y)));
   else d = Math.hypot((G.cam.x + W / 2) / T - 0.5 - x, (G.cam.y + H / 2) / T - 0.5 - y); // mort, spectateur, replay : le centre de l'écran
@@ -2528,6 +2535,7 @@ function update(dt) {
   G.tick = (G.tick || 0) + 1;
   G.shake = Math.max(0, G.shake - dt * 30);
   if (G.suddenFlash > 0) G.suddenFlash -= dt;
+  if (G.rageFlash > 0) G.rageFlash -= dt;
   if (G.phase === 'intro') {
     G.phaseT -= dt;
     if (G.phaseT <= 0.55 && !G.introBeep) { G.introBeep = true; fx('snd', 'go'); }
@@ -2552,7 +2560,8 @@ function update(dt) {
     G.time -= dt;
     if (G.time <= 0) {
       G.time = 0;
-      if (!G.sudden) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
+      // défi de survie : pas de mort subite, c'est Kaboum qui explose
+      if (!G.sudden && !campFlag('survive')) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
     }
     if (G.sudden) {
       G.sdTimer -= dt;
@@ -2573,16 +2582,18 @@ function update(dt) {
       }
     }
     if (NET.role === 'host') applyGuestInput();
-    for (const p of G.players) { if (!p.alive) continue; if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
+    for (const p of G.players) { if (!p.alive) continue; if (p.npc) { npcTick(p, dt); continue; } if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
   } else {
     for (const p of G.players) p.moving = false;
   }
   updateBombs(dt);
   updateThrown(dt);
+  if (G.lobs && G.lobs.length) updateLobs(dt);
   updateFlames(dt);
   updateFalling(dt);
   updateFlying(dt, true);
   for (const p of G.players) {
+    if (p.npc) continue;
     if (p.alive) {
       if (p.moving) p.phase += dt * speedOf(p) * 3.3;
       if (G.phase === 'play') {
@@ -4551,7 +4562,7 @@ function render() {
   const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [], topB = [];
   const top3 = G.mode === 'br' && G.phase === 'play' ? brTop3() : null;
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
-  for (const p of G.players) { if (p.alive || p.deathT < 1) heroRows[clamp(Math.round(p.y), 0, ROWS - 1)].push(p); }
+  for (const p of G.players) { if (!p.npc && (p.alive || p.deathT < 1)) heroRows[clamp(Math.round(p.y), 0, ROWS - 1)].push(p); }
 
   for (let y = vy0; y <= vy1; y++) {
     for (let x = vx0; x <= vx1; x++) {
@@ -4605,6 +4616,7 @@ function render() {
     c.fillStyle = `rgba(15,25,10,${(0.32 - Math.min(0.2, h * 0.12)).toFixed(3)})`; ell(c, gx, gy + 15, 11 - Math.min(5, h * 3), 3.8 - Math.min(1.5, h)); c.fill();
     c.save(); c.translate(gx, gy - h * T); c.rotate((f.dx || f.dy) * f.t * 9); drawBomb(c, 0, 0, f.b, t); c.restore();
   }
+  if (G.camp && G.camp.npc) drawNpcs(c, t);
   drawParticles(c);
   for (const [mx, my, r] of topB) drawTopMark(c, mx, my, r, t);
   for (const [ex, ey, p] of emoB) drawEmoteBubble(c, ex, ey, p.emote.n, G.t - p.emote.at, p.pal.ui);
@@ -4636,7 +4648,8 @@ function render() {
   // bandeaux
   if (G.phase === 'intro') {
     const tt = G.phaseT;
-    if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
+    if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
   } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
     const a = Math.min(1, (3.2 - G.phaseT) * 4);
@@ -4652,6 +4665,7 @@ function render() {
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
   }
   if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', "L'arène rétrécit, puis des bonus tombent du ciel", '#ff7a2f', Math.min(1, G.suddenFlash * 2));
+  if (G.rageFlash > 0 && G.phase === 'play') drawBanner(c, 'Kaboum enrage !', 'Ses bombes volent et explosent plus vite', '#ff3b2f', Math.min(1, G.rageFlash * 2));
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
 
@@ -4671,6 +4685,7 @@ function drawPortrait(cv, pal, skin) {
   c.save(); c.beginPath(); c.arc(26, 26, 26, 0, TAU); c.clip();
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
+  if (skin === NPC_SKIN) { drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
     // grand portrait de face, cadré sur la tête
@@ -4715,7 +4730,7 @@ function setupHud() {
     const p = hudPlayer(i), card = cards[i];
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
-    card.querySelector('.ptag').textContent = G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
+    card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
     drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
@@ -5024,6 +5039,166 @@ function showEndPoints() {
   try { $('#again').focus({ preventScroll: true }); } catch (e) {}
 }
 
+
+/* ---------- Campagne, défi 2 : Kaboum, l'artificier fou ----------
+   Il tourne sur le mur du bord (hors de l'arène) et lance des bombes en cloche sur des cases libres.
+   À 30 s il enrage (rouge, plus rapide, bombes plus rapides qui explosent plus vite) ; à 0 il gonfle et explose. */
+const ringLen = () => 2 * (COLS - 1) + 2 * (ROWS - 1);
+function ringPos(u) {
+  const a = COLS - 1, b = ROWS - 1;
+  if (u < a) return [u, 0];
+  if (u < a + b) return [a, u - a];
+  if (u < 2 * a + b) return [a - (u - a - b), b];
+  return [0, b - (u - 2 * a - b)];
+}
+function npcReset(p) {
+  p.st = { u: Math.random() * ringLen(), dir: Math.random() < 0.5 ? 1 : -1, throwT: 1.4, pause: 0, arm: 0, look: [0, 1], blow: 0, raged: false, steam: 0 };
+  [p.x, p.y] = ringPos(p.st.u); p.rx = p.x; p.ry = p.y; p.shield = 0; p.active = 0;
+}
+const npcRage = () => { const c = G.camp; return c && G.time <= c.rageAt ? 1 : 0; };
+function npcTick(p, dt) {
+  const S = p.st || (npcReset(p), p.st), rage = npcRage();
+  if (rage && !S.raged) { S.raged = true; G.rageFlash = 2.2; fx('snd', 'sudden'); if (!reduceMotion) G.shake = Math.max(G.shake, 8); }
+  // fin du chrono : il gonfle, devient écarlate, puis explose tout seul (ses bombes au sol s'éteignent)
+  if (G.time <= 0) {
+    if (!S.blow) {
+      S.blow = 1e-4;
+      for (const b of G.bombs) for (let i = 0; i < 5; i++) addP({ kind: 'smoke', x: (b.x + 0.5) * T + (Math.random() - 0.5) * 20, y: (b.y + 0.5) * T, vx: (Math.random() - 0.5) * 40, vy: -30 - Math.random() * 40, life: 0.6, max: 0.6, size: 6, color: '200,200,200' });
+      G.bombs.length = 0; G.lobs.length = 0; p.active = 0; rebuildBombAt();
+      Sfx.play('sudden');
+    }
+    S.blow += dt;
+    if (!reduceMotion) G.shake = Math.max(G.shake, S.blow * 5);
+    if (S.blow >= 1.6) { kill(p, p.id); npcBoom(p); }
+    return;
+  }
+  if (S.pause > 0) S.pause -= dt;
+  else {
+    if (Math.random() < dt * (rage ? 0.3 : 0.18)) S.dir = -S.dir;      // il change de sens quand il veut, mais fait aussi le tour de l'arène
+    const L = ringLen(); S.u = ((S.u + S.dir * (rage ? 5.5 : 3.6) * dt) % L + L) % L;
+  }
+  [p.x, p.y] = ringPos(S.u); p.rx = p.x; p.ry = p.y;
+  S.arm = Math.max(0, S.arm - dt * 3);
+  if (rage) { S.steam -= dt; if (S.steam <= 0) { S.steam = 0.12; const [hx, hy] = npcDrawPos(p); addP({ kind: 'smoke', x: hx + (Math.random() - 0.5) * 30, y: hy - 30, vx: (Math.random() - 0.5) * 30, vy: -60 - Math.random() * 40, life: 0.6, max: 0.6, size: 5, color: '235,235,235' }); } }
+  S.throwT -= dt;
+  if (S.throwT <= 0) {
+    npcThrow(p, rage);
+    if (rage && Math.random() < 0.35) npcThrow(p, rage);   // enragé : parfois deux d'un coup
+    S.throwT = (rage ? 0.55 : 1.0) * (0.7 + Math.random() * 0.6); S.pause = 0.18; S.arm = 1;
+  }
+}
+function npcThrow(p, rage) {
+  if (G.bombs.length + G.lobs.length >= (rage ? 12 : 8)) return;
+  const me = G.players[0], free = [];
+  for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) {
+    const k = idx(x, y);
+    if (G.grid[k] === EMPTY && !G.bombAt[k] && !G.lobs.some(l => l.k === k)) free.push(k);
+  }
+  if (!free.length) return;
+  let pool = free;
+  // une bonne partie des bombes vise les environs du joueur, le reste tombe n'importe où
+  if (me && me.alive && Math.random() < (rage ? 0.5 : 0.35)) {
+    const near = free.filter(k => Math.abs(k % COLS - me.x) + Math.abs(((k / COLS) | 0) - me.y) <= 2.5);
+    if (near.length) pool = near;
+  }
+  const k = pool[(Math.random() * pool.length) | 0];
+  G.lobs.push({ k, sx: p.x, sy: p.y, t: 0, dur: rage ? 0.65 : 1.0, fuse: rage ? 1.7 : 2.6 });
+  p.st.look = [k % COLS - p.x, ((k / COLS) | 0) - p.y];
+  if (nearView(p.x, p.y)) Sfx.play('throw');
+}
+function updateLobs(dt) {
+  const npc = G.players.find(o => o.npc);
+  for (let i = G.lobs.length - 1; i >= 0; i--) {
+    const l = G.lobs[i]; l.t += dt;
+    if (l.t < l.dur) continue;
+    G.lobs.splice(i, 1);
+    const x = l.k % COLS, y = (l.k / COLS) | 0;
+    if (!npc || G.grid[l.k] !== EMPTY || G.bombAt[l.k]) { fx('land', x, y); continue; }
+    const b = { x, y, owner: npc, range: 2, timer: l.fuse, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
+    for (const o of G.players) if (o.alive && !o.npc && Math.abs(o.x - x) < 0.98 && Math.abs(o.y - y) < 0.98) b.passers.add(o.id);
+    G.bombs.push(b); npc.active++; rebuildBombAt();
+    fx('land', x, y);
+  }
+}
+function npcBoom(p) {
+  const [x, y] = npcDrawPos(p);
+  Sfx.boom('mega', 1); setTimeout(() => Sfx.boom('classic', 1), 120);
+  if (!reduceMotion) G.shake = 22; rumble(0.9, 1, 700);
+  G.megaFlash = 1.2;
+  for (let i = 0; i < 30; i++) addP({ kind: 'smoke', x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 240, vy: -40 - Math.random() * 160, life: 1.4, max: 1.4, size: 14, color: '120,60,50' });
+  for (let i = 0; i < 70; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, size: 3.4, color: i % 3 ? '#ffd166' : '#ff3b2f' }); }
+}
+// position à l'écran : sur le mur du bord, sans dépasser du cadre
+function npcDrawPos(p) {
+  const R = T * 0.62;
+  return [clamp((p.x + 0.5) * T, R + 4, COLS * T - R - 4), clamp((p.y + 0.5) * T, R + 20, ROWS * T - R - 4)];
+}
+const lerpCol = (a, b, q) => { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), m = (s) => Math.round(((A >> s) & 255) + (((B >> s) & 255) - ((A >> s) & 255)) * q); return `rgb(${m(16)},${m(8)},${m(0)})`; };
+// Kaboum : une bombe sur pattes, lunettes d'aviateur et sourire de fou. o : rage (0 à 1), t, arm (bras levé), look, feet, swell
+function drawKaboum(c, x, y, R, o) {
+  const rg = o.rage || 0, t = o.t || 0, k = R / 20;
+  c.save(); c.translate(x, y);
+  if (o.shake) c.translate((Math.random() - 0.5) * o.shake, (Math.random() - 0.5) * o.shake);
+  c.scale(k * (o.swell || 1), k * (o.swell || 1));
+  if (o.feet) {
+    c.fillStyle = 'rgba(0,0,0,.28)'; ell(c, 0, 22, 17, 5); c.fill();
+    const st = Math.sin(t * 12) * 2;
+    c.fillStyle = '#3a2414'; ell(c, -8, 19 + st * 0.3, 6.5, 3.6); c.fill(); ell(c, 8, 19 - st * 0.3, 6.5, 3.6); c.fill();
+  }
+  // corps
+  const g = c.createRadialGradient(-7, -8, 2, 0, 0, 21);
+  g.addColorStop(0, lerpCol('#7b8cc0', '#ff8a6a', rg)); g.addColorStop(1, lerpCol('#20283f', '#a50f14', rg));
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, 20, 0, TAU); c.fill();
+  c.lineWidth = 1.8; c.strokeStyle = 'rgba(0,0,0,.55)'; c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.25)'; ell(c, -8, -10, 5, 3); c.fill();
+  // col et mèche
+  c.fillStyle = '#9aa0aa'; c.strokeStyle = '#4b4f57'; c.lineWidth = 1.2;
+  c.beginPath(); c.roundRect ? c.roundRect(-6, -25, 12, 7, 2) : c.rect(-6, -25, 12, 7); c.fill(); c.stroke();
+  c.strokeStyle = '#d9b47c'; c.lineWidth = 2.6; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0, -25); c.quadraticCurveTo(2, -33, 8, -34); c.stroke();
+  const fl = 1 + 0.35 * Math.sin(t * 30) + rg * 0.6;
+  c.fillStyle = '#ffd166'; c.beginPath(); c.arc(9, -35, 3.2 * fl, 0, TAU); c.fill();
+  c.fillStyle = '#ff6a2a'; c.beginPath(); c.arc(9, -35, 1.8 * fl, 0, TAU); c.fill();
+  // sangle et lunettes
+  c.fillStyle = '#5a3a1e'; c.fillRect(-20, -7, 40, 5);
+  const [lx, ly] = o.look || [0, 1], ln = Math.hypot(lx, ly) || 1, px = lx / ln * 1.8, py = ly / ln * 1.8;
+  for (const ex of [-7.5, 7.5]) {
+    c.fillStyle = '#c99a3c'; c.beginPath(); c.arc(ex, -4.5, 7, 0, TAU); c.fill();
+    c.fillStyle = rg > 0.5 ? '#ffd0c4' : '#bfe8ff'; c.beginPath(); c.arc(ex, -4.5, 5, 0, TAU); c.fill();
+    c.fillStyle = '#1a1010'; c.beginPath(); c.arc(ex + px, -4.5 + py, 2.2 - rg * 0.6, 0, TAU); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(ex - 2, -7, 1.2, 0, TAU); c.fill();
+  }
+  // sourcils : de plus en plus froncés avec la rage
+  c.strokeStyle = '#120a08'; c.lineWidth = 2.4;
+  const br = 1 + rg * 3;
+  c.beginPath(); c.moveTo(-13, -13 - br * 0.3); c.lineTo(-3, -12 + br); c.moveTo(13, -13 - br * 0.3); c.lineTo(3, -12 + br); c.stroke();
+  // sourire de fou
+  c.fillStyle = '#4a0d0d'; c.beginPath(); c.moveTo(-10, 6); c.quadraticCurveTo(0, 17 + rg * 2, 10, 6); c.closePath(); c.fill();
+  c.fillStyle = '#fff6e0';
+  for (let i = -3; i <= 2; i++) { c.beginPath(); c.moveTo(i * 3.2 + 0.4, 6.4); c.lineTo(i * 3.2 + 3, 6.4); c.lineTo(i * 3.2 + 1.7, 9.2); c.closePath(); c.fill(); }
+  // bras : l'un tient une bombe levée quand il lance
+  c.fillStyle = lerpCol('#20283f', '#a50f14', rg); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 1.2;
+  const ar = o.arm || 0;
+  c.beginPath(); c.arc(-21, 6, 4.2, 0, TAU); c.fill(); c.stroke();
+  c.beginPath(); c.arc(21, 6 - ar * 16, 4.2, 0, TAU); c.fill(); c.stroke();
+  if (ar > 0.2) { c.fillStyle = '#20232b'; c.beginPath(); c.arc(23, -6 - ar * 12, 6, 0, TAU); c.fill(); c.fillStyle = '#ffd166'; c.beginPath(); c.arc(26, -12 - ar * 12, 1.8, 0, TAU); c.fill(); }
+  c.restore();
+}
+function drawNpcs(c, t) {
+  const npc = G.players.find(o => o.npc); if (!npc || !npc.st) return;
+  // bombes en vol : ombre qui grandit sur la case visée, bombe en cloche
+  for (const l of G.lobs || []) {
+    const q = Math.min(1, l.t / l.dur), tx = l.k % COLS, ty = (l.k / COLS) | 0;
+    const gx = (l.sx + (tx - l.sx) * q + 0.5) * T, gy = (l.sy + (ty - l.sy) * q + 0.5) * T, h = Math.sin(Math.PI * q) * T * 2.4;
+    c.fillStyle = `rgba(120,20,10,${(0.12 + 0.3 * q).toFixed(3)})`; ell(c, (tx + 0.5) * T, (ty + 0.5) * T + 12, 6 + 10 * q, 2.5 + 4 * q); c.fill();
+    c.save(); c.translate(gx, gy - h); c.rotate(q * 9); drawBomb(c, 0, 0, { owner: npc, timer: l.fuse, range: 2 }, t); c.restore();
+  }
+  if (!npc.alive) return;
+  const S = npc.st, [x, y] = npcDrawPos(npc), rg = S.blow ? 1 : npcRage() ? 0.75 + 0.25 * Math.sin(t * 6) : 0;
+  const swell = S.blow ? 1 + S.blow * 0.4 : 1;
+  drawKaboum(c, x, y, T * 0.62, { rage: rg, t, arm: S.arm, look: S.look, feet: true, swell, shake: S.blow ? 2 + S.blow * 4 : npcRage() ? 1.5 : 0 });
+  if (S.blow && Math.sin(t * (20 + S.blow * 30)) > 0) { c.save(); c.globalAlpha = 0.45; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, T * 0.62 * swell, 0, TAU); c.fill(); c.restore(); }
+}
 /* ---------- Campagne ---------- */
 const campEl = $('#camp'), vsEl = $('#vs');
 const campDone = () => clamp(statOf('cp'), 0, CAMP.length);          // défis réussis (ils se font dans l'ordre)
@@ -5073,7 +5248,8 @@ function renderCamp() {
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
     $('#camp-desc').textContent = c.desc;
-    $('#camp-rules').textContent = `Contre ${CHARS[c.foe].name} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`
+    $('#camp-rules').textContent = (c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
+      : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
@@ -5085,11 +5261,11 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Ordi ${AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.npc ? 'Boss' : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   const cvs = vsEl.querySelectorAll('canvas'), bs = vsEl.querySelectorAll('.vs-side b');
   drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin);
-  bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = CHARS[c.foe].name;
+  bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = foeName(c);
   vsEl.querySelector('.vs-top').append(c.name);
   campEl.hidden = true; vsEl.hidden = false; Sfx.play('pickup');
   clearTimeout(vsT); vsNext = () => { vsNext = null; vsEl.hidden = true; startCampMatch(i); };
@@ -5101,7 +5277,8 @@ function startCampMatch(i) {
   Sfx.init();
   G.mode = 'match'; G.paused = false; G.camp = { i, ...c };
   const me = makePlayer(0, null, settings.name); me.skin = settings.skin;
-  const foe = makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
+  const foe = c.npc ? makePlayer(1, null, c.npc) : makePlayer(1, AI_LV[c.lv], CHARS[c.foe].name); foe.skin = c.foe;
+  if (c.npc) { foe.npc = true; foe.cs = [0, 0, 0, 0, 0, 0]; }
   setPlayers([me, foe]); G.round = 1; G.winsNeeded = c.wins;
   newRound(); setupHud();
   menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
@@ -5113,8 +5290,8 @@ function showEndCamp() {
   $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
   const title = $('#end-title'); title.textContent = `Défi ${c.i + 1} · ${c.name}`; title.style.color = won ? '#ffd36e' : '#f3e5c0';
   const es = $('#end-score'); es.style.whiteSpace = ''; es.style.fontSize = '';
-  es.textContent = `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
-  $('#end-note').textContent = won ? (first ? 'Retourne à la campagne pour le voir se dégriser.' : '') : `Il faut gagner ${c.wins} manche${c.wins > 1 ? 's' : ''} avant l'ordi. Tu peux réessayer autant de fois que tu veux.`;
+  es.textContent = c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}`) : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
+  $('#end-note').textContent = won ? (first ? 'Retourne à la campagne pour le voir se dégriser.' : '') : (c.survive ? `Tiens ${c.survive} secondes sans te faire souffler.` : `Il faut gagner ${c.wins} manche${c.wins > 1 ? 's' : ''} avant l'ordi.`) + ' Tu peux réessayer autant de fois que tu veux.';
   $('#again').firstChild.textContent = won ? 'Rejouer ' : 'Réessayer ';
   $('#again').hidden = false; pauseEl.hidden = true;
   const ec = $('#end-camp'); ec.hidden = false; ec.dataset.just = first ? c.i : -1;
@@ -7059,7 +7236,7 @@ function boot(data) {
   }
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { leaveOnline, Sfx, Music, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { leaveOnline, Sfx, Music, startCampMatch, AI_LV, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
