@@ -172,6 +172,26 @@ body.touch #touch{display:flex}
 .tip-box kbd{font-weight:800}
 .box.unlbox{max-width:720px}
 #scrolls,#reward{background:rgba(8,13,9,.9)}
+.train{position:fixed;z-index:60;right:10px;top:70px;width:236px;max-height:calc(100vh - 86px);overflow:auto;background:rgba(10,16,10,.92);border:1px solid rgba(243,229,192,.2);border-radius:16px;padding:10px 12px 12px;box-shadow:0 14px 40px rgba(0,0,0,.5);font-size:13px;color:var(--parchment)}
+.train .tr-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.train .tr-head b{font:400 20px var(--font-display);color:#9fe39a}
+.train section{border-top:1px solid rgba(243,229,192,.12);padding:8px 0 4px}
+.train h4{margin:0 0 6px;font:800 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between}
+.train h4 small{color:var(--muted);letter-spacing:.04em}
+.tr-row{display:grid;grid-template-columns:1fr 30px 34px 30px;align-items:center;gap:4px;margin:3px 0}
+.tr-row span{font-weight:800}
+.tr-row output{text-align:center;font:800 16px var(--font-body);color:var(--gold)}
+.train button{font:800 12.5px/1.1 var(--font-body);color:var(--parchment);background:rgba(243,229,192,.07);border:1.5px solid rgba(243,229,192,.25);border-radius:9px;padding:6px 7px;cursor:pointer}
+.train button:hover{border-color:rgba(243,229,192,.6)}
+.train button[aria-pressed="true"]{background:rgba(110,210,110,.22);border-color:#8fe08a;color:#d9ffd5}
+.tr-row button{padding:3px 0;font-size:16px}
+.tr-tg,.tr-seg{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0}
+.tr-seg button{flex:1 1 auto}
+.tr-note{margin:2px 0;color:var(--muted);font-size:12px}
+.tr-stats{margin:6px 0 0;color:var(--muted);font-size:12px}
+.tr-open{position:fixed;z-index:60;right:14px;top:70px}
+@media (max-width:1099px){.train{top:54px;right:8px;left:8px;width:auto;max-height:62vh}.tr-open{top:54px;right:8px;padding:7px 12px;font-size:13px}}
+body.train-on #hud-b{display:none}
 .rw-scrolls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
 .rw-scrolls i{font-style:normal;font-size:54px;line-height:1;filter:drop-shadow(0 6px 14px rgba(255,190,80,.45));animation:unlPop .55s cubic-bezier(.2,1.6,.4,1) both}
 .rw-scrolls i.gold{font-size:66px;filter:sepia(1) saturate(5) hue-rotate(-12deg) brightness(1.15) drop-shadow(0 0 10px rgba(255,209,102,.95)) drop-shadow(0 6px 16px rgba(255,170,40,.6));animation:unlPop .55s cubic-bezier(.2,1.6,.4,1) both,goldGlint 1.8s ease-in-out .6s infinite}
@@ -458,7 +478,14 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 @media (max-width:520px){.charpick{grid-template-columns:repeat(5,1fr);gap:5px}.charpick canvas{width:46px;height:48px}.charpick button{font-size:11px}}
 .net-players .ch{font-weight:800;font-size:12px;color:var(--parchment);opacity:.8}
 .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(580px,100%)}
-.home-play .mbtns{width:100%}
+.home-play .mbtns{width:100%;grid-template-columns:repeat(6,1fr)}
+.home-play .mbtn{grid-column:span 3}
+.home-play .mbtn.camp{grid-column:1/-1}
+.home-play .mbtn.sm3{grid-column:span 2;padding:13px 16px 12px}
+.home-play .mbtn.sm3 b{font-size:20px}
+.home-play .mbtn.sm3 span{font-size:13.5px}
+.mbtn.train-btn{border-color:rgba(140,220,140,.5);background:linear-gradient(135deg,rgba(90,200,110,.16),rgba(12,18,12,.55))}
+@media (max-width:640px){.home-play .mbtns{grid-template-columns:1fr}.home-play .mbtn,.home-play .mbtn.sm3{grid-column:1/-1}}
 @media (max-width:640px){.mbtns{grid-template-columns:1fr}}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
 .mbtn b{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1}
@@ -720,8 +747,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="mbtn main" id="btn-search" type="button"><b>Classé</b><span>En ligne contre de vrais joueurs · rapporte de l'XP</span></button>
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers, le premier à 1000 points gagne</span></button>
       <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
-      <button class="mbtn" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, pour t'entraîner (sans XP)</span></button>
-      <button class="mbtn" id="btn-create" type="button"><b>Créer un groupe</b><span>Avec tes amis, le mode de votre choix</span></button>
+      <button class="mbtn sm3" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis (sans XP)</span></button>
+      <button class="mbtn sm3 train-btn" id="btn-train" type="button"><b>Entraînement</b><span>Seul, avec tes réglages</span></button>
+      <button class="mbtn sm3" id="btn-create" type="button"><b>Créer un groupe</b><span>Avec tes amis</span></button>
     </div>
     </section>
     <section class="home-me" aria-labelledby="home-me-h">
@@ -1020,6 +1048,33 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
   </div>
 </div>
+<aside id="train" class="train" hidden aria-label="Réglages de l'entraînement">
+  <div class="tr-head"><b>Entraînement</b><button class="ghost tiny" id="tr-hide" type="button" aria-label="Masquer les réglages">▾</button></div>
+  <section><h4>Tes bonus</h4>
+    <div class="tr-row"><span>Bombes</span><button type="button" data-tr="b-">−</button><output id="tr-b">1</output><button type="button" data-tr="b+">+</button></div>
+    <div class="tr-row"><span>Portée</span><button type="button" data-tr="r-">−</button><output id="tr-r">2</output><button type="button" data-tr="r+">+</button></div>
+    <div class="tr-row"><span>Vitesse</span><button type="button" data-tr="s-">−</button><output id="tr-s">1</output><button type="button" data-tr="s+">+</button></div>
+    <div class="tr-tg"><button type="button" data-tr="kick" aria-pressed="true">Coup de botte</button><button type="button" data-tr="glove" aria-pressed="false">Gant</button><button type="button" data-tr="god" aria-pressed="false">Invincible</button></div>
+  </section>
+  <section><h4>Ordis <small id="tr-nb">0 / 3</small></h4>
+    <div class="tr-row"><span>Niveau</span><button type="button" data-tr="l-">−</button><output id="tr-l">5</output><button type="button" data-tr="l+">+</button></div>
+    <p class="tr-note" id="tr-ln"></p>
+    <div class="tr-seg" data-seg="beh"><button type="button" data-v="normal">Normal</button><button type="button" data-v="nobomb">Sans bombes</button><button type="button" data-v="still">Immobile</button></div>
+    <div class="tr-tg"><button type="button" data-tr="addbot">+ Ajouter un ordi</button><button type="button" data-tr="clearbots">Retirer les ordis</button><button type="button" data-tr="respawn" aria-pressed="true">Réapparition</button></div>
+  </section>
+  <section><h4>Arène</h4>
+    <p class="tr-note">Clic sur l'arène :</p>
+    <div class="tr-seg" data-seg="tool"><button type="button" data-v="crate">Caisse</button><button type="button" data-v="stone">Bloc</button><button type="button" data-v="item">Bonus</button><button type="button" data-v="bot">Ordi</button><button type="button" data-v="erase">Gomme</button></div>
+    <div class="tr-tg"><button type="button" data-tr="fill">Remplir de caisses</button><button type="button" data-tr="items">Semer des bonus</button><button type="button" data-tr="clear">Vider l'arène</button></div>
+  </section>
+  <section><h4>Options</h4>
+    <p class="tr-note">Mèche des bombes</p>
+    <div class="tr-seg" data-seg="fuse"><button type="button" data-v="2.5">Courte</button><button type="button" data-v="3.5">Normale</button><button type="button" data-v="5">Longue</button></div>
+    <div class="tr-tg"><button type="button" data-tr="danger" aria-pressed="false">Zones de danger</button><button type="button" data-tr="slow" aria-pressed="false">Ralenti</button><button type="button" data-tr="restart">Recommencer</button></div>
+    <p class="tr-stats" id="tr-stats"></p>
+  </section>
+</aside>
+<button class="ghost tr-open" id="tr-open" type="button" hidden>⚙ Réglages</button>
 <div id="scrolls" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="scr-title">
   <div class="box unlbox scrbox">
     <p class="kicker">Récompenses de la campagne</p>
@@ -1695,6 +1750,7 @@ function assignChars(list) {
   for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : free[(Math.random() * free.length) | 0];
 }
 function setPlayers(list) {
+  G.train = null;   // l'entraînement le remet juste après
   assignChars(list);
   G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
@@ -2153,7 +2209,8 @@ function placeBomb(p) {
   if (G.bombAt[k] || G.grid[k] !== EMPTY) return false;
   if (G.tg && p.id === 0) { if (G.tg.ammo <= 0) { if (!G.tg.emptyMsg) { G.tg.emptyMsg = true; xpToast('Plus de bombes !', true); } return false; } G.tg.ammo--; }
   p.placeT = G.t;
-  const b = { x: cx, y: cy, owner: p, range: p.range, timer: campFlag('fuse') || FUSE, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
+  if (G.train && p === G.players[0]) { G.train.bombs++; trainStatsSoon(); }
+  const b = { x: cx, y: cy, owner: p, range: p.range, timer: campFlag('fuse') || (G.train && G.train.fuse) || FUSE, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
   for (const o of G.players) if (o.alive && Math.abs(o.x - cx) < 0.98 && Math.abs(o.y - cy) < 0.98) b.passers.add(o.id);
   G.bombs.push(b); p.active++;
   rebuildBombAt();
@@ -2285,7 +2342,7 @@ function land(k) {
   fx('land', x, y);
 }
 function kill(p, by) {
-  if (!p.alive || p.shield > 0) return;
+  if (!p.alive || p.shield > 0 || p.god) return;
   if (by >= 0 && by !== p.id && G.players[by]) {
     const kp = G.players[by]; kp.kills = (kp.kills | 0) + 1; if (G.mode === 'br') addPts(kp, BR_KILL_PTS);
     if (G.mode === 'br' && kp.ct && kp.ct.tg === p.id) { addPts(kp, BR_CONTRACT_PTS); fx('contractWin', kp.id, p.id); kp.ct = null; kp.ctNext = G.brT + 20 + Math.random() * 15; }
@@ -3191,6 +3248,7 @@ function updateHumanActions(p) {
    Boucle de jeu
    ========================================================= */
 function update(dt) {
+  if (G.train && G.train.slow) dt *= 0.5;   // entraînement : ralenti
   if (NET.role === 'guest') { updateGuest(dt); return; }
   G.t += dt;
   updateParticles(dt);
@@ -3221,7 +3279,7 @@ function update(dt) {
     const w = G.players.find(p => (p.pts | 0) >= BR_GOAL);
     if (w) { brWin(w); return; }
   } else if (G.phase === 'play') {
-    G.time -= dt;
+    if (!G.train) G.time -= dt;
     if (G.time <= 0) {
       G.time = 0;
       // défi de survie : pas de mort subite, c'est Kaboum qui explose
@@ -3246,7 +3304,7 @@ function update(dt) {
       }
     }
     if (NET.role === 'host') applyGuestInput();
-    for (const p of G.players) { if (!p.alive) continue; if (p.npc) { npcTick(p, dt); continue; } if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
+    for (const p of G.players) { if (!p.alive || p.dummy) continue; if (p.npc) { npcTick(p, dt); continue; } if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
   } else {
     for (const p of G.players) p.moving = false;
   }
@@ -3284,6 +3342,8 @@ function update(dt) {
     const meDead = G.players.filter(o => !o.ai && o.team === 0).every(h => !h.alive && !(G.tombs.some(tb => tb.p === h) && G.players.some(o => o.alive && o.team === 0)));
     if (teams.size <= 1 || meDead) { if (G.endTimer === 0) G.endTimer = 1.0; G.endTimer -= dt; if (G.endTimer <= 0) teamEndRound(meDead); }
     else G.endTimer = 0;   // quelqu'un a été relevé entre-temps
+  } else if (G.phase === 'play' && G.train) {
+    trainTick(dt);   // entraînement : pas de fin de manche, on réapparaît
   } else if (G.phase === 'play' && G.tg) {
     tgtTick(dt);
     // défi 4 : gagné quand la dernière cible tombe ; perdu si tu es soufflé, si le temps est écoulé, ou s'il n'y a plus de bombes
@@ -4538,7 +4598,7 @@ function xpRoundMul(i) {
 const xpRanked = () => !!(NET.pub && (NET.role === 'host' || NET.role === 'guest') && !NET.spec && !G.camp);
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
-  if (!me || me.ai || !inGame()) {
+  if (!me || me.ai || !inGame() || G.train) {   // entraînement : ni XP ni stats
     xpPrevPhase = G.phase; xpPrevKills = 0;
     // battle royale quitté après 3 minutes de jeu : compte comme une partie
     if (stBrT >= 180 && !stBrCounted) { statAdd('g', 1); statAdd('bg', 1); }
@@ -5451,6 +5511,7 @@ function render() {
   if (G.warn && G.warn.length) drawWarn(c, t);
   if (G.tombs && G.tombs.length) drawTombs(c, t);
   if (G.tg) drawRange(c, t);
+  if (G.train && G.train.danger) drawDanger(c);
   const bombRows = Array.from({ length: ROWS }, () => []), heroRows = Array.from({ length: ROWS }, () => []), emoB = [], topB = [];
   const top3 = G.mode === 'br' && G.phase === 'play' ? brTop3() : null;
   for (const b of G.bombs) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; bombRows[clamp(Math.round(by), 0, ROWS - 1)].push([bx, by, b]); }
@@ -5635,6 +5696,7 @@ function buildStatics() {
   const tb = $('#tbomb canvas'), c = tb.getContext('2d'); c.scale(112 / 48, 112 / 48); drawBomb(c, 24, 24, null, 0);
 }
 const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[viewIdx()] : null)
+  : G.train ? (i === 0 ? G.players[0] : null)
   : G.camp && G.camp.split && G.mode === 'match' ? (i === 0 ? G.players[0] : i === 1 ? G.players.find(o => o.team === 1 && o.alive) || G.players[1] : null) : G.players[i];
 function setupHud() {
   document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2 && !(G.camp && G.camp.split));
@@ -5698,6 +5760,7 @@ function updateHud() {
     if (hudCache.sud) { hudCache.sud = false; timeEl.classList.remove('sudden'); }
     return;
   }
+  if (G.train) { setTxt(timeEl, '∞', 'time'); setTxt(roundEl, 'Entraînement', 'round'); return; }
   const tl = Math.ceil(G.time), m = Math.floor(tl / 60), s = tl % 60;
   setTxt(timeEl, `${m}:${String(s).padStart(2, '0')}`, 'time');
   setTxt(roundEl, G.sudden ? 'Mort subite' : G.pointsMode ? `Manche ${G.round}/${POINT_ROUNDS}` : `Manche ${G.round}`, 'round');
@@ -5869,6 +5932,149 @@ function drawCharPicker(t) {
     }
   });
 }
+/* ---------- Mode entraînement : seul au milieu de l'arène, avec un panneau de réglages ---------- */
+const TR_MAX_BOTS = 3;
+function startTraining() {
+  Sfx.init(); leaveOnline();
+  G.mode = 'match'; G.paused = false; G.camp = null; G.tg = null;
+  const me = makePlayer(0, null, settings.name); me.skin = settings.skin;
+  setPlayers([me]); G.pointsMode = false; G.round = 1; G.winsNeeded = 0;   // pas de manches à gagner (pas de pastilles)
+  G.train = { lv: clamp(settings.diff | 0, 0, 9), beh: 'normal', tool: 'crate', fuse: FUSE, danger: false, slow: false, respawn: true, god: false,
+    b: { b: 1, r: 2, s: 0, k: true, w: false }, deaths: 0, kills: 0, bombs: 0, itemI: 0 };
+  newRound(); G.phase = 'play'; G.phaseT = 0;
+  trainArena('clear'); trainSpawnMe(true); trainApply(); setupHud();
+  menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+  document.body.classList.add('train-on');
+  $('#train').hidden = innerWidth < 1100; $('#tr-open').hidden = !$('#train').hidden; renderTrain(); blurActive(); resize();
+}
+let trStatT = 0; function trainStatsSoon() { clearTimeout(trStatT); trStatT = setTimeout(renderTrain, 120); }
+function trainHide() { $('#train').hidden = true; $('#tr-open').hidden = true; document.body.classList.remove('train-on'); }
+const trFree = k => G.grid[k] === EMPTY && !G.bombAt[k] && !G.players.some(p => p.alive && Math.round(p.x) === k % COLS && Math.round(p.y) === ((k / COLS) | 0));
+function trainSpawnMe(center) {
+  const me = G.players[0]; let x = (COLS / 2) | 0, y = (ROWS / 2) | 0;
+  if (!center && !trFree(idx(x, y))) { const c = trRandomCell(0); if (c >= 0) { x = c % COLS; y = (c / COLS) | 0; } }
+  if (G.grid[idx(x, y)] !== EMPTY) G.grid[idx(x, y)] = EMPTY;
+  Object.assign(me, { x, y, face: 'down', alive: true, deathT: 0, moving: false, shield: center ? 0 : 1.2 });
+}
+// case libre au hasard, à au moins `far` cases du joueur
+function trRandomCell(far) {
+  const me = G.players[0], c = [];
+  for (let k = 0; k < N; k++) if (trFree(k) && Math.abs(k % COLS - me.x) + Math.abs(((k / COLS) | 0) - me.y) >= far) c.push(k);
+  return c.length ? c[(Math.random() * c.length) | 0] : -1;
+}
+function trainApply() {
+  const T0 = G.train, me = G.players[0]; if (!T0 || !me) return;
+  me.maxBombs = T0.b.b; me.range = T0.b.r; me.speedLv = T0.b.s; me.kick = T0.b.k; me.throw = T0.b.w; me.god = T0.god;
+}
+// niveau effectif des ordis selon le comportement choisi
+function trainLv() { const T0 = G.train, lv = lvOf(T0.lv); return T0.beh === 'nobomb' ? { ...lv, bombRate: 0, spam: 0, blunder: 0, kick: 0, lob: 0, bombMin: 99 } : lv; }
+function trainSetBot(o) {
+  const T0 = G.train;
+  if (T0.beh === 'still') { o.ai = null; o.dummy = true; }
+  else { o.dummy = false; o.ai = newAI(trainLv(), o.id); }
+}
+function trainAddBot(k) {
+  if (G.players.length - 1 >= TR_MAX_BOTS) return false;
+  if (k === undefined || k < 0) k = trRandomCell(4); if (k < 0) k = trRandomCell(1); if (k < 0) return false;
+  const id = G.players.length, mine = G.players[0].skin;
+  const pool = CHARS.map((_, i) => i).filter(i => i !== mine && !charLocked(i) && !G.players.some(p => p.skin === i));
+  const o = makePlayer(id, lvOf(0), null); o.skin = pool.length ? pool[(Math.random() * pool.length) | 0] : (mine + 1) % CHARS.length; o.nick = CHARS[o.skin].name;
+  Object.assign(o, { x: k % COLS, y: (k / COLS) | 0, face: 'down', kick: true, shield: 1 });
+  trainSetBot(o);
+  G.players.push(o); G.scores.push(0); G.firsts.push(0);
+  fx('crate', o.x, o.y); return true;
+}
+function trainArena(kind) {
+  const me = G.players[0];
+  for (let k = 0; k < N; k++) {
+    const x = k % COLS, y = (k / COLS) | 0, g = G.grid[k];
+    if (kind === 'clear') { if (g === CRATE || g === STONE) G.grid[k] = EMPTY; G.items[k] = -1; G.hidden[k] = -1; G.burn[k] = 0; }
+    else if (kind === 'fill' && g === EMPTY && trFree(k) && (!me || Math.abs(x - me.x) + Math.abs(y - me.y) > 1) && Math.random() < 0.55) {
+      G.grid[k] = CRATE; G.burn[k] = 0; G.items[k] = -1; G.hidden[k] = Math.random() < 0.3 ? [0, 0, 1, 1, 2, 4][(Math.random() * 6) | 0] : -1;
+    }
+  }
+}
+function trainItems() {
+  for (let n = 0; n < 6; n++) { const k = trRandomCell(1); if (k < 0) break; G.items[k] = [0, 1, 2, 0, 1, 4][n]; G.itemAge[k] = 0; }
+}
+function trainTick(dt) {
+  const T0 = G.train, me = G.players[0];
+  for (const p of G.players) {
+    if (p.alive) continue;
+    if (p === me && p.deathT > 1.2) { T0.deaths++; trainSpawnMe(false); trainApply(); renderTrain(); }
+    else if (p !== me && T0.respawn && p.deathT > 2) { const k = trRandomCell(4); if (k >= 0) { Object.assign(p, { x: k % COLS, y: (k / COLS) | 0, alive: true, deathT: 0, shield: 1, maxBombs: 1, range: 2, speedLv: 0, kick: true, throw: false, active: 0 }); trainSetBot(p); } }
+  }
+  if ((me.kills | 0) !== T0.kills) { T0.kills = me.kills | 0; renderTrain(); }
+}
+// zones de danger : chaque case qui va exploser, plus rouge quand c'est imminent, avec le temps restant
+function drawDanger(c) {
+  const pp = G.aiPredict; G.aiPredict = true; const D = computeDanger(null); G.aiPredict = pp;
+  c.save(); c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let k = 0; k < N; k++) {
+    const s0 = D.S[k]; if (s0 === Infinity) continue;
+    const x = (k % COLS) * T, y = ((k / COLS) | 0) * T, a = s0 <= 0 ? 0.5 : Math.max(0.14, 0.46 - s0 * 0.1);
+    c.fillStyle = `rgba(255,${s0 < 1 ? 40 : 110},40,${a.toFixed(2)})`; c.fillRect(x + 3, y + 3, T - 6, T - 6);
+    if (s0 > 0) { c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeText(s0.toFixed(1), x + T / 2, y + T / 2); c.fillStyle = '#fff'; c.fillText(s0.toFixed(1), x + T / 2, y + T / 2); }
+  }
+  c.restore();
+}
+function renderTrain() {
+  const T0 = G.train; if (!T0) return;
+  $('#tr-b').textContent = T0.b.b; $('#tr-r').textContent = T0.b.r; $('#tr-s').textContent = T0.b.s + 1; $('#tr-l').textContent = T0.lv + 1;
+  $('#tr-ln').textContent = `${LV_NAMES[T0.lv]} : ${LV_DESC[T0.lv]}`;
+  const nb = G.players.length - 1; $('#tr-nb').textContent = `${nb} / ${TR_MAX_BOTS}`;
+  const P = (k, v) => { const b = $(`#train [data-tr="${k}"]`); if (b) b.setAttribute('aria-pressed', String(!!v)); };
+  P('kick', T0.b.k); P('glove', T0.b.w); P('god', T0.god); P('respawn', T0.respawn); P('danger', T0.danger); P('slow', T0.slow);
+  $('#train [data-tr="addbot"]').disabled = nb >= TR_MAX_BOTS; $('#train [data-tr="clearbots"]').disabled = !nb;
+  for (const sg of document.querySelectorAll('#train [data-seg]')) { const key = sg.dataset.seg, cur = String(T0[key]); sg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur))); }
+  const me = G.players[0]; $('#tr-stats').textContent = `Bombes posées : ${T0.bombs} · Victimes : ${T0.kills} · Soufflé : ${T0.deaths}`;
+}
+$('#train').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !G.train) return;
+  const T0 = G.train, a = b.dataset.tr, sg = b.parentElement.dataset.seg;
+  if (sg) { T0[sg] = sg === 'fuse' ? Number(b.dataset.v) : b.dataset.v; if (sg === 'beh') for (const o of G.players.slice(1)) trainSetBot(o); }
+  else if (a) {
+    const step = (k, d, lo, hi) => { T0.b[k] = clamp(T0.b[k] + d, lo, hi); };
+    if (a === 'b-' || a === 'b+') step('b', a === 'b+' ? 1 : -1, 1, 8);
+    else if (a === 'r-' || a === 'r+') step('r', a === 'r+' ? 1 : -1, 1, 10);
+    else if (a === 's-' || a === 's+') step('s', a === 's+' ? 1 : -1, 0, 4);
+    else if (a === 'kick') T0.b.k = !T0.b.k;
+    else if (a === 'glove') T0.b.w = !T0.b.w;
+    else if (a === 'god') T0.god = !T0.god;
+    else if (a === 'l-' || a === 'l+') { T0.lv = clamp(T0.lv + (a === 'l+' ? 1 : -1), 0, 9); for (const o of G.players.slice(1)) trainSetBot(o); }
+    else if (a === 'addbot') trainAddBot();
+    else if (a === 'clearbots') { G.players.length = 1; G.scores.length = 1; G.firsts.length = 1; G.bombs = G.bombs.filter(x => x.owner === G.players[0]); rebuildBombAt(); }
+    else if (a === 'respawn') T0.respawn = !T0.respawn;
+    else if (a === 'fill') trainArena('fill');
+    else if (a === 'items') trainItems();
+    else if (a === 'clear') { trainArena('clear'); G.bombs.length = 0; G.thrown.length = 0; rebuildBombAt(); }
+    else if (a === 'danger') T0.danger = !T0.danger;
+    else if (a === 'slow') T0.slow = !T0.slow;
+    else if (a === 'restart') { G.bombs.length = 0; G.thrown.length = 0; rebuildBombAt(); G.flameT.fill(0); if (G.flameBits) G.flameBits.fill(0); trainSpawnMe(true); T0.deaths = 0; T0.kills = 0; T0.bombs = 0; G.players[0].kills = 0; }
+    trainApply();
+  }
+  renderTrain(); Sfx.play('pickup');
+  setTimeout(() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }, 0);   // les touches du jeu restent au jeu
+});
+$('#tr-hide').addEventListener('click', () => { $('#train').hidden = true; $('#tr-open').hidden = false; });
+$('#tr-open').addEventListener('click', () => { $('#train').hidden = false; $('#tr-open').hidden = true; renderTrain(); $('#tr-open').blur(); });
+// clic sur l'arène : outil choisi (caisse, bloc, bonus, ordi, gomme)
+canvas.addEventListener('pointerdown', e => {
+  const T0 = G.train; if (!T0 || G.paused || G.phase !== 'play') return;
+  const r = canvas.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) * W / r.width / T), y = Math.floor((e.clientY - r.top) * H / r.height / T);
+  if (x < 1 || y < 1 || x > COLS - 2 || y > ROWS - 2) return;
+  const k = idx(x, y), g = G.grid[k]; if (g === WALL || g === PILLAR) return;
+  const who = G.players.find(p => p.alive && Math.round(p.x) === x && Math.round(p.y) === y);
+  if (T0.tool === 'erase') {
+    if (who && who !== G.players[0]) { const i = G.players.indexOf(who); G.players.splice(i, 1); G.scores.splice(i, 1); G.firsts.splice(i, 1); G.players.forEach((p, j) => p.id = j); }
+    else { if (g === CRATE || g === STONE) G.grid[k] = EMPTY; G.items[k] = -1; G.hidden[k] = -1; }
+  } else if (who || G.bombAt[k]) return;
+  else if (T0.tool === 'crate' || T0.tool === 'stone') { const v = T0.tool === 'crate' ? CRATE : STONE; G.grid[k] = g === v ? EMPTY : v; G.items[k] = -1; G.hidden[k] = -1; G.burn[k] = 0; }
+  else if (T0.tool === 'item') { if (g !== EMPTY) return; G.items[k] = [0, 1, 2, 4][T0.itemI++ % 4]; G.itemAge[k] = 0; }
+  else if (T0.tool === 'bot') { if (g !== EMPTY) return; trainAddBot(k); }
+  fx('crate', x, y); renderTrain(); e.preventDefault();
+});
+$('#btn-train').addEventListener('click', startTraining);
 function blurActive() { hideFrPop(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
 function startMatch() {
   Sfx.init();
@@ -5883,6 +6089,7 @@ function startMatch() {
   blurActive(); saveSettings();
 }
 function toMenu(keepNet) {
+  trainHide();
   if (!keepNet) leaveOnline(); G.camp = null; G.tg = null; $('#btn-tip').hidden = true; tipEl.hidden = true; $('#end-fr').hidden = true; $('#end-group').hidden = true; $('#end-camp').hidden = true;
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
