@@ -499,6 +499,10 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .camp-node.soon .camp-med canvas{filter:grayscale(1) brightness(.32)}
 .camp-node[aria-pressed="true"] .camp-med{transform:translateY(-5px) scale(1.08);outline:3px solid var(--parchment);outline-offset:3px}
 .camp-node:hover .camp-med{transform:translateY(-3px)}
+body.pad-nav .camp-node:focus{outline:none}
+.camp-padhint{display:none;margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+body.pad-nav .camp-padhint{display:block}
+body.pad-nav .camp-node:focus .cl{opacity:1;color:var(--gold)}
 .camp-node .cn{position:absolute;top:-6px;left:50%;transform:translateX(-50%);min-width:20px;padding:3px 6px;border-radius:999px;background:#1b201c;border:2px solid rgba(243,229,192,.35);font:800 11px/1 var(--font-body)}
 .camp-node.done .cn{background:#e8b23a;border-color:#fff1a8;color:#2a1508}
 .camp-node .ck{position:absolute;right:-2px;bottom:16px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#3fbf5a;color:#fff;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
@@ -953,6 +957,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="cta" id="camp-go" type="button">Lancer le défi <kbd>Entrée</kbd></button>
       <button class="ghost" id="camp-back" type="button">Retour <kbd>Échap</kbd></button>
     </div>
+    <p class="camp-padhint">Manette : croix pour choisir un défi, <kbd>A</kbd> ou <kbd>Start</kbd> pour le lancer, <kbd>LB</kbd> <kbd>RB</kbd> défi précédent ou suivant, <kbd>B</kbd> retour</p>
   </div>
 </div>
 <div id="vs" hidden aria-live="polite"></div>
@@ -1187,7 +1192,7 @@ const CAMP = [
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
-    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 5, wins: 1, time: 600, tomb: 8 },
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 5, wins: 1, time: 600, tomb: 4 },
   { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
@@ -1202,18 +1207,25 @@ function spawnOf(i) {
 // Les 10 niveaux d'ordis (1 = Endormi … 10 = Légende).
 //  react, think : délai de réaction à une nouvelle bombe, et entre deux réflexions (s)
 //  margin : marge de sécurité quand il fuit (s ; négative = il croit avoir le temps et se fait parfois souffler)
-//  sight : distance max (cases) à laquelle il cherche un abri · panic : chance, à chaque réflexion, de ne pas voir le danger
+//  sight : distance max (cases) à laquelle il cherche un abri
+//  panic : chance, à chaque réflexion en danger, de s'affoler (un pas au hasard, parfois du mauvais côté)
 //  blunder : chance de poser une bombe sans regarder s'il pourra s'abriter
+//  Joueur « nul » (niveaux 1 à 4) : agité, il pose beaucoup de bombes et se place mal quand on l'encercle.
+//   wander : chance de partir courir vers une case au hasard · spam : chance de poser une bombe pour rien
+//   bombMin : intérêt minimal d'une bombe pour la poser (2,5 par défaut)
+//   rangeErr : chance de sous-estimer la portée d'une bombe (il s'arrête au bord du souffle)
+//   timeErr : il croit qu'une bombe explosera jusqu'à timeErr s plus tard qu'en vrai (il passe devant au mauvais moment)
+//   chainBlind : ne voit pas les explosions en chaîne
 //  bombRate, aggro (vise les adversaires), chase (les traque), item (veut les bonus), noise (part de hasard dans ses choix)
 //  kick : 0 ne pousse jamais · 1 pousse vers le boss ou en équipe · 2 pousse une bombe voisine vers un adversaire
 //         · 3 pose, recule d'une case et pousse sa bombe · 4 arrête aussi la bombe pile au bon endroit
 //  predict : voit où une bombe poussée va s'arrêter · chain : compte les explosions en chaîne (combos)
 //  trap : cherche à enfermer (bombe qui ne laisse aucun abri) · lob : lance ses bombes avec le gant
 const AI_LV = [
-  { n: 1,  react: 0.60, think: 0.50, margin: -0.10, sight: 3,  panic: 0.40, blunder: 0.08,  bombRate: 0.45, aggro: 0.10, chase: 0,    item: 0.35, noise: 2.6,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0 },
-  { n: 2,  react: 0.46, think: 0.40, margin: 0.04,  sight: 4,  panic: 0.16, blunder: 0.03,  bombRate: 0.55, aggro: 0.20, chase: 0.10, item: 0.50, noise: 2.0,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0 },
-  { n: 3,  react: 0.36, think: 0.33, margin: 0.14,  sight: 6,  panic: 0.07, blunder: 0.01,  bombRate: 0.70, aggro: 0.35, chase: 0.30, item: 0.70, noise: 1.5,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0 },
-  { n: 4,  react: 0.26, think: 0.27, margin: 0.14,  sight: 10, panic: 0.03, blunder: 0,     bombRate: 0.82, aggro: 0.55, chase: 0.55, item: 0.85, noise: 1.2,  kick: 1, predict: 0, chain: 0, trap: 0,   lob: 0 },
+  { n: 1,  react: 0.5, think: 0.26, margin: -0.04, sight: 4,  panic: 0.35, blunder: 0.02,  bombRate: 1,    aggro: 0.20, chase: 0.15, item: 0.40, noise: 3.0,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0, wander: 0.45, spam: 0.2, bombMin: 0.5, rangeErr: 0.6, chainBlind: 1, timeErr: 1.2 },
+  { n: 2,  react: 0.4, think: 0.25, margin: 0.02,     sight: 5,  panic: 0.22, blunder: 0.01,  bombRate: 1,    aggro: 0.30, chase: 0.25, item: 0.55, noise: 2.4,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0, wander: 0.32, spam: 0.13, bombMin: 1,   rangeErr: 0.4, chainBlind: 1, timeErr: 0.8 },
+  { n: 3,  react: 0.3, think: 0.24, margin: 0.08,  sight: 7,  panic: 0.08, blunder: 0,  bombRate: 0.95, aggro: 0.40, chase: 0.35, item: 0.70, noise: 1.8,  kick: 0, predict: 0, chain: 0, trap: 0,   lob: 0, wander: 0.20, spam: 0.08, bombMin: 1.5, rangeErr: 0.15, chainBlind: 0, timeErr: 0.3 },
+  { n: 4,  react: 0.24, think: 0.25, margin: 0.12,  sight: 10, panic: 0.02, blunder: 0,     bombRate: 0.92, aggro: 0.55, chase: 0.55, item: 0.85, noise: 1.3,  kick: 1, predict: 0, chain: 0, trap: 0,   lob: 0, wander: 0.10, spam: 0.03, bombMin: 2,   rangeErr: 0.03, chainBlind: 0, timeErr: 0.06 },
   { n: 5,  react: 0.16, think: 0.20, margin: 0.12,  sight: 16, panic: 0,    blunder: 0,     bombRate: 0.95, aggro: 0.75, chase: 0.80, item: 1.00, noise: 1.0,  kick: 1, predict: 1, chain: 0, trap: 0,   lob: 0 },
   { n: 6,  react: 0.12, think: 0.17, margin: 0.11,  sight: 16, panic: 0,    blunder: 0,     bombRate: 1,    aggro: 0.85, chase: 0.95, item: 1.05, noise: 0.8,  kick: 2, predict: 1, chain: 0, trap: 0,   lob: 1 },
   { n: 7,  react: 0.09, think: 0.15, margin: 0.10,  sight: 16, panic: 0,    blunder: 0,     bombRate: 1,    aggro: 0.90, chase: 1.05, item: 1.10, noise: 0.6,  kick: 2, predict: 1, chain: 1, trap: 0.5, lob: 1 },
@@ -1223,9 +1235,9 @@ const AI_LV = [
 ];
 const LV_NAMES = ['Endormi', 'Maladroit', 'Distrait', 'Prudent', 'Rusé', 'Malin', 'Coriace', 'Redoutable', 'Expert', 'Légende'];
 const LV_DESC = [
-  'ne pousse jamais les bombes, voit le danger en retard et se fait souvent souffler',
-  'lent à réagir, se cache mal, ne pousse pas les bombes',
-  'casse surtout des caisses et se met à l\'abri presque toujours',
+  'agité, court dans tous les sens et pose des bombes partout ; s\'affole quand on l\'encercle et se fait souvent souffler',
+  'pose beaucoup de bombes, se place mal et s\'affole encore souvent ; ne pousse pas les bombes',
+  'un peu brouillon : se trompe parfois de cachette, surtout entre plusieurs bombes',
   'prudent, ramasse les bonus, commence à te chercher',
   'réagit vite et voit où vont les bombes poussées',
   'pousse les bombes vers toi et lance ses bombes avec le gant',
@@ -1764,7 +1776,7 @@ function genMap(seed) {
 // pour que deux ordis sur la même case ne fassent pas exactement les mêmes choix.
 function shuffled(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [b[i], b[j]] = [b[j], b[i]]; } return b; }
 function newAI(lv, i) {
-  return { lv, path: [], cd: 0.25 + i * 0.1 + Math.random() * 0.1, sig: -1, stuck: 0, goal: -1, nb: shuffled(NB), noise: (lv.noise || 1) * (0.7 + Math.random() * 0.6), plan: null, stopB: null, kickT: -9, nKick: 0, nThrow: 0 };
+  return { lv, path: [], cd: 0.25 + i * 0.1 + Math.random() * 0.1, sig: -1, stuck: 0, goal: -1, nb: shuffled(NB), noise: (lv.noise || 1) * (0.7 + Math.random() * 0.6), plan: null, stopB: null, kickT: -9, nKick: 0, nThrow: 0, mis: new WeakMap(), wanderT: 0, nBomb: 0 };
 }
 function makePlayer(i, lv, nick) {
   return {
@@ -2438,9 +2450,13 @@ function computeDanger(extra) {
   const bl = [];
   const F = G.mode === 'br' ? G.aiFocus : null;
   // une bombe « possible » en (x, y) entre w0 et w1 : elle n'explose là que si sa mèche finit (ou une flamme la touche) pendant ce temps
+  // joueur « nul » : il se trompe sur certaines bombes (une erreur fixe par bombe) ; moins sur les siennes
+  const mis = G.aiMis; let err = null;
+  const misOf = b => { let e = mis.mis.get(b); if (e === undefined) { e = aiMisjudge(mis.lv, b.owner === mis.self); mis.mis.set(b, e); } return e; };
   const add = (x, y, r, t, w0 = 0, w1 = Infinity, solid = true) => {
     if (F && Math.max(Math.abs(x - F.x), Math.abs(y - F.y)) > 16) return;   // bombe trop loin pour compter
     const k = idx(x, y), fl = G.flameT[k];
+    if (err) { r = Math.max(1, r - err.r); t += err.t; }   // souffle vu trop court, explosion attendue trop tard
     let te = t >= w0 && t <= w1 ? t : Infinity;
     if (fl > 0 && w0 < fl) te = Math.min(te, w0);   // elle arrive (ou est) dans des flammes encore allumées : elle saute aussitôt
     bl.push({ k, x, y, r, t: te, w0, w1, solid });
@@ -2448,10 +2464,13 @@ function computeDanger(extra) {
   for (const b of G.bombs) {
     if (b === G.aiSkip) continue;
     // les bons ordis suivent la glissade d'une bombe poussée : où elle sera à chaque instant, et où elle s'arrêtera
+    if (mis) err = misOf(b);
     if (G.aiPredict && (b.mdx || b.mdy)) { for (const c of slidePath(b)) add(c[0], c[1], b.range, Math.max(0, b.timer), c[2], c[3], c[4]); continue; }
     const [x, y] = bombCell(b); add(x, y, b.range, Math.max(0, b.timer));
   }
+  if (mis) err = mis.misNew;   // la bombe qu'il envisage de poser : même erreur que quand il la posera
   if (extra) for (const e of Array.isArray(extra) ? extra : [extra]) add(e.x, e.y, e.r, e.t, e.w0 ?? 0, e.w1 ?? Infinity, e.solid ?? true);
+  err = null;
   // bombes en vol (Kaboum, Grondor) : comptées comme des bombes déjà posées sur leur case d'arrivée
   for (const l of G.lobs || []) add(l.k % COLS, (l.k / COLS) | 0, l.range || 2, Math.max(0, l.dur - l.t) + l.fuse);
   // bombes lancées au gant : les bons ordis savent où elles vont retomber
@@ -2463,7 +2482,7 @@ function computeDanger(extra) {
   const bset = new Map(), at = new Map();
   bl.forEach((b, i) => { if (b.solid) bset.set(b.k, i); const l = at.get(b.k); if (l) l.push(i); else at.set(b.k, [i]); });   // plusieurs bombes « possibles » par case
   const cells = bl.map(b => blast(b.x, b.y, b.r, bset));
-  for (let it = 0; it < 8; it++) {
+  for (let it = 0; it < (G.aiChainBlind ? 0 : 8); it++) {   // joueur « nul » : ne voit pas les réactions en chaîne
     let ch = false;
     for (let i = 0; i < bl.length; i++) {
       const ti = bl[i].t; if (ti === Infinity) continue;
@@ -2647,8 +2666,36 @@ function setPath(p, path, sx, sy) {
   }
 }
 function think(p) {
-  G.aiFocus = p; G.aiPredict = !!p.ai.lv.predict; p.ai.trapLeft = G.mode === 'br' ? 3 : 10;
-  try { thinkInner(p); } finally { G.aiFocus = null; G.aiPredict = false; G.aiD = null; p.ai.foes = null; }
+  const lv = p.ai.lv;
+  G.aiFocus = p; G.aiPredict = !!lv.predict; p.ai.trapLeft = G.mode === 'br' ? 3 : 10;
+  G.aiChainBlind = !!lv.chainBlind; G.aiMis = lv.rangeErr || lv.timeErr ? p.ai : null; p.ai.self = p; p.ai.misNew = G.aiMis ? aiMisjudge(lv, true) : null;
+  try { thinkInner(p); } finally { G.aiFocus = null; G.aiPredict = false; G.aiChainBlind = false; G.aiMis = null; G.aiD = null; p.ai.foes = null; }
+}
+// erreur d'un joueur « nul » sur une bombe : portée vue trop courte (r cases), explosion attendue trop tard (t s)
+// il connaît mieux ses propres bombes que celles des autres (dont il ignore les bonus de portée)
+function aiMisjudge(lv, own) {
+  const pr = (lv.rangeErr || 0) * (own ? 0.25 : 1), r = Math.random() < pr ? (!own && Math.random() < 0.35 ? 2 : 1) : 0;
+  const t = (lv.timeErr || 0) * (own ? 0.25 : 1) * Math.random();
+  return r || t ? { r, t } : null;
+}
+// pose d'une bombe par un ordi ; un joueur « nul » garde son erreur sur cette bombe
+function aiPlace(p, sk) {
+  if (!placeBomb(p)) return false;
+  const b = G.bombAt[sk]; if (b && p.ai.misNew) p.ai.mis.set(b, p.ai.misNew);
+  p.ai.nBomb++; return true;
+}
+// une case sûre au hasard, à `dmin`–`dmax` pas (pour courir dans tous les sens)
+function aiRandomCell(p, D, sx, sy, dmin, dmax) {
+  const sk = idx(sx, sy), prev = new Int32Array(N).fill(-2), dist = new Uint8Array(N); prev[sk] = -1;
+  const q = [sk], out = []; let qi = 0;
+  while (qi < q.length) {
+    const k = q[qi++], d = dist[k]; if (d >= dmin) out.push(k); if (d >= dmax) continue;
+    const x = k % COLS, y = (k / COLS) | 0;
+    for (const [dx, dy] of NB) { const nk = idx(x + dx, y + dy); if (prev[nk] !== -2 || !passableAI(nk, -1) || (D && D.S[nk] !== Infinity)) continue; prev[nk] = k; dist[nk] = d + 1; q.push(nk); }
+  }
+  if (!out.length) return null;
+  const k = out[(Math.random() * out.length) | 0];
+  return { k, path: pathTo(prev, k) };
 }
 // adversaires d'un ordi (hors boss)
 function aiFoes(p) {
@@ -2743,8 +2790,12 @@ function thinkInner(p) {
     } else { setPath(p, [{ x: P.from % COLS, y: (P.from / COLS) | 0 }], sx, sy); return; }
   }
   const D = computeDanger(null); G.aiD = D;
-  // ne pas voir le danger (niveaux 1 à 4) : il continue ce qu'il faisait
-  if (lv.panic && D.S[sk] !== Infinity && Math.random() < lv.panic) return;
+  // affolement (niveaux 1 à 4) : en danger, il fait parfois un pas au hasard (même du mauvais côté), puis se reprend vite
+  if (lv.panic && D.S[sk] !== Infinity && Math.random() < lv.panic) {
+    const c = aiRandomCell(p, null, sx, sy, 1, 3);
+    if (c) setPath(p, c.path, sx, sy);
+    ai.cdNext = 0.25 + Math.random() * 0.3; return;
+  }
   // cases déjà visées par les autres ordis, et cases où se tiennent les autres artificiers
   const avoid = new Set(), occupied = new Set();
   for (const o of G.players) {
@@ -2815,15 +2866,24 @@ function thinkInner(p) {
         }
       }
     }
-    if (bv >= 2.5 && Math.random() < lv.bombRate) {
+    const want = bv >= (lv.bombMin ?? 2.5) || (lv.spam && bv > -1 && Math.random() < lv.spam);
+    if (want && Math.random() < lv.bombRate) {
       const D2 = computeDanger({ x: sx, y: sy, r: p.range, t: FUSE });
       const esc = findEscape(sx, sy, 0, step, lv.margin + 0.1, D2, -1, true, ai.nb, avoid, lv.sight);
-      if (esc && esc.length) { p.x = sx; p.y = sy; placeBomb(p); setPath(p, esc, sx, sy); return; }
+      if (esc && esc.length) { p.x = sx; p.y = sy; aiPlace(p, sk); setPath(p, esc, sx, sy); return; }
       // étourderie (niveaux 1 à 3) : il pose quand même, et file vers le moins dangereux
       if (lv.blunder && Math.random() < lv.blunder) {
         const any = findEscape(sx, sy, 0, step, 0, D2, -1, false, ai.nb, avoid, lv.sight);
-        if (any && any.length) { p.x = sx; p.y = sy; placeBomb(p); setPath(p, any, sx, sy); return; }
+        if (any && any.length) { p.x = sx; p.y = sy; aiPlace(p, sk); setPath(p, any, sx, sy); return; }
       }
+    }
+  }
+  // agitation (niveaux 1 à 4) : il part souvent courir vers une case au hasard, et y va jusqu'au bout
+  if (lv.wander) {
+    if (ai.wanderT > G.t && ai.path.length && ai.path.every(n => D.S[idx(n.x, n.y)] === Infinity)) return;   // il continue sa course, sauf si une bombe est apparue sur son chemin
+    if (Math.random() < lv.wander) {
+      const c = aiRandomCell(p, D, sx, sy, 2, 7);
+      if (c) { setPath(p, c.path, sx, sy); ai.wanderT = G.t + 2.5; return; }
     }
   }
   const path = chooseTarget(p, D, sx, sy, step, eks, bset, avoid, occupied);
@@ -2854,7 +2914,7 @@ function updateAI(p, dt) {
   ai.cd -= dt;
   const sig = aiSignature(p);
   if (sig !== ai.sig) { ai.sig = sig; ai.cd = Math.min(ai.cd, ai.lv.react); }
-  if (ai.cd <= 0) { think(p); ai.cd = ai.lv.think + Math.random() * 0.08; }
+  if (ai.cd <= 0) { ai.cdNext = undefined; think(p); ai.cd = ai.cdNext ?? ai.lv.think + Math.random() * 0.08; }
   let dist = speedOf(p) * dt;
   p.moving = false;
   for (let guard = 0; guard < 4 && dist > 1e-6 && ai.path.length; guard++) {
@@ -6213,7 +6273,7 @@ function tgtTick(dt) {
 const tipEl = $('#tip-box');
 function tipText() {
   const k0 = keyLabel(settings.keys[0].stop), k1 = keyLabel(settings.keys[1].stop), pd = padLabel(settings.pad.stop);
-  return `Après avoir poussé une bombe, appuie sur <kbd>${esc(k0)}</kbd> (ou <kbd>${esc(k1)}</kbd>), <kbd>${esc(pd)}</kbd> à la manette, ou le bouton <kbd>Stop</kbd> sur téléphone : elle s'arrête sur la case suivante. Arrête-la juste à côté d'une cible : son explosion la fera tomber. Deux bombes arrêtées à 2 cases l'une de l'autre explosent en chaîne : parfait pour un combo !`;
+  return `Après avoir poussé une bombe, appuie sur <kbd>${esc(k0)}</kbd> (ou <kbd>${esc(k1)}</kbd>), <kbd>${esc(pd)}</kbd> à la manette, ou le bouton <kbd>Stop</kbd> sur téléphone : elle s'arrête sur la case suivante. Arrête-la juste à côté d'une cible : son explosion la fera tomber. Deux bombes arrêtées à 2 cases l'une de l'autre explosent en chaîne : parfait pour un combo !${navigator.getGamepads && [...navigator.getGamepads()].some(g => g && g.connected) ? ' À la manette, <kbd>Select</kbd> rouvre cette astuce.' : ''}`;
 }
 function openTip() {
   if (!G.tg) return;
@@ -6632,12 +6692,28 @@ function renderCamp() {
     if (done) { const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓'; b.appendChild(ck); }
     else if (!ready) { const lk = document.createElement('span'); lk.className = 'lk'; lk.textContent = '🔒'; b.appendChild(lk); }
     if (fresh) setTimeout(() => { b.classList.add('done', 'unlock'); cl.textContent = 'Réussi'; Sfx.play('pickup'); }, 450);
-    b.addEventListener('click', () => { campSel = i; campJust = -1; campRes = null; renderCamp(); });
+    b.addEventListener('click', () => {
+      // à la manette : A sur le défi déjà choisi le lance
+      if (document.body.classList.contains('pad-nav') && campSel === i) { if (campReady(i)) startCamp(i); return; }
+      campPick(i);
+    });
+    b.addEventListener('focus', () => { if (document.body.classList.contains('pad-nav') && campSel !== i) campPick(i); });   // manette : le défi visé est choisi
     b.addEventListener('dblclick', () => { if (campReady(i)) startCamp(i); });
     path.appendChild(b);
   });
   campJust = -1;
-  const c = CAMP[campSel], go = $('#camp-go');
+  renderCampCard();
+}
+// choisir un défi (clic, flèches, manette) : la rangée de médaillons n'est pas reconstruite, le focus reste en place
+function campPick(i, focus) {
+  campSel = clamp(i, 0, CAMP.length - 1); campJust = -1; campRes = null;
+  const nodes = $('#camp-path').querySelectorAll('.camp-node');
+  nodes.forEach((n, j) => n.setAttribute('aria-pressed', String(j === campSel)));
+  if (focus && nodes[campSel]) try { nodes[campSel].focus({ preventScroll: true }); } catch (e) {}
+  renderCampCard();
+}
+function renderCampCard() {
+  const d = campDone(), c = CAMP[campSel], go = $('#camp-go');
   $('#camp-name').textContent = c.name ? `Défi ${campSel + 1} · ${c.name}` : `Défi ${campSel + 1}`;
   if (!c.name) { $('#camp-desc').textContent = 'Ce défi arrive bientôt.'; $('#camp-rules').textContent = ''; }
   else {
@@ -6687,7 +6763,8 @@ function startCamp(i) {
   clearTimeout(vsT); vsNext = () => { vsNext = null; vsEl.hidden = true; startCampMatch(i); };
   vsT = setTimeout(() => vsNext && vsNext(), 2400);
 }
-vsEl.addEventListener('click', () => { clearTimeout(vsT); if (vsNext) vsNext(); });
+function vsSkip() { clearTimeout(vsT); if (vsNext) vsNext(); }
+vsEl.addEventListener('click', vsSkip);
 function startCampMatch(i) {
   const c = CAMP[i];
   Sfx.init();
@@ -7714,7 +7791,7 @@ window.addEventListener('keydown', e => {
   if (!vsEl.hidden) { if (code === 'Escape' || code === 'Enter' || code === 'Space') { e.preventDefault(); clearTimeout(vsT); if (vsNext) vsNext(); } return; }
   if (!campEl.hidden) {
     if (code === 'Escape') closeCamp();
-    else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { campSel = clamp(campSel + (code === 'ArrowLeft' ? -1 : 1), 0, CAMP.length - 1); renderCamp(); }
+    else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { const f = document.activeElement; campPick(campSel + (code === 'ArrowLeft' ? -1 : 1), !!(f && f.classList && f.classList.contains('camp-node'))); }
     else if (code === 'Enter' && document.activeElement && (document.activeElement.tagName !== 'BUTTON' || document.activeElement.id === 'camp-go') && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); startCamp(campSel); }
     return;
   }
@@ -8783,7 +8860,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -8819,6 +8896,11 @@ function navBack(root) {
   else if (root === customEl) closeCustom();
   else if (root === profEl) closeProfile();
   else if (root === accEl()) closeAccount();
+  else if (root === campEl) closeCamp();
+  else if (root === unlockEl) closeUnlock();
+  else if (root === tipEl) closeTip();
+  else if (root === vsEl) vsSkip();
+  else if (root === friendsEl) closeFriends();
 }
 window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
 function pollPads() {
@@ -8850,6 +8932,9 @@ function pollPads() {
       if (capture.set === 2) {
         if (now - capture.t > 150) for (let k = 0; k < gp.buttons.length; k++) if (hit(k)) { assignPad(k); break; }
       } else if (hit(1)) { capture = null; $('#keys-status').textContent = 'Changement annulé.'; renderKeyHelp(); }
+    } else if (root === vsEl) {
+      releasePad(code, st);
+      if (hit(0) || hit(1) || hit(pb.pause)) vsSkip();   // écran VS : n'importe quel bouton le passe
     } else if (root) {
       releasePad(code, st);
       // croix ou stick : déplacer la sélection (avec répétition si on maintient)
@@ -8863,7 +8948,9 @@ function pollPads() {
         if (el && root.contains(el) && el !== document.body) el.click();
         else navMove(root, 'down');
       } else if (hit(1)) navBack(root);
-      else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); }
+      else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); else if (root === campEl) startCamp(campSel); else if (root === tipEl) closeTip(); else if (root === unlockEl) closeUnlock(); }
+      // campagne : LB / RB passent au défi précédent / suivant
+      else if (root === campEl && (hit(4) || hit(5))) { document.body.classList.add('pad-nav'); campPick(campSel + (hit(4) ? -1 : 1), true); }
     } else if (REPLAY.on) {
       if (hit(1) || hit(pb.pause)) stopReplay(); else if (hit(0)) replayTogglePause(); else if (hit(3)) replaySpeed();
       else if (hit(pb.left)) replaySeek(REPLAY.t - 3); else if (hit(pb.right)) replaySeek(REPLAY.t + 3);
@@ -8880,6 +8967,7 @@ function pollPads() {
           if (dir !== st.dir) { removeFrom(p.dirStack, code); if (dir) p.dirStack.push(code); st.dir = dir; padDir[code] = dir; }
           padVec[code] = dir ? vec : null;
           if (G.mode === 'br' && hit(8) && !Object.values(pb).includes(8)) cycleCam();
+          if (G.tg && hit(8) && !Object.values(pb).includes(8)) { openTip(); document.body.classList.add('pad-nav'); }   // défi 4 : Select ouvre l'astuce
           [2, 3, 4, 5].forEach((bi, sl) => { if (hit(bi) && !Object.values(pb).includes(bi)) emoteSlot(p, sl); });
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
