@@ -1322,13 +1322,15 @@ const CAMP = [
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 3, wins: 1, time: 600, tomb: 4, allyDmg: 0.3 },
   { name: 'Gloop se divise', desc: 'Gloop est plus gros que d\'habitude, et un peu plus lent. Souffle-le : il se divise en deux Gloop plus petits et plus rapides, qui se divisent encore une fois. Les plus petits, eux, éclatent pour de bon. Il y a 7 Gloop à souffler en tout.',
     foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
-  { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
+  { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe et les explosions ne l\'atteignent pas. Mais quand il prépare une technique (permutation, saut de l\'ombre, kunai explosif, clone), il s\'arrête un instant : c\'est là qu\'il faut lui pousser une bombe dessus. Trois coups pour le vaincre. Gare à ses shurikens !',
+    foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
+  { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
 const foeName = c => c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe));
 const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 // défis en équipes : 2 contre 2 (team) et Gloop qui se divise (split, tous les Gloop dans l'équipe 1)
-const sideMode = () => !!(G.camp && (G.camp.team || G.camp.split));
+const sideMode = () => !!(G.camp && (G.camp.team || G.camp.split || G.camp.ninja));
 const GLOOP_SIZE = [1.32, 1, 0.72], GLOOP_SPEED = [0.82, 1.05, 1.35];
 const campInset = () => (G.mode === 'match' && G.camp && G.camp.inset) | 0;
 function spawnOf(i) {
@@ -1751,6 +1753,7 @@ function assignChars(list) {
 }
 function setPlayers(list) {
   G.train = null;   // l'entraînement le remet juste après
+  G.nj = null; G.shur = [];
   assignChars(list);
   G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
@@ -1846,6 +1849,10 @@ const Sfx = {
         case 'throw': this.noise(0.22, 0.3, 2600, 500); this.tone('sine', 260, 620, 0.2, 0.14); break;
         case 'bounce': this.tone('sine', 300, 150, 0.08, 0.22); break;
         case 'halt': this.tone('square', 180, 70, 0.08, 0.14); this.noise(0.06, 0.25, 1500, 400); break;
+        case 'shur': this.noise(0.13, 0.22, 5200, 1800); this.tone('triangle', 1500, 700, 0.1, 0.07); break;
+        case 'njcast': this.tone('sine', 240, 480, 0.32, 0.12); this.tone('sine', 360, 720, 0.32, 0.07, 0.06); break;
+        case 'poof': this.noise(0.28, 0.28, 1300, 300); break;
+        case 'tink': this.tone('square', 2300, 1700, 0.05, 0.05); break;
         case 'death': {   // son de mort d'origine ; les explosions en cours baissent pour qu'on l'entende bien
           const now = this.ac.currentTime; this.lastDeath = now;
           for (const o of this.live || []) if (o.end > now) { const g = o.g.gain; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(g.value * 0.12, now + 0.04); }
@@ -1938,7 +1945,7 @@ function resetPlayer(p) {
 const speedOf = p => (BASE_SPEED + SPEED_STEP * p.speedLv) * (p.spMul || 1);
 
 function newRound() {
-  if (G.mode === 'match' && G.camp && G.camp.split && G.players.length > 2) { G.players.length = 2; G.scores.length = 2; G.firsts.length = 2; }
+  if (G.mode === 'match' && G.camp && (G.camp.split || G.camp.ninja) && G.players.length > 2) { G.players.length = 2; G.scores.length = 2; G.firsts.length = 2; }
   if (G.mode === 'match' && G.camp && G.camp.split && G.players[1]) gloopSetGen(G.players[1], 0);
   setMapSize(campFlag('cols') || VCOLS, campFlag('rows') || VROWS); G.camSnap = true;
   G.seed = (Math.random() * 2147483647) | 0;
@@ -1951,6 +1958,7 @@ function newRound() {
   G.tg = campFlag('targets') ? tgtInit(G.camp) : null;
   { const tb = document.getElementById('btn-tip'); if (tb) tb.hidden = !G.tg; }
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
+  G.shur = []; G.nj = campFlag('ninja') && G.players[1] ? njInit(G.players[1]) : null;
   groundDirty = true;
 }
 
@@ -1980,7 +1988,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   const o = G.bombAt[k]; if (o && o !== self) return true;
   for (const f of G.falling) if (f.k === k) return true;
   if (ignorePlayers) return false;
-  for (const p of G.players) if (p.alive && Math.abs(p.x - x) < 0.9 && Math.abs(p.y - y) < 0.9) return true;
+  for (const p of G.players) if (p.alive && Math.abs(p.x - x) < 0.9 && Math.abs(p.y - y) < 0.9 && !(G.nj && p === G.nj.p && (G.nj.salto || (self && njOpen())))) return true;
   if (bossAt(x, y)) return true;
   return false;
 }
@@ -2266,6 +2274,9 @@ function updateBombs(dt) {
       const tg = G.tg && tgtFront(b);
       if (tg) { if (tgtShieldBlocks(tg, -b.mdx, -b.mdy)) { tgtBlocked(tg); tgtBounce(b); } else { b.hitTgt = tg; stopBomb(b); } }
       else if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
+      // défi 7 : contre le Ninja qui prépare une technique, la bombe le frappe ; sinon il la pare et elle reste collée contre lui
+      else if (G.nj && njAt(nx, ny)) { if (njOpen()) { b.hitNinja = true; stopBomb(b); } else njParry(b); }
+      else if (G.nj && cloneAt(nx, ny)) cloneGone(cloneAt(nx, ny));
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
         b.prog += KICK_SPEED * dt;
@@ -2274,6 +2285,7 @@ function updateBombs(dt) {
           if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
           else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy)) { const tg2 = tgtAt(b.x + b.mdx, b.y + b.mdy); if (tgtShieldBlocks(tg2, -b.mdx, -b.mdy)) { tgtBlocked(tg2); tgtBounce(b); } else { b.hitTgt = tg2; stopBomb(b); } }
           else if (bossAt(b.x + b.mdx, b.y + b.mdy)) boom();
+          else if (G.nj && (njAt(b.x + b.mdx, b.y + b.mdy) || cloneAt(b.x + b.mdx, b.y + b.mdy))) { /* vu à l'image suivante */ }
           else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
       }
@@ -2290,6 +2302,10 @@ function updateBombs(dt) {
     for (let j = 0; j < 14; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4, max: 0.4, size: 2.4, color: j % 2 ? '#ffd166' : '#ff8a3d' }); }
     Sfx.boom(boomKind(b.owner && b.owner.id !== BOSS_ID ? G.players[b.owner.id] : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 4);
     if (B && B.alive) bossDamage(2, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner);
+  }
+  for (let i = G.bombs.length - 1; i >= 0; i--) {
+    const b = G.bombs[i]; if (!b.hitNinja) continue;
+    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); njHit(b);
   }
   rebuildBombAt();
   // une bombe (poussée ou non) qui se trouve dans une explosion encore active saute aussitôt
@@ -2343,6 +2359,7 @@ function land(k) {
 }
 function kill(p, by) {
   if (!p.alive || p.shield > 0 || p.god) return;
+  if (p.clone) { cloneGone(p); return; }   // défi 7 : le clone d'ombre s'évanouit au premier coup
   if (by >= 0 && by !== p.id && G.players[by]) {
     const kp = G.players[by]; kp.kills = (kp.kills | 0) + 1; if (G.mode === 'br') addPts(kp, BR_KILL_PTS);
     if (G.mode === 'br' && kp.ct && kp.ct.tg === p.id) { addPts(kp, BR_CONTRACT_PTS); fx('contractWin', kp.id, p.id); kp.ct = null; kp.ctNext = G.brT + 20 + Math.random() * 15; }
@@ -2377,6 +2394,368 @@ function gloopSplit(p) {
   }
   addP({ kind: 'text', x: (cx + 0.5) * T, y: (cy + 0.5) * T - 40, vx: 0, vy: -30, life: 1.1, max: 1.1, size: 18, color: '#9dff7a', text: p.gen === 0 ? 'Il se divise !' : 'Encore !' });
   Sfx.play('pickup');
+}
+
+/* ---------- Défi 7 : le Ninja. Les explosions ne l'atteignent pas : seule une bombe poussée sur lui pendant
+   qu'il prépare une technique le touche (3 coups). Il lance des shurikens, qui soufflent et font sauter les bombes ---------- */
+const NJ_HP = 3, NJ_SHUR_V = 7.5, NJ_CD = [3.3, 2.7, 2.2], NJ_CAST_K = [1, 0.92, 0.85];
+const NJ_NAMES = { perm: 'Permutation', jump: 'Saut de l\'ombre', kunai: 'Kunai explosif', clone: 'Clone d\'ombre', rain: 'Pluie de shurikens', shur: 'Shuriken' };
+const NJ_DUR = { perm: 1.1, jump: 1.0, kunai: 1.1, clone: 1.2, shur: 0.45 };
+const NJ_DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+const faceOf = (dx, dy) => Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+function njInit(p) {
+  Object.assign(p, { ninja: true, god: true, spMul: 1.08, njCast: null });
+  return { p, hp: NJ_HP, phase: 0, cd: 2.4, shurCd: 1.8, salto: null, intro: false, parryT: 0, hitT: 0 };
+}
+// il prépare une technique (et n'est pas en plein saut) : c'est le seul moment où une bombe poussée le touche
+const njOpen = () => { const nj = G.nj; return !!(nj && nj.p.alive && nj.p.njCast && !nj.salto); };
+const njAt = (x, y) => { const nj = G.nj, p = nj && nj.p; return !!(p && p.alive && !nj.salto && Math.abs(p.x - x) < 0.9 && Math.abs(p.y - y) < 0.9); };
+const cloneAt = (x, y) => G.nj ? G.players.find(o => o.clone && o.alive && Math.abs(o.x - x) < 0.9 && Math.abs(o.y - y) < 0.9) || null : null;
+// une bombe poussée est collée contre lui
+const njPressed = p => G.bombs.find(b => (b.mdx || b.mdy) && Math.abs(b.x + b.mdx - p.x) < 0.9 && Math.abs(b.y + b.mdy - p.y) < 0.9) || null;
+// même ligne ou même colonne, sans bloc entre les deux (les bombes ne gênent pas : le shuriken les fait sauter)
+function njLine(x0, y0, x1, y1) {
+  if (x0 !== x1 && y0 !== y1) return null;
+  const dx = Math.sign(x1 - x0), dy = Math.sign(y1 - y0), n = Math.abs(x1 - x0) + Math.abs(y1 - y0);
+  if (!n || n > 9) return null;
+  for (let s = 1; s < n; s++) if (G.grid[idx(x0 + dx * s, y0 + dy * s)] !== EMPTY) return null;
+  return [dx, dy];
+}
+function njAim(p) {
+  const sx = Math.round(p.x), sy = Math.round(p.y);
+  for (const o of G.players) { if (!o.alive || o.team !== 0) continue; const d = njLine(sx, sy, Math.round(o.x), Math.round(o.y)); if (d) return d; }
+  return null;
+}
+// cases libres d'une ligne (jusqu'au premier bloc)
+function njRay(x, y, dx, dy, max = 16) {
+  const out = [];
+  for (let s = 1; s <= max; s++) { const cx = x + dx * s, cy = y + dy * s; if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS || G.grid[idx(cx, cy)] !== EMPTY) break; out.push([cx, cy]); }
+  return out;
+}
+// croix d'une explosion (pour annoncer celle du kunai)
+function njBlast(x, y, r) {
+  const out = [[x, y]];
+  for (const [dx, dy] of NB) for (let s = 1; s <= r; s++) {
+    const cx = x + dx * s, cy = y + dy * s; if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) break;
+    const g = G.grid[idx(cx, cy)]; if (g === WALL || g === PILLAR || g === STONE) break;
+    out.push([cx, cy]); if (g === CRATE) break;
+  }
+  return out;
+}
+function njFreeNear(x, y, rmax, notSelf) {
+  for (let r = notSelf ? 1 : 0; r <= rmax; r++) {
+    const cs = [];
+    for (let yy = y - r; yy <= y + r; yy++) for (let xx = x - r; xx <= x + r; xx++) {
+      if (Math.abs(xx - x) + Math.abs(yy - y) !== r || xx < 1 || yy < 1 || xx > COLS - 2 || yy > ROWS - 2) continue;
+      const k = idx(xx, yy); if (G.grid[k] === EMPTY && !G.bombAt[k]) cs.push([xx, yy]);
+    }
+    if (cs.length) return cs[(Math.random() * cs.length) | 0];
+  }
+  return null;
+}
+function njPuff(x, y, n = 10) {
+  for (let j = 0; j < n; j++) addP({ kind: 'smoke', x: (x + 0.5) * T + (Math.random() - 0.5) * 30, y: (y + 0.5) * T + 6, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 50, life: 0.6, max: 0.6, size: 7, color: '90,70,120' });
+}
+function njText(p, text, color = '#e6d6ff', size = 17) { addP({ kind: 'text', x: (p.x + 0.5) * T, y: (p.y + 0.5) * T - 44, vx: 0, vy: -32, life: 1, max: 1, size, color, text }); }
+// déplacement : il garde ses distances et cherche à s'aligner avec le joueur (pour ses shurikens)
+function njThink(p, near, far) {
+  const ai = p.ai, sx = Math.round(p.x), sy = Math.round(p.y), sk = idx(sx, sy), step = 1 / speedOf(p), off = Math.abs(p.x - sx) + Math.abs(p.y - sy);
+  const me = G.players[0], D = computeDanger(null);
+  if (D.S[sk] !== Infinity) {
+    const esc = findEscape(sx, sy, off * step, step, 0.1, D, -1, true, ai.nb, new Set(), 10) || findEscape(sx, sy, off * step, step, -0.05, D, -1, false, ai.nb, new Set(), 10);
+    if (esc) setPath(p, esc, sx, sy);
+    return;
+  }
+  const px = Math.round(me.x), py = Math.round(me.y), press = p.ninja ? njPressed(p) : null, mid = (near + far) / 2;
+  const prev = new Int32Array(N).fill(-2), dist = new Uint8Array(N); prev[sk] = -1;
+  const q = [sk]; let qi = 0, best = sk, bs = -1e9;
+  while (qi < q.length) {
+    const k = q[qi++], x = k % COLS, y = (k / COLS) | 0, d = Math.abs(x - px) + Math.abs(y - py);
+    let sc = -Math.abs(d - mid) * 0.8 - dist[k] * 0.12 + Math.random() * 0.6;
+    if (d < near) sc -= 3;
+    if (me.alive && njLine(x, y, px, py)) sc += 2.2;
+    if (press && (press.mdx ? y === press.y : x === press.x)) sc -= 2.5;   // pas dans l'axe de la bombe qui le pousse
+    if (k === sk) sc += press ? -6 : 0.4;
+    if (sc > bs) { bs = sc; best = k; }
+    if (dist[k] >= 12) continue;
+    for (const [dx, dy] of ai.nb) {
+      const nx = x + dx, ny = y + dy, nk = idx(nx, ny);
+      if (prev[nk] !== -2 || !passableAI(nk, -1) || D.S[nk] !== Infinity) continue;
+      if (G.players.some(o => o.alive && o !== p && Math.round(o.x) === nx && Math.round(o.y) === ny)) continue;
+      prev[nk] = k; dist[nk] = dist[k] + 1; q.push(nk);
+    }
+  }
+  setPath(p, best === sk ? [] : pathTo(prev, best), sx, sy);
+}
+// choix d'une technique (selon la phase : kunai après le 1er coup, clone après le 2e)
+function njChoose(p) {
+  const nj = G.nj, me = G.players[0], sx = Math.round(p.x), sy = Math.round(p.y), px = Math.round(me.x), py = Math.round(me.y), opts = [];
+  // permutation : avec la bombe (immobile) la plus proche du joueur, à 3 cases de lui au moins
+  let pb = null, pd = 1e9;
+  for (const b of G.bombs) {
+    if (b.mdx || b.mdy || b.kunai || b.timer < 0.5) continue;
+    const dn = Math.abs(b.x - sx) + Math.abs(b.y - sy), dp = Math.abs(b.x - px) + Math.abs(b.y - py);
+    if (dn < 3 || dp < 1) continue;
+    if (dp < pd) { pd = dp; pb = b; }
+  }
+  if (pb) opts.push([1, { k: 'perm', b: pb, tx: pb.x, ty: pb.y }]);
+  // saut de l'ombre : par-dessus un bloc, vers une case libre
+  const D = computeDanger(null); let jb = null, js = -1e9;
+  for (const [dx, dy] of NB) {
+    const mx = sx + dx, my = sy + dy, tx = sx + 2 * dx, ty = sy + 2 * dy;
+    if (tx < 1 || ty < 1 || tx > COLS - 2 || ty > ROWS - 2 || (tx === px && ty === py)) continue;
+    const tk = idx(tx, ty);
+    if (G.grid[idx(mx, my)] === EMPTY || G.grid[tk] !== EMPTY || G.bombAt[tk] || D.S[tk] !== Infinity) continue;
+    const d = Math.abs(tx - px) + Math.abs(ty - py), sc = -Math.abs(d - 4) + (njLine(tx, ty, px, py) ? 2 : 0) + Math.random();
+    if (sc > js) { js = sc; jb = { k: 'jump', tx, ty }; }
+  }
+  { const d0 = Math.abs(sx - px) + Math.abs(sy - py); if (jb) opts.push([d0 <= 2 || d0 >= 7 ? 2.5 : 1, jb]); }   // trop près ou trop loin (coincé derrière les caisses) : il saute
+  if (nj.phase >= 1 && me.alive) { const c = njFreeNear(px, py, 1); if (c) opts.push([1.3, { k: 'kunai', tx: c[0], ty: c[1] }]); }
+  if (nj.phase >= 2 && G.t >= (nj.cloneT || 0) && !G.players.some(o => o.clone && o.alive)) { const c = njFreeNear(sx, sy, 2, true); if (c) opts.push([1.2, { k: 'clone', tx: c[0], ty: c[1] }]); }
+  if (!opts.length) return null;
+  let r = Math.random() * opts.reduce((a, o) => a + o[0], 0);
+  for (const o of opts) { r -= o[0]; if (r <= 0) return o[1]; }
+  return opts[opts.length - 1][1];
+}
+function njStartCast(p, c, dur) {
+  p.x = Math.round(p.x); p.y = Math.round(p.y); p.ai.path = []; p.moving = false;
+  c.t = 0; c.dur = dur; p.njCast = c;
+  const tx = c.dx !== undefined ? c.dx : c.tx !== undefined ? c.tx - p.x : G.players[0].x - p.x, ty = c.dy !== undefined ? c.dy : c.ty !== undefined ? c.ty - p.y : G.players[0].y - p.y;
+  if (tx || ty) p.face = faceOf(tx, ty);
+  Sfx.play(c.k === 'shur' ? 'tink' : 'njcast');
+  if (c.k !== 'shur') for (let j = 0; j < 8; j++) { const a = Math.random() * TAU; addP({ kind: 'spark', x: (p.x + 0.5) * T + Math.cos(a) * 20, y: (p.y + 0.5) * T + Math.sin(a) * 20, vx: -Math.cos(a) * 40, vy: -Math.sin(a) * 40 - 20, life: 0.5, max: 0.5, size: 2.6, color: j % 2 ? '#c9a6ff' : '#7a4dff' }); }
+}
+function njTick(p, dt) {
+  if (p.clone) { cloneTick(p, dt); return; }
+  const nj = G.nj; if (!nj || nj.p !== p) return;
+  if (!nj.intro) { nj.intro = true; G.rageMsg = ['Le Ninja', 'Frappe-le avec une bombe poussée quand il prépare une technique']; G.rageFlash = 2.6; }
+  nj.parryT = Math.max(0, nj.parryT - dt); nj.hitT = Math.max(0, nj.hitT - dt);
+  if (nj.salto) { njSaltoTick(p, dt); return; }
+  if (p.njCast) { p.moving = false; p.njCast.t += dt; if (p.njCast.t >= p.njCast.dur) njFire(p); return; }
+  nj.cd -= dt; nj.shurCd -= dt;
+  const me = G.players[0], sx = Math.round(p.x), sy = Math.round(p.y), off = Math.abs(p.x - sx) + Math.abs(p.y - sy);
+  if (me.alive && off < 0.14 && !njPressed(p)) {
+    let c = nj.cd <= 0 ? njChoose(p) : null;
+    if (nj.cd <= 0 && !c) nj.cd = 0.35;
+    if (c) { njStartCast(p, c, NJ_DUR[c.k] * NJ_CAST_K[nj.phase]); return; }
+    if (nj.shurCd <= 0) { const d = njAim(p); if (d) { njStartCast(p, { k: 'shur', dx: d[0], dy: d[1] }, NJ_DUR.shur * NJ_CAST_K[nj.phase]); return; } }
+  }
+  p.ai.cd -= dt; if (p.ai.cd <= 0) { njThink(p, 3, 5); p.ai.cd = 0.2 + Math.random() * 0.1; }
+  aiFollow(p, dt);
+}
+function njThrow(p, dx, dy) {
+  const l = Math.hypot(dx, dy);
+  G.shur.push({ x: Math.round(p.x), y: Math.round(p.y), dx: dx / l, dy: dy / l, by: p.id, a: Math.random() * TAU });
+}
+function njFire(p) {
+  const nj = G.nj, c = p.njCast; p.njCast = null;
+  const sx = Math.round(p.x), sy = Math.round(p.y);
+  if (c.k === 'shur') { njThrow(p, c.dx, c.dy); Sfx.play('shur'); nj.shurCd = [2.1, 1.8, 1.5][nj.phase] * (0.85 + Math.random() * 0.35); nj.cd = Math.max(nj.cd, 0.7); return; }
+  nj.cd = NJ_CD[nj.phase] * (0.85 + Math.random() * 0.3);
+  if (c.k === 'rain') { for (const [dx, dy] of NJ_DIR8) njThrow(p, dx, dy); Sfx.play('shur'); Sfx.play('throw'); nj.cd = 1.6; nj.shurCd = 1.5; return; }
+  if (c.k === 'perm') {
+    const b = c.b;
+    if (G.bombs.includes(b) && !b.mdx && !b.mdy && !G.players.some(o => o.alive && o !== p && Math.abs(o.x - b.x) < 0.9 && Math.abs(o.y - b.y) < 0.9)) {
+      njPuff(sx, sy); njPuff(b.x, b.y);
+      const bx = b.x, by = b.y; b.x = sx; b.y = sy; p.x = bx; p.y = by; p.ai.path = [];
+      b.passers.clear(); for (const o of G.players) if (o.alive && Math.abs(o.x - sx) < 0.98 && Math.abs(o.y - sy) < 0.98) b.passers.add(o.id);
+      rebuildBombAt(); Sfx.play('poof'); njText(p, 'Permutation !');
+    } else njText(p, 'Raté…', '#bfb3d6', 15);
+    return;
+  }
+  if (c.k === 'jump') {
+    const k = idx(c.tx, c.ty);
+    if (G.grid[k] === EMPTY && !G.bombAt[k]) { nj.salto = { x0: sx, y0: sy, x1: c.tx, y1: c.ty, t: 0, dur: 0.42, rain: false }; njPuff(sx, sy, 6); Sfx.play('throw'); }
+    return;
+  }
+  if (c.k === 'kunai') {
+    let tx = c.tx, ty = c.ty;
+    if (G.grid[idx(tx, ty)] !== EMPTY || G.bombAt[idx(tx, ty)]) { const f = njFreeNear(tx, ty, 1); if (!f) return; [tx, ty] = f; }
+    const b = { x: tx, y: ty, owner: p, range: 3, timer: 2.0, mdx: 0, mdy: 0, prog: 0, passers: new Set(), kunai: true };
+    for (const o of G.players) if (o.alive && Math.abs(o.x - tx) < 0.98 && Math.abs(o.y - ty) < 0.98) b.passers.add(o.id);
+    G.bombs.push(b); p.active = (p.active | 0) + 1; rebuildBombAt();
+    for (let j = 0; j < 8; j++) { const a = Math.random() * TAU, sp = 40 + Math.random() * 80; addP({ kind: 'spark', x: (tx + 0.5) * T, y: (ty + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35, max: 0.35, size: 2.2, color: '#dfe6ee' }); }
+    Sfx.play('kick');
+    return;
+  }
+  if (c.k === 'clone') {
+    let tx = c.tx, ty = c.ty;
+    if (G.grid[idx(tx, ty)] !== EMPTY || G.bombAt[idx(tx, ty)]) { const f = njFreeNear(sx, sy, 2, true); if (!f) return; [tx, ty] = f; }
+    const id = G.players.length, o = makePlayer(id, AI_LV[5], 'Clone d\'ombre');
+    Object.assign(o, { skin: p.skin, pal: p.pal, team: 1, x: tx, y: ty, face: p.face, clone: true, life: 6, shurCd: 0.7, spMul: 1.12, kick: false, njCast: null });
+    o.ai.nb = shuffled(NB); o.ai.path = []; o.ai.cd = 0; o.ai.goal = -1; o.ai.stuck = 0;
+    G.players.push(o); G.scores.push(0); G.firsts.push(0); G.nj.cloneT = G.t + 11;   // pas plus d'un clone toutes les 11 s
+    njPuff(tx, ty, 14); Sfx.play('poof'); njText(o, 'Clone d\'ombre !');
+  }
+}
+function njSaltoTick(p, dt) {
+  const s = G.nj.salto; s.t += dt; const q = Math.min(1, s.t / s.dur);
+  p.x = s.x0 + (s.x1 - s.x0) * q; p.y = s.y0 + (s.y1 - s.y0) * q; p.moving = false;
+  if (s.x1 !== s.x0 || s.y1 !== s.y0) p.face = faceOf(s.x1 - s.x0, s.y1 - s.y0);
+  if (q < 1) return;
+  p.x = s.x1; p.y = s.y1; G.nj.salto = null; p.ai.path = []; p.ai.cd = 0; njPuff(s.x1, s.y1, 6);
+  // après un coup encaissé : une seule pluie de shurikens, sa préparation la plus longue
+  if (s.rain) njStartCast(p, { k: 'rain' }, 1.3);
+}
+function njParry(b) {
+  if (b.njP) return; b.njP = 1;
+  const nj = G.nj; if (nj.parryT > 0) return;
+  nj.parryT = 0.9; njText(nj.p, 'Paré !', '#c9d2dc', 16); Sfx.play('halt');
+}
+// une bombe poussée l'a frappé pendant qu'il préparait une technique
+function njHit(b) {
+  const nj = G.nj, p = nj && nj.p; if (!p || !p.alive) return;
+  p.njCast = null; nj.hp--; nj.hitT = 0.35;
+  const x = (p.x + 0.5) * T, y = (p.y + 0.5) * T;
+  for (let j = 0; j < 18; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 170; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.45, max: 0.45, size: 2.6, color: j % 3 ? '#ffd166' : '#c9a6ff' }); }
+  Sfx.boom(boomKind(b.owner && b.owner.id === 0 ? b.owner : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 5);
+  const by = b.kickBy !== undefined && b.kickBy !== null ? b.kickBy : 0;
+  if (nj.hp <= 0) {
+    for (const o of G.players) if (o.clone && o.alive) cloneGone(o);
+    G.shur.length = 0; p.god = false; kill(p, by);
+    return;
+  }
+  njText(p, `Touché ! ${nj.hp} PV`, '#ffd166', 20);
+  nj.phase = NJ_HP - nj.hp;
+  // pas de bandeau au milieu de l'arène : la pluie de shurikens qui suit doit rester bien visible
+  addP({ kind: 'text', x: (p.x + 0.5) * T, y: (p.y + 0.5) * T - 20, vx: 0, vy: -22, life: 1.6, max: 1.6, size: 15, color: '#e6d6ff', text: nj.phase === 1 ? 'Il sort ses kunais !' : 'Il appelle son clone !' });
+  // salto vers une case libre, à distance du joueur, puis la pluie de shurikens
+  const me = G.players[0], sx = Math.round(p.x), sy = Math.round(p.y), px = Math.round(me.x), py = Math.round(me.y), D = computeDanger(null);
+  let best = [sx, sy], bs = -1e9;
+  for (let yy = sy - 4; yy <= sy + 4; yy++) for (let xx = sx - 4; xx <= sx + 4; xx++) {
+    const m = Math.abs(xx - sx) + Math.abs(yy - sy); if (m < 2 || m > 4 || xx < 1 || yy < 1 || xx > COLS - 2 || yy > ROWS - 2) continue;
+    const k = idx(xx, yy); if (G.grid[k] !== EMPTY || G.bombAt[k] || D.S[k] !== Infinity) continue;
+    const d = Math.abs(xx - px) + Math.abs(yy - py); if (d < 2) continue;
+    const sc = -Math.abs(d - 4) + Math.random() * 1.5; if (sc > bs) { bs = sc; best = [xx, yy]; }
+  }
+  nj.salto = { x0: p.x, y0: p.y, x1: best[0], y1: best[1], t: 0, dur: 0.55, rain: true };
+  nj.shurCd = Math.max(nj.shurCd, 2);
+}
+// le clone d'ombre : il court et lance des shurikens 6 s, ne pose pas de bombe, et disparaît au premier coup
+function cloneTick(o, dt) {
+  o.life -= dt; if (o.life <= 0 || !G.nj || !G.nj.p.alive) { cloneGone(o); return; }
+  if (o.njCast) { o.moving = false; o.njCast.t += dt; if (o.njCast.t >= o.njCast.dur) { njThrow(o, o.njCast.dx, o.njCast.dy); Sfx.play('shur'); o.njCast = null; o.shurCd = 1.0 + Math.random() * 0.5; } return; }
+  o.shurCd -= dt;
+  const sx = Math.round(o.x), sy = Math.round(o.y), off = Math.abs(o.x - sx) + Math.abs(o.y - sy);
+  if (o.shurCd <= 0 && off < 0.14) { const d = njAim(o); if (d) { o.x = sx; o.y = sy; o.ai.path = []; o.njCast = { k: 'shur', t: 0, dur: 0.35, dx: d[0], dy: d[1] }; o.face = faceOf(d[0], d[1]); return; } }
+  o.ai.cd -= dt; if (o.ai.cd <= 0) { njThink(o, 2, 4); o.ai.cd = 0.2 + Math.random() * 0.1; }
+  aiFollow(o, dt);
+}
+function cloneGone(o) {
+  if (!o || !o.alive) return;
+  o.alive = false; o.deathT = 1; o.njCast = null; o.moving = false;
+  njPuff(Math.round(o.x), Math.round(o.y), 14); Sfx.play('poof');
+}
+// shurikens : ils filent en ligne droite, s'arrêtent sur les blocs, font sauter les bombes et soufflent le joueur
+function njShurTick(dt) {
+  const st = NJ_SHUR_V * dt;
+  for (let i = G.shur.length - 1; i >= 0; i--) {
+    const s = G.shur[i]; s.x += s.dx * st; s.y += s.dy * st; s.a += dt * 22;
+    const cx = Math.round(s.x), cy = Math.round(s.y);
+    let gone = cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS || G.grid[idx(cx, cy)] !== EMPTY;
+    if (!gone) for (const b of G.bombs) {
+      const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog;
+      if (Math.abs(bx - s.x) < 0.5 && Math.abs(by - s.y) < 0.5) { b.timer = Math.min(b.timer, 0); gone = true; break; }
+    }
+    if (!gone) for (const o of G.players) {
+      if (!o.alive || o.team !== 0 || Math.abs(o.x - s.x) >= 0.42 || Math.abs(o.y - s.y) >= 0.42) continue;
+      kill(o, s.by); gone = true; break;
+    }
+    if (gone) {
+      G.shur.splice(i, 1);
+      for (let j = 0; j < 5; j++) { const a = Math.random() * TAU, sp = 50 + Math.random() * 80; addP({ kind: 'spark', x: (s.x + 0.5) * T, y: (s.y + 0.5) * T - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.25, max: 0.25, size: 2, color: '#e8eef5' }); }
+      Sfx.play('tink');
+    }
+  }
+}
+// au sol : croix des kunais, lignes rouges des shurikens annoncés, cibles des techniques
+function drawNjGround(c, t) {
+  c.save();
+  for (const b of G.bombs) {
+    if (!b.kunai) continue;
+    const [bx, by] = bombCell(b), q = 1 - Math.max(0, b.timer) / 2, a = (0.3 + 0.38 * q) * (0.7 + 0.3 * Math.sin(t * 20));
+    c.fillStyle = `rgba(255,30,15,${a.toFixed(3)})`; c.strokeStyle = `rgba(255,90,60,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2;
+    for (const [x, y] of njBlast(bx, by, b.range)) { c.fillRect(x * T + 3, y * T + 3, T - 6, T - 6); c.strokeRect(x * T + 4, y * T + 4, T - 8, T - 8); }
+  }
+  for (const p of G.players) if (p.clone && p.alive) { c.fillStyle = `rgba(123,77,255,${(0.32 + 0.1 * Math.sin(t * 9)).toFixed(3)})`; ell(c, (p.x + 0.5) * T, (p.y + 0.5) * T + 14, 17, 6); c.fill(); }
+  for (const p of G.players) {
+    const cs = p.alive && p.njCast; if (!cs) continue;
+    const q = Math.min(1, cs.t / cs.dur), x = (p.x + 0.5) * T, y = (p.y + 0.5) * T, sx = Math.round(p.x), sy = Math.round(p.y);
+    if (cs.k === 'shur' || cs.k === 'rain') {
+      const dirs = cs.k === 'rain' ? NJ_DIR8 : [[cs.dx, cs.dy]], a = (cs.k === 'rain' ? 0.3 + 0.5 * q : 0.2 + 0.45 * q) * (0.75 + 0.25 * Math.sin(t * 26));
+      c.strokeStyle = `rgba(255,40,25,${a.toFixed(3)})`; c.lineWidth = cs.k === 'rain' ? 7 : 5; c.lineCap = 'round';
+      for (const [dx, dy] of dirs) {
+        const r = njRay(sx, sy, dx, dy); if (!r.length) continue;
+        const e = r[r.length - 1]; c.beginPath(); c.moveTo(x, y); c.lineTo((e[0] + 0.5) * T, (e[1] + 0.5) * T); c.stroke();
+      }
+    } else if (cs.k === 'perm' && cs.b && G.bombs.includes(cs.b)) {
+      const bx = (cs.b.x + 0.5) * T, by = (cs.b.y + 0.5) * T;
+      c.setLineDash([6, 7]); c.lineDashOffset = -t * 40; c.strokeStyle = 'rgba(176,124,255,.75)'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.arc(bx, by, T * 0.42, 0, TAU); c.stroke();
+    } else if (cs.tx !== undefined) {
+      const tx = (cs.tx + 0.5) * T, ty = (cs.ty + 0.5) * T, red = cs.k === 'kunai';
+      c.strokeStyle = red ? `rgba(255,60,40,${(0.5 + 0.4 * q).toFixed(3)})` : `rgba(176,124,255,${(0.5 + 0.4 * q).toFixed(3)})`; c.lineWidth = 3;
+      c.beginPath(); c.arc(tx, ty, T * (0.46 - 0.12 * q), 0, TAU); c.stroke();
+      if (red) { c.beginPath(); c.moveTo(tx - 14, ty); c.lineTo(tx + 14, ty); c.moveTo(tx, ty - 14); c.lineTo(tx, ty + 14); c.stroke(); }
+      if (cs.k === 'jump') { c.setLineDash([4, 6]); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo((x + tx) / 2, (y + ty) / 2 - T * 1.2, tx, ty); c.stroke(); c.setLineDash([]); }
+    }
+  }
+  c.restore();
+}
+function drawShur(c, x, y, a) {
+  c.save(); c.translate(x, y); c.rotate(a);
+  c.fillStyle = '#dfe5ec'; c.strokeStyle = '#2b3038'; c.lineWidth = 1.4; c.beginPath();
+  for (let i = 0; i < 4; i++) { const r = i * Math.PI / 2; c.lineTo(Math.cos(r) * 11, Math.sin(r) * 11); c.lineTo(Math.cos(r + Math.PI / 4) * 3.6, Math.sin(r + Math.PI / 4) * 3.6); }
+  c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#2b3038'; c.beginPath(); c.arc(0, 0, 2.2, 0, TAU); c.fill();
+  c.restore();
+}
+// en hauteur : les shurikens, et le cercle violet de la technique en préparation (la fenêtre pour le frapper)
+function drawNjTop(c, t) {
+  for (const s of G.shur) drawShur(c, (s.x + 0.5) * T, (s.y + 0.5) * T - 10, s.a);
+  const p = G.nj.p, cs = p.alive && p.njCast;
+  if (!cs || G.nj.salto) return;
+  const q = Math.min(1, cs.t / cs.dur), x = (p.x + 0.5) * T, y = (p.y + 0.5) * T - 4, R = T * 0.62;
+  c.save();
+  c.globalAlpha = 0.25 + 0.15 * Math.sin(t * 16); c.fillStyle = '#9b6bff'; c.beginPath(); c.arc(x, y, R, 0, TAU); c.fill(); c.globalAlpha = 1;
+  c.lineWidth = 4; c.strokeStyle = 'rgba(20,10,35,.55)'; c.beginPath(); c.arc(x, y, R, 0, TAU); c.stroke();
+  c.strokeStyle = '#c9a6ff'; c.beginPath(); c.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + TAU * q); c.stroke();
+  if (cs.k !== 'shur') {
+    c.font = '800 14px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 4; c.strokeStyle = 'rgba(25,15,8,.85)'; c.strokeText(NJ_NAMES[cs.k], x, y - R - 12); c.fillStyle = '#e6d6ff'; c.fillText(NJ_NAMES[cs.k], x, y - R - 12);
+  }
+  c.restore();
+}
+// le kunai explosif planté dans le sol, avec son parchemin qui brûle
+function drawKunai(c, x, y, b, t) {
+  const left = Math.max(0, b.timer);
+  c.save(); c.translate(x, y + 4);
+  c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 9, 9, 3); c.fill();
+  c.rotate(-0.28);
+  c.fillStyle = '#c9d2dc'; c.strokeStyle = '#2a2f36'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(0, 9); c.lineTo(-5.5, -2); c.lineTo(0, -6); c.lineTo(5.5, -2); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#3a3340'; c.fillRect(-2, -18, 4, 12);
+  c.strokeStyle = '#3a3340'; c.lineWidth = 2; c.beginPath(); c.arc(0, -22, 4, 0, TAU); c.stroke();
+  const fl = Math.sin(t * 14) * 1.5;
+  c.fillStyle = '#f3e5c0'; c.fillRect(-7 + fl * 0.3, -17, 14, 9);
+  c.fillStyle = '#d0302a'; c.fillRect(-5 + fl * 0.3, -15, 10, 1.6); c.fillRect(-5 + fl * 0.3, -11.5, 10, 1.6);
+  drawSpark(c, 6 + fl * 0.3, -18);
+  if (left < 0.6 && Math.sin(t * 32) > 0) { c.fillStyle = 'rgba(255,70,40,.4)'; c.beginPath(); c.arc(0, -6, 13, 0, TAU); c.fill(); }
+  c.restore();
+}
+function drawNjBar(c, t) {
+  const nj = G.nj, w = Math.min(320, W - 180), x = (W - w) / 2, y = 12, cs = nj.p.alive && nj.p.njCast;
+  c.save();
+  // quelqu'un en haut de l'arène : la barre s'efface pour ne rien cacher
+  if (G.players.some(o => o.alive && o.y < 2.2 && Math.abs((o.x + 0.5) * T - W / 2) < w / 2 + T)) c.globalAlpha = 0.3;
+  c.fillStyle = 'rgba(10,14,10,.72)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
+  c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = '#e6d6ff';
+  c.fillText('Le Ninja' + (cs && cs.k !== 'shur' ? ' · ' + NJ_NAMES[cs.k] : ''), x, y + 1);
+  c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.8)'; c.fillText(`${Math.max(0, nj.hp)} / ${NJ_HP} PV`, x + w, y + 1); c.textAlign = 'left';
+  const gw = (w - 8) / NJ_HP;
+  for (let i = 0; i < NJ_HP; i++) { c.fillStyle = i < nj.hp ? (nj.hitT > 0 ? '#ffffff' : '#9b6bff') : '#2a1f3a'; rr(c, x + i * (gw + 4), y + 19, gw, 11, 5.5); c.fill(); }
+  c.restore();
 }
 // À sa mort, un artificier lâche tous ses bonus : ils sont lancés depuis sa case vers des cases libres à 4 cases au plus.
 const BR_KILL_PTS = 40, BR_GOAL = 1000;
@@ -3083,6 +3462,11 @@ function updateAI(p, dt) {
   const sig = aiSignature(p);
   if (sig !== ai.sig) { ai.sig = sig; ai.cd = Math.min(ai.cd, ai.lv.react); }
   if (ai.cd <= 0) { ai.cdNext = undefined; think(p); ai.cd = ai.cdNext ?? ai.lv.think + Math.random() * 0.08; }
+  aiFollow(p, dt);
+}
+// un ordi suit le chemin qu'il a choisi
+function aiFollow(p, dt) {
+  const ai = p.ai;
   let dist = speedOf(p) * dt;
   p.moving = false;
   for (let guard = 0; guard < 4 && dist > 1e-6 && ai.path.length; guard++) {
@@ -3304,12 +3688,13 @@ function update(dt) {
       }
     }
     if (NET.role === 'host') applyGuestInput();
-    for (const p of G.players) { if (!p.alive || p.dummy) continue; if (p.npc) { npcTick(p, dt); continue; } if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
+    for (const p of G.players) { if (!p.alive || p.dummy) continue; if (p.npc) { npcTick(p, dt); continue; } if (p.ninja || p.clone) { if (G.nj) njTick(p, dt); continue; } if (p.ai) updateAI(p, dt); else if (!p.remote) updateHuman(p, dt); }
   } else {
     for (const p of G.players) p.moving = false;
   }
   if (G.boss && G.phase === 'play') bossTick(G.boss, dt);
   updateBombs(dt);
+  if (G.shur && G.shur.length && G.phase === 'play') njShurTick(dt);
   updateThrown(dt);
   if (G.lobs && G.lobs.length) updateLobs(dt);
   if (G.warn && G.warn.length) updateWarn(dt);
@@ -3333,7 +3718,7 @@ function update(dt) {
       if (G.mode === 'br' && p.deathT >= BR_RESPAWN) brSpawn(p);
     }
   }
-  if (G.phase === 'play' && (campFlag('team') || campFlag('split'))) {
+  if (G.phase === 'play' && (campFlag('team') || campFlag('split') || campFlag('ninja'))) {
     teamTick(dt);
     // 2 contre 2 : la manche s'arrête quand il ne reste qu'une équipe (ou personne),
     // et quand le joueur est soufflé sans pouvoir être relevé (sa tombe a disparu ou il n'a plus de coéquipier) : il ne reste que des ordis
@@ -4959,6 +5344,7 @@ function drawBombBody(c, kind, R, t, col) {
   }
 }
 function drawBomb(c, x, y, b, t) {
+  if (b && b.kunai) { drawKunai(c, x, y, b, t); return; }
   const o = b && b.owner, bs = o ? csOf(o)[0] : 1;
   if (o && o.skin && bs === 0) { const ch = CHARS[o.skin], im = ch && charImg[ch.key]; if (im) { drawCharBomb(c, x, y, b, t, im, CHAR_RECTS[ch.key].bomb[0]); return; } }
   const left = b ? Math.max(0, b.timer) : FUSE, u = 1 - left / FUSE;
@@ -5509,6 +5895,7 @@ function render() {
   }
 
   if (G.warn && G.warn.length) drawWarn(c, t);
+  if (G.nj) drawNjGround(c, t);
   if (G.tombs && G.tombs.length) drawTombs(c, t);
   if (G.tg) drawRange(c, t);
   if (G.train && G.train.danger) drawDanger(c);
@@ -5543,6 +5930,7 @@ function render() {
       if (!p.alive) o.dead = Math.min(1, p.deathT);
       else if ((G.phase === 'roundEnd' || G.phase === 'matchEnd') && G.lastWinner === p.id) { o.hop = Math.abs(Math.sin(t * 7)) * 7; }
       else if (G.phase === 'brEnd' && G.megaOn && G.megaW === p.id) { o.hop = megaHop(G.megaT); }
+      if (p.ninja && G.nj && G.nj.salto) o.hop = Math.sin(Math.min(1, G.nj.salto.t / G.nj.salto.dur) * Math.PI) * T * 0.9;
       let dz = null;
       if (p.alive && p.emote && EMOTES[p.emote.n].dance) { const ag = G.t - p.emote.at; if (ag < 2.4) { dz = ['down', 'left', 'down', 'right'][Math.floor(ag * 5) % 4]; if (!o.hop) o.hop = Math.abs(Math.sin(ag * 9)) * 6; } }
       const face = dz || ((!p.alive || o.hop) ? 'down' : p.face);
@@ -5552,8 +5940,10 @@ function render() {
       if (tr) { drawTopRing(c, hx, hy, tr, t); topB.push([hx, hy - (o.hop || 0), tr]); }
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, false, p.id);
       const zs = p.size && p.size !== 1; if (zs) { c.save(); c.translate(hx, hy + T * 0.42); c.scale(p.size, p.size); c.translate(-hx, -(hy + T * 0.42)); }
+      if (p.clone) { c.save(); c.globalAlpha = 0.5 + 0.08 * Math.sin(t * 9); }
       if (p.alive && p.shield > 0 && Math.sin(t * 22) > 0) { c.save(); c.globalAlpha = 0.45; drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o); c.restore(); }
       else drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o);
+      if (p.clone) c.restore();
       if (zs) c.restore();
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, true, p.id);
     }
@@ -5574,6 +5964,7 @@ function render() {
   if (G.lobs && G.lobs.length) drawLobs(c, t);
   if (G.camp && G.camp.npc && !G.camp.boss) drawNpcs(c, t);
   if (G.boss) drawBoss(c, t);
+  if (G.nj) drawNjTop(c, t);
   drawParticles(c);
   for (const [mx, my, r] of topB) drawTopMark(c, mx, my, r, t);
   for (const [ex, ey, p] of emoB) drawEmoteBubble(c, ex, ey, p.emote.n, G.t - p.emote.at, p.pal.ui);
@@ -5635,6 +6026,7 @@ function render() {
   if (G.suddenFlash > 0 && G.phase === 'play') drawBanner(c, 'Mort subite !', "L'arène rétrécit, puis des bonus tombent du ciel", '#ff7a2f', Math.min(1, G.suddenFlash * 2));
   if (G.rageFlash > 0 && G.phase === 'play' && G.rageMsg) drawBanner(c, G.rageMsg[0], G.rageMsg[1], '#ff3b2f', Math.min(1, G.rageFlash * 2));
   if (G.boss && inGame()) drawBossBar(c, t);
+  if (G.nj && inGame()) drawNjBar(c, t);
   if (G.tg && inGame()) drawTgtBar(c, t);
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
@@ -5697,9 +6089,10 @@ function buildStatics() {
 }
 const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[viewIdx()] : null)
   : G.train ? (i === 0 ? G.players[0] : null)
+  : G.camp && G.camp.ninja && G.mode === 'match' ? (i < 2 ? G.players[i] : null)
   : G.camp && G.camp.split && G.mode === 'match' ? (i === 0 ? G.players[0] : i === 1 ? G.players.find(o => o.team === 1 && o.alive) || G.players[1] : null) : G.players[i];
 function setupHud() {
-  document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2 && !(G.camp && G.camp.split));
+  document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2 && !(G.camp && (G.camp.split || G.camp.ninja)));
   if (G.mode !== 'br') $('#br-ui').hidden = true;
   for (let i = 0; i < 4; i++) {
     const p = hudPlayer(i), card = cards[i];
@@ -5733,6 +6126,7 @@ function drawHudFrames() {
 }
 function updateHud() {
   drawHudFrames();
+  if (G.nj && !cards[1].hidden) setTxt(cards[1].querySelector('.ptag'), `${G.nj.hp} PV`, 'nj');
   if (G.camp && G.camp.split && G.mode === 'match' && !cards[1].hidden) { const n = G.players.filter(o => o.team === 1 && o.alive).length; setTxt(cards[1].querySelector('.ptag'), n > 1 ? `Ordi ×${n}` : 'Ordi', 'gl'); }
   for (let i = 0; i < 4; i++) {
     const p = hudPlayer(i); if (!p) continue;
@@ -7082,6 +7476,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
+      : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · seule une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) le touche · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
@@ -7110,7 +7505,7 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.ninja ? 'Boss · 3 PV' : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   const fr = campSeats(c);
   if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = fr.length ? `Toi, ${fr.map(L => cleanNick(L.nick, 'Ami')).join(', ')}${c.allies > fr.length ? ` + ${c.allies - fr.length} allié${c.allies - fr.length > 1 ? 's' : ''}` : ''}` : `Toi + ${c.allies} alliés`;
@@ -7151,6 +7546,15 @@ function startCampMatch(i) {
     const e2 = makePlayer(3, AI_LV[c.lv], skinName(c.foes[1])); e2.skin = c.foes[1];
     me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
     setPlayers([me, e1, al, e2]); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
+    newRound(); setupHud();
+    menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+    blurActive(); return;
+  }
+  if (c.ninja) {
+    // défi 7 : duel contre le Ninja (équipe 1) ; son clone s'ajoute à la liste des joueurs pendant la manche
+    const nj = makePlayer(1, AI_LV[c.lv], skinName(c.foe)); nj.skin = c.foe;
+    me.team = 0; nj.team = 1;
+    setPlayers([me, nj]); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
     newRound(); setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
@@ -7342,6 +7746,7 @@ function showEndCamp() {
   const text = c.targets ? (won ? `Les ${G.tg.total} cibles sont tombées, avec ${G.tg.ammo} bombe${G.tg.ammo > 1 ? 's' : ''} en réserve et ${Math.ceil(G.time)} s d'avance !` : `${G.tg.hits} cible${G.tg.hits > 1 ? 's' : ''} sur ${G.tg.total} · ${{ time: 'temps écoulé', ammo: 'plus de bombes', dead: 'soufflé par ta propre bombe' }[G.tg.why] || 'raté'}.`)
     : c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.ninja ? (won ? 'Le Ninja est vaincu !' : `Le Ninja avait encore ${G.nj ? G.nj.hp : '?'} PV sur 3.`)
     : c.split ? (won ? 'Les 7 Gloop ont éclaté !' : `Il restait ${G.players.filter(o => o.team === 1 && o.alive).length} Gloop.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
@@ -9636,7 +10041,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
