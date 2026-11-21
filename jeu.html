@@ -1321,7 +1321,7 @@ const CAMP = [
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 3, wins: 1, time: 600, tomb: 4, allyDmg: 0.3 },
   { name: 'Gloop se divise', desc: 'Gloop est plus gros que d\'habitude, et un peu plus lent. Souffle-le : il se divise en deux Gloop plus petits et plus rapides, qui se divisent encore une fois. Les plus petits, eux, éclatent pour de bon. Il y a 7 Gloop à souffler en tout.',
-    foe: 8, lv: 2, split: true, wins: 1 },
+    foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
   { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
