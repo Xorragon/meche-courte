@@ -1322,7 +1322,7 @@ const CAMP = [
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 3, wins: 1, time: 600, tomb: 4, allyDmg: 0.3 },
   { name: 'Gloop se divise', desc: 'Gloop est plus gros que d\'habitude, et un peu plus lent. Souffle-le : il se divise en deux Gloop plus petits et plus rapides, qui se divisent encore une fois. Les plus petits, eux, éclatent pour de bon. Il y a 7 Gloop à souffler en tout.',
     foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
-  { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe et les explosions ne l\'atteignent pas. Mais quand il prépare une technique (permutation, saut de l\'ombre, kunai explosif, clone), il s\'arrête un instant : c\'est là qu\'il faut lui pousser une bombe dessus. Trois coups pour le vaincre. Gare à ses shurikens !',
+  { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe, mais il est vif : il permute avec tes bombes, saute par-dessus les murs et lance des shurikens. Souffle-le avec tes explosions, ou pousse-lui une bombe dessus quand il prépare une technique. Trois coups pour le vaincre !',
     foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
   { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
@@ -2275,7 +2275,7 @@ function updateBombs(dt) {
       if (tg) { if (tgtShieldBlocks(tg, -b.mdx, -b.mdy)) { tgtBlocked(tg); tgtBounce(b); } else { b.hitTgt = tg; stopBomb(b); } }
       else if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
       // défi 7 : contre le Ninja qui prépare une technique, la bombe le frappe ; sinon il la pare et elle reste collée contre lui
-      else if (G.nj && njAt(nx, ny)) { if (njOpen()) { b.hitNinja = true; stopBomb(b); } else njParry(b); }
+      else if (G.nj && njOpen() && njAt(nx, ny)) { b.hitNinja = true; stopBomb(b); }
       else if (G.nj && cloneAt(nx, ny)) cloneGone(cloneAt(nx, ny));
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
@@ -2285,7 +2285,7 @@ function updateBombs(dt) {
           if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
           else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy)) { const tg2 = tgtAt(b.x + b.mdx, b.y + b.mdy); if (tgtShieldBlocks(tg2, -b.mdx, -b.mdy)) { tgtBlocked(tg2); tgtBounce(b); } else { b.hitTgt = tg2; stopBomb(b); } }
           else if (bossAt(b.x + b.mdx, b.y + b.mdy)) boom();
-          else if (G.nj && (njAt(b.x + b.mdx, b.y + b.mdy) || cloneAt(b.x + b.mdx, b.y + b.mdy))) { /* vu à l'image suivante */ }
+          else if (G.nj && ((njOpen() && njAt(b.x + b.mdx, b.y + b.mdy)) || cloneAt(b.x + b.mdx, b.y + b.mdy))) { /* vu à l'image suivante */ }
           else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
       }
@@ -2358,6 +2358,7 @@ function land(k) {
   fx('land', x, y);
 }
 function kill(p, by) {
+  if (p.ninja && G.nj && p.alive && p.god) { if (by >= 0 && by !== p.id) njFlame(p, by); return; }   // défi 7 : une explosion le blesse (1 PV, puis 1,2 s d'invulnérabilité)
   if (!p.alive || p.shield > 0 || p.god) return;
   if (p.clone) { cloneGone(p); return; }   // défi 7 : le clone d'ombre s'évanouit au premier coup
   if (by >= 0 && by !== p.id && G.players[by]) {
@@ -2396,7 +2397,7 @@ function gloopSplit(p) {
   Sfx.play('pickup');
 }
 
-/* ---------- Défi 7 : le Ninja. Les explosions ne l'atteignent pas : seule une bombe poussée sur lui pendant
+/* ---------- Défi 7 : le Ninja. Tes explosions le blessent, et une bombe poussée sur lui pendant
    qu'il prépare une technique le touche (3 coups). Il lance des shurikens, qui soufflent et font sauter les bombes ---------- */
 const NJ_HP = 3, NJ_SHUR_V = 7.5, NJ_CD = [3.3, 2.7, 2.2], NJ_CAST_K = [1, 0.92, 0.85];
 const NJ_NAMES = { perm: 'Permutation', jump: 'Saut de l\'ombre', kunai: 'Kunai explosif', clone: 'Clone d\'ombre', rain: 'Pluie de shurikens', shur: 'Shuriken' };
@@ -2405,7 +2406,7 @@ const NJ_DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1
 const faceOf = (dx, dy) => Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
 function njInit(p) {
   Object.assign(p, { ninja: true, god: true, spMul: 1.08, njCast: null });
-  return { p, hp: NJ_HP, phase: 0, cd: 2.4, shurCd: 1.8, salto: null, intro: false, parryT: 0, hitT: 0 };
+  return { p, hp: NJ_HP, phase: 0, cd: 7, shurCd: 5, salto: null, intro: false, parryT: 0, hitT: 0 };
 }
 // il prépare une technique (et n'est pas en plein saut) : c'est le seul moment où une bombe poussée le touche
 const njOpen = () => { const nj = G.nj; return !!(nj && nj.p.alive && nj.p.njCast && !nj.salto); };
@@ -2495,7 +2496,7 @@ function njChoose(p) {
   for (const b of G.bombs) {
     if (b.mdx || b.mdy || b.kunai || b.timer < 0.5) continue;
     const dn = Math.abs(b.x - sx) + Math.abs(b.y - sy), dp = Math.abs(b.x - px) + Math.abs(b.y - py);
-    if (dn < 3 || dp < 1) continue;
+    if (dn < 3 || dp < 3) continue;   // jamais une bombe collée au joueur : il n'apparaît pas juste à côté de lui
     if (dp < pd) { pd = dp; pb = b; }
   }
   if (pb) opts.push([1, { k: 'perm', b: pb, tx: pb.x, ty: pb.y }]);
@@ -2528,8 +2529,8 @@ function njStartCast(p, c, dur) {
 function njTick(p, dt) {
   if (p.clone) { cloneTick(p, dt); return; }
   const nj = G.nj; if (!nj || nj.p !== p) return;
-  if (!nj.intro) { nj.intro = true; G.rageMsg = ['Le Ninja', 'Frappe-le avec une bombe poussée quand il prépare une technique']; G.rageFlash = 2.6; }
-  nj.parryT = Math.max(0, nj.parryT - dt); nj.hitT = Math.max(0, nj.hitT - dt);
+  if (!nj.intro) { nj.intro = true; G.rageMsg = ['Le Ninja', 'Souffle-le, ou pousse-lui une bombe dessus quand il prépare une technique']; G.rageFlash = 2.6; }
+  nj.parryT = Math.max(0, nj.parryT - dt); nj.hitT = Math.max(0, nj.hitT - dt); nj.invT = Math.max(0, (nj.invT || 0) - dt);
   if (nj.salto) { njSaltoTick(p, dt); return; }
   if (p.njCast) { p.moving = false; p.njCast.t += dt; if (p.njCast.t >= p.njCast.dur) njFire(p); return; }
   nj.cd -= dt; nj.shurCd -= dt;
@@ -2559,7 +2560,7 @@ function njFire(p) {
       njPuff(sx, sy); njPuff(b.x, b.y);
       const bx = b.x, by = b.y; b.x = sx; b.y = sy; p.x = bx; p.y = by; p.ai.path = [];
       b.passers.clear(); for (const o of G.players) if (o.alive && Math.abs(o.x - sx) < 0.98 && Math.abs(o.y - sy) < 0.98) b.passers.add(o.id);
-      rebuildBombAt(); Sfx.play('poof'); njText(p, 'Permutation !');
+      rebuildBombAt(); Sfx.play('poof'); njText(p, 'Permutation !'); nj.shurCd = Math.max(nj.shurCd, 1.6);
     } else njText(p, 'Raté…', '#bfb3d6', 15);
     return;
   }
@@ -2604,12 +2605,21 @@ function njParry(b) {
 }
 // une bombe poussée l'a frappé pendant qu'il préparait une technique
 function njHit(b) {
+  const by = b.kickBy !== undefined && b.kickBy !== null ? b.kickBy : 0;
+  Sfx.boom(boomKind(b.owner && b.owner.id === 0 ? b.owner : null), 0.6, earVol(b.x, b.y));
+  njDamage(by);
+}
+// une explosion (pas la sienne) le touche : 1 PV, sauf en plein saut ou juste après un coup
+function njFlame(p, by) {
+  const nj = G.nj; if (nj.salto || nj.invT > 0 || G.phase !== 'play') return;
+  njDamage(by);
+}
+function njDamage(by) {
   const nj = G.nj, p = nj && nj.p; if (!p || !p.alive) return;
-  p.njCast = null; nj.hp--; nj.hitT = 0.35;
+  p.njCast = null; nj.hp--; nj.hitT = 0.35; nj.invT = 1.2;
   const x = (p.x + 0.5) * T, y = (p.y + 0.5) * T;
   for (let j = 0; j < 18; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 170; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.45, max: 0.45, size: 2.6, color: j % 3 ? '#ffd166' : '#c9a6ff' }); }
-  Sfx.boom(boomKind(b.owner && b.owner.id === 0 ? b.owner : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 5);
-  const by = b.kickBy !== undefined && b.kickBy !== null ? b.kickBy : 0;
+  if (!reduceMotion) G.shake = Math.max(G.shake, 5);
   if (nj.hp <= 0) {
     for (const o of G.players) if (o.clone && o.alive) cloneGone(o);
     G.shur.length = 0; p.god = false; kill(p, by);
@@ -7477,7 +7487,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
-      : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · seule une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) le touche · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
+      : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
