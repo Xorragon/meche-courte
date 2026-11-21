@@ -288,6 +288,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .ranktable td.fr button{padding:3px 9px;font-size:12px}
 .prof-fr{align-self:center;width:auto;margin:4px 0 2px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.cos-grid.mega .cos-tile canvas{width:92px;height:92px;border-radius:12px;background:radial-gradient(circle at 50% 70%,#2c3a22,#0d140c)}
 .cos-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff6a2a;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px #ff6a2a}
 .cos-dot[hidden]{display:none}
 .custombox{max-width:720px;width:min(720px,100%)}
@@ -783,6 +784,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button type="button" role="tab" data-k="e">Emotes</button>
       <button type="button" role="tab" data-k="c">Carte de victime</button>
       <button type="button" role="tab" data-k="t">Titres</button>
+      <button type="button" role="tab" data-k="m">Giga bombe</button>
     </div>
     <p class="rule small cos-hint" id="cos-hint" role="status"></p>
     <canvas id="cos-card" width="760" height="224" hidden aria-label="Aperçu de ta carte de victime"></canvas>
@@ -1215,7 +1217,15 @@ const auraSelMap = () => settings.admin ? (settings.adminAuraSel || (settings.ad
 const auraOf = i => { const mx = auraMaxOf(i), sel = auraSelMap()[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
 /* ---------- Cosmétiques : skins de bombe, flammes, emotes, cartes de victime ----------
    Débloqués par les stats du joueur : g = parties jouées, k = victimes, w = victoires, l = niveaux gagnés (tous persos). */
-const COS_STAT = { g: ['partie', 'parties'], k: ['victime', 'victimes'], w: ['victoire', 'victoires'], l: ['niveau gagné', 'niveaux gagnés'] };
+const COS_STAT = { g: ['partie', 'parties'], k: ['victime', 'victimes'], w: ['victoire', 'victoires'], l: ['niveau gagné', 'niveaux gagnés'],
+  bg: ['partie de battle royale', 'parties de battle royale'], bk: ['victime en battle royale', 'victimes en battle royale'], bt: ['top 3 en battle royale', 'top 3 en battle royale'],
+  bw: ['battle royale gagné', 'battle royale gagnés'], o: ["point d'orbe", "points d'orbes"] };
+// Finales de la giga bombe (battle royale, à 1000 points) : la cinématique jouée quand tu gagnes, vue par tous
+const MEGA_FX = [
+  { name: 'Classique' }, { name: "Feu d'artifice", need: ['bg', 5] }, { name: 'BOUM !', need: ['bt', 3] },
+  { name: 'Pluie de bombes', need: ['bk', 50] }, { name: 'Météore', need: ['bw', 1] },
+  { name: 'Champignon', need: ['o', 1500] }, { name: 'Trou noir', need: ['bw', 5] },
+];
 const BOMB_SKINS = [
   { name: 'Bombe du perso' }, { name: 'Classique' },
   { name: 'Citrouille', need: ['g', 10] }, { name: 'Boule de neige', need: ['k', 25] },
@@ -1275,9 +1285,9 @@ function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('b
 const PRES_XP = 5000, PRES_MAX = 10;
 const presOfXp = x => Math.max(0, Math.min(PRES_MAX, Math.floor((x - XP_TOTAL[LV_MAX]) / PRES_XP)));
 const presOf = i => settings.admin ? PRES_MAX : presOfXp(realXpOf(i));
-const COS_KINDS = { b: BOMB_SKINS, f: FLAME_SKINS, e: EMOTES, c: CARD_STYLES, p: CARD_PHRASES, t: ACH };
-const COS_LABEL = { b: 'bombe', f: 'flammes', e: 'emote', c: 'carte', p: 'phrase', t: 'succès' };
-const COS_DEF = () => ({ b: 0, f: 0, c: 0, p: 0, t: 0, e: [0, 1, 2, 3] });
+const COS_KINDS = { b: BOMB_SKINS, f: FLAME_SKINS, e: EMOTES, c: CARD_STYLES, p: CARD_PHRASES, t: ACH, m: MEGA_FX };
+const COS_LABEL = { b: 'bombe', f: 'flammes', e: 'emote', c: 'carte', p: 'phrase', t: 'succès', m: 'finale de giga bombe' };
+const COS_DEF = () => ({ b: 0, f: 0, c: 0, p: 0, t: 0, m: 0, e: [0, 1, 2, 3] });
 if (!settings.st || typeof settings.st !== 'object' || Array.isArray(settings.st)) settings.st = {};
 // stats par mode (2026-11-20) : un battle royale gagné est un top 1 et un top 3, on reprend ceux déjà gagnés
 if (settings.st.bt === undefined && Number(settings.st.bw) > 0) settings.st.bt = Math.floor(Number(settings.st.bw)) || 0;
@@ -1292,11 +1302,11 @@ const needTxt = n => `${n[1]} ${COS_STAT[n[0]][n[1] > 1 ? 1 : 0]}`;
 const needLbl = it => it.desc || needTxt(it.need);
 const cosMap = () => settings.admin ? (settings.adminCos || (settings.adminCos = COS_DEF())) : settings.cos;
 const cosIdx = (L, v) => { v = Number(v) | 0; return v >= 0 && v < L.length ? v : 0; };
-const cosClean = a => Array.isArray(a) ? [cosIdx(BOMB_SKINS, a[0]), cosIdx(FLAME_SKINS, a[1]), cosIdx(CARD_STYLES, a[2]), cosIdx(CARD_PHRASES, a[3]), clamp(Number(a[4]) | 0, 0, ACH.length), clamp(Number(a[5]) | 0, 0, PRES_MAX)] : [0, 0, 0, 0, 0, 0];
-// [bombe, flammes, style de carte, phrase, titre (succès + 1, 0 = aucun), étoiles de prestige du perso] du joueur local
+const cosClean = a => Array.isArray(a) ? [cosIdx(BOMB_SKINS, a[0]), cosIdx(FLAME_SKINS, a[1]), cosIdx(CARD_STYLES, a[2]), cosIdx(CARD_PHRASES, a[3]), clamp(Number(a[4]) | 0, 0, ACH.length), clamp(Number(a[5]) | 0, 0, PRES_MAX), cosIdx(MEGA_FX, a[6])] : [0, 0, 0, 0, 0, 0, 0];
+// [bombe, flammes, style de carte, phrase, titre (succès + 1, 0 = aucun), étoiles de prestige du perso, finale de giga bombe] du joueur local
 function myCos() {
   const m = cosMap(), out = [['b', BOMB_SKINS], ['f', FLAME_SKINS], ['c', CARD_STYLES], ['p', CARD_PHRASES]].map(([k, L]) => { const v = cosIdx(L, m[k]); return cosOk(L, v) ? v : 0; });
-  const ti = Number(m.t) | 0; out.push(ti > 0 && cosOk(ACH, ti - 1) ? ti : 0, presOf(settings.skin));
+  const ti = Number(m.t) | 0, mf = cosIdx(MEGA_FX, m.m); out.push(ti > 0 && cosOk(ACH, ti - 1) ? ti : 0, presOf(settings.skin), cosOk(MEGA_FX, mf) ? mf : 0);
   return out;
 }
 const titleOf = cs => cs && cs[4] > 0 && ACH[cs[4] - 1] ? ACH[cs[4] - 1].name : '';
@@ -1306,7 +1316,7 @@ function botCos(p) {
   let h = (((p.id + 1) * 2654435761) ^ (G.seed | 0)) >>> 0;
   const r = n => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return (h >>> 8) % n; };
   const pick = L => { const ok = L.map((_, i) => i).filter(i => cosOkReal(L, i)); return ok[r(ok.length)] | 0; };
-  return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0];
+  return [r(2) ? 0 : pick(BOMB_SKINS), pick(FLAME_SKINS), pick(CARD_STYLES), pick(CARD_PHRASES), 0, 0, pick(MEGA_FX)];
 }
 // ===== Musique =====
 // Accueil : home-03 en boucle. Écran de la campagne (pas pendant les défis) : royale-01 en boucle.
@@ -1392,7 +1402,7 @@ function boomKind(p) {
   if (!p) return 'classic';
   const bs = csOf(p)[0] | 0; return bs > 0 ? BOOM_SKIN[bs] || 'classic' : 'classic';
 }
-const csOf = p => p.cs || (p.cs = p.ai || p.isBot ? botCos(p) : [0, 0, 0, 0, 0, 0]);
+const csOf = p => p.cs || (p.cs = p.ai || p.isBot ? botCos(p) : [0, 0, 0, 0, 0, 0, 0]);
 function cosAllKeys() { const out = []; for (const k in COS_KINDS) COS_KINDS[k].forEach((_, i) => { if (cosOkReal(COS_KINDS[k], i)) out.push(k + i); }); return out; }
 function syncCosBadge() { const d = document.querySelector('#btn-custom .cos-dot'); if (d) d.hidden = !(Array.isArray(settings.cosNew) && settings.cosNew.length); }
 // nouveaux déblocages : message et pastille sur « Personnaliser »
@@ -2108,7 +2118,8 @@ function kill(p, by) {
   }
   p.killedBy = by; p.alive = false; p.deathT = 0; p.deadTick = G.tick; p.moving = false;
   if (G.camp && p.id === 0) G.campT = G.time;   // défi de survie : moment où le joueur est tombé
-  fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100);
+  // battle royale : on affiche les points qu'il avait au moment de sa mort
+  fx('kill', Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100, p.id, G.mode === 'br' ? p.pts | 0 : -1);
   // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
   if (campFlag('tomb') && G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb, kick: p.kick });   // bonus éjectés quand même ; seule la poussée est rendue à la résurrection
   scatterLoot(p);
@@ -2191,9 +2202,12 @@ const FX = {
     if (!reduceMotion && inView(x, y)) G.shake = Math.min(10, G.shake + 2.5);
     Sfx.play('thud');
   },
-  kill(px, py) {
+  kill(px, py, id, pts) {
+    const P = G.players[id | 0];
+    if (P && pts >= 0) P.lostPts = pts | 0;
     if (!nearView(px, py)) return;
     const x = (px + 0.5) * T, y = (py + 0.5) * T - 6;
+    if (G.mode === 'br' && pts >= 0) addP({ kind: 'text', x, y: y - 34, vx: 0, vy: -30, life: 1.8, max: 1.8, size: pts >= 300 ? 24 : pts > 0 ? 19 : 15, color: pts >= 300 ? '#ffd36e' : pts > 0 ? '#f3e5c0' : 'rgba(243,229,192,.7)', text: `${pts} pt${pts > 1 ? 's' : ''}${pts >= 300 ? ' !' : ''}` });
     for (let i = 0; i < 12; i++) addP({ kind: 'smoke', x, y, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 80, life: 0.9, max: 0.9, size: 7, color: '60,55,55' });
     for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, s = 80 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, size: 2.4, color: '#ffd166' }); }
     Sfx.play('death');
@@ -2255,6 +2269,7 @@ const FX = {
     if (!reduceMotion) G.shake = 22; rumble(0.9, 1, 900);
     G.megaRing = { x: (G.megaTx + 0.5) * T, y: (G.megaTy + 0.5) * T, t: 0 };
     const x = (G.megaTx + 0.5) * T, y = (G.megaTy + 0.5) * T;
+    megaImpact(megaKind(), x, y);
     for (let i = 0; i < 26; i++) addP({ kind: 'smoke', x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 220, vy: -40 - Math.random() * 140, life: 1.4, max: 1.4, size: 14, color: '90,70,60' });
     for (let i = 0; i < 60; i++) { const a = Math.random() * TAU, sp = 200 + Math.random() * 520; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.8, max: 0.8, size: 3.4, color: i % 3 ? '#ffd166' : '#ff6a2a' }); }
   },
@@ -3039,7 +3054,7 @@ function startBr() {
 const MEGA_GROW = 0.5, MEGA_THROW = 1.55, MEGA_HIT = 2.3, MEGA_END = 4.7;
 function megaStart(id, t0) {
   const w = G.players[id]; if (!w) return;
-  G.megaOn = true; G.megaW = id; G.megaT = t0; G.megaBoomFx = t0 >= MEGA_HIT; G.megaRing = null;
+  G.megaOn = true; G.megaW = id; G.megaT = t0; G.megaBoomFx = t0 >= MEGA_HIT; G.megaRing = null; G.megaFx = null;
   // point de chute : 3,5 cases vers le centre de la carte
   const wx = w.rx ?? w.x, wy = w.ry ?? w.y;
   let dx = (COLS - 1) / 2 - wx, dy = (ROWS - 1) / 2 - wy; const d = Math.hypot(dx, dy);
@@ -3055,6 +3070,7 @@ function megaStart(id, t0) {
 }
 function megaTick(dt) {
   if (G.megaRing) { G.megaRing.t += dt; if (G.megaRing.t > 1.3) G.megaRing = null; }
+  if (G.megaFx) megaFxTick(dt);
   if (!G.megaOn) return;
   const t0 = G.megaT; G.megaT += dt;
   if (t0 < MEGA_THROW && G.megaT >= MEGA_THROW) Sfx.play('throw');
@@ -3083,9 +3099,17 @@ function drawMegaBomb(c, t) {
     x = hx; y = hy; h = 40 + R + megaHop(m) - wind * 8; rot = Math.sin(m * 9) * 0.05;
   } else {
     q = Math.min(1, (m - MEGA_THROW) / (MEGA_HIT - MEGA_THROW));
-    const e = q * q * (3 - 2 * q);
-    x = hx + ((G.megaTx + 0.5) * T - hx) * e; y = hy + ((G.megaTy + 0.5) * T - hy) * e;
-    h = (40 + R) * (1 - q) + Math.sin(q * Math.PI) * 5 * T; sc = 1 + 0.7 * Math.sin(q * Math.PI); rot = q * 7;
+    const e = q * q * (3 - 2 * q), fk = megaKind();
+    if (fk === 3 || fk === 4) {
+      // pluie de bombes, météore : la bombe part tout droit dans le ciel
+      if (q > 0.55) return;
+      x = hx; y = hy; h = (40 + R) + q * q * 16 * T; sc = 1 - q * 0.6; rot = q * 5;
+    } else {
+      x = hx + ((G.megaTx + 0.5) * T - hx) * e; y = hy + ((G.megaTy + 0.5) * T - hy) * e;
+      h = (40 + R) * (1 - q) + Math.sin(q * Math.PI) * (fk === 1 ? 8 : 5) * T; sc = 1 + 0.7 * Math.sin(q * Math.PI); rot = q * 7;
+      if (fk === 6 && q > 0.6) sc *= Math.max(0.05, 1 - (q - 0.6) / 0.4);   // trou noir : elle est aspirée
+    }
+    if (fk === 1 && Math.random() < 0.9) addP({ kind: 'spark', x: x + (Math.random() - 0.5) * 8, y: y - h + R * sc, vx: (Math.random() - 0.5) * 40, vy: 40 + Math.random() * 60, life: 0.5, max: 0.5, size: 2.6, color: ['#ffd166', '#ff6a2a', '#fff3c0'][(Math.random() * 3) | 0] });
   }
   // ombre au sol
   const sh = Math.max(0.15, 1 - h / (6 * T));
@@ -3105,6 +3129,172 @@ function drawMegaBomb(c, t) {
   c.restore();
   // étincelles qui s'échappent
   if (Math.random() < 0.5) addP({ kind: 'spark', x: x + (Math.random() - 0.5) * R, y: y - h - R * sc, vx: (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 60, life: 0.4, max: 0.4, size: 2.2, color: Math.random() < 0.5 ? '#ffd166' : '#ff8a3d' });
+}
+/* ---------- Finales de la giga bombe : 0 classique, 1 feu d'artifice, 2 BOUM !, 3 pluie de bombes, 4 météore, 5 champignon, 6 trou noir ---------- */
+const megaKind = () => { const w = G.players[G.megaW]; return w ? cosIdx(MEGA_FX, csOf(w)[6]) : 0; };
+const FW_COLS = ['#ff5a4a', '#ffd166', '#5cc8ff', '#8cf03c', '#ff8fd0', '#c070ff', '#fff3c0'];
+function megaRand(n) { let h = ((G.megaW | 0) + 7) * 2654435761 >>> 0; return () => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return ((h >>> 8) % 10000) / 10000; }; }
+// points de chute de la pluie de bombes (les mêmes pour tous : tirés de l'identifiant du gagnant)
+function megaRainSpots() {
+  const r = megaRand(), out = [], vw = W / T, vh = H / T;
+  for (let i = 0; i < 34; i++) out.push({ x: G.megaTx + (r() - 0.5) * vw * 0.95, y: G.megaTy + (r() - 0.5) * vh * 0.9, d: r() * 0.2 });
+  return out;
+}
+function megaImpact(k, x, y) {
+  const w = G.players[G.megaW], col = w && w.pal ? w.pal.ui : '#ffd166';
+  G.megaFx = { k, t: 0, x, y, col, next: 0, ps: [] };
+  const addP = q => G.megaFx.ps.push(q);   // par-dessus les flammes qui couvrent la carte
+  if (k === 2) for (let i = 0; i < 140; i++) { const a = Math.random() * TAU, sp = 160 + Math.random() * 520; addP({ kind: 'chip', x, y: y - T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 260, g: 520, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 18, life: 2.2, max: 2.2, size: 9, color: FW_COLS[i % FW_COLS.length] }); }
+  if (k === 3) for (const sp of megaRainSpots()) { const px = (sp.x + 0.5) * T, py = (sp.y + 0.5) * T; for (let j = 0; j < 5; j++) addP({ kind: 'smoke', x: px, y: py, vx: (Math.random() - 0.5) * 90, vy: -30 - Math.random() * 70, life: 1, max: 1, size: 9, color: '90,70,60' }); for (let j = 0; j < 8; j++) { const a = Math.random() * TAU, v = 80 + Math.random() * 160; addP({ kind: 'spark', x: px, y: py, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6, max: 0.6, size: 2.6, color: j % 2 ? '#ffd166' : '#ff6a2a' }); } }
+  if (k === 4) for (let i = 0; i < 50; i++) { const a = -Math.PI * Math.random(), sp = 180 + Math.random() * 380; addP({ kind: 'chip', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 700, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, life: 1.6, max: 1.6, size: 10, color: i % 3 ? '#5a4a40' : '#ff8a3d' }); }
+  // l'éclair blanc-orange de l'impact est plus court quand la finale a son propre spectacle à montrer
+  G.megaFlash = [1.6, 0.6, 0.8, 1.2, 1.2, 0.9, 0.5][k] ?? 1.6;
+}
+function megaFxTick(dt) {
+  const F = G.megaFx; F.t += dt;
+  const addP = q => F.ps.push(q);
+  for (let i = F.ps.length - 1; i >= 0; i--) {
+    const q = F.ps[i]; q.life -= dt; if (q.life <= 0) { F.ps[i] = F.ps[F.ps.length - 1]; F.ps.pop(); continue; }
+    q.x += q.vx * dt; q.y += q.vy * dt; if (q.g) q.vy += q.g * dt; if (q.kind !== 'chip') { q.vx *= 1 - 1.6 * dt; q.vy *= 1 - 1.6 * dt; } if (q.vr) q.rot += q.vr * dt;
+  }
+  // feu d'artifice : des bouquets éclatent en l'air pendant 1,8 s
+  if (F.k === 1 && F.t < 2 && F.t >= F.next) {
+    F.next = F.t + 0.12 + Math.random() * 0.1;
+    const bx = G.cam.x + W * (0.12 + Math.random() * 0.76), by = G.cam.y + H * (0.12 + Math.random() * 0.6), cl = Math.random() < 0.3 ? F.col : FW_COLS[(Math.random() * FW_COLS.length) | 0], n = 46;
+    for (let i = 0; i < n; i++) { const a = i / n * TAU, sp = 230 + Math.random() * 60; addP({ kind: 'spark', x: bx, y: by, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 120, life: 1.3, max: 1.3, size: 4.2, color: i % 4 ? cl : '#fff8e0' }); }
+    for (let i = 0; i < 14; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 90; addP({ kind: 'spark', x: bx, y: by, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 60, life: 0.9, max: 0.9, size: 2.4, color: '#fff3c0' }); }
+    addP({ kind: 'glow', x: bx, y: by, vx: 0, vy: 0, life: 0.35, max: 0.35, size: 60, color: cl });
+    if (Math.random() < 0.5) Sfx.boom('classic', 0.3);
+  }
+  // trou noir : la matière est aspirée vers le centre
+  if (F.k === 6 && F.t < 1.6) for (let i = 0; i < 6; i++) { const a = Math.random() * TAU, d = 2 * T + Math.random() * 4 * T; addP({ kind: 'spark', x: F.x + Math.cos(a) * d, y: F.y + Math.sin(a) * d * 0.8, vx: -Math.cos(a + 0.9) * d * 1.6, vy: -Math.sin(a + 0.9) * d * 1.3, life: 0.6, max: 0.6, size: 2.4, color: Math.random() < 0.5 ? '#c070ff' : '#f6e6ff' }); }
+}
+// bande dessinée : étoile à pointes et « BOUM ! »
+function drawStarburst(c, x, y, s, a, txt, rot) {
+  c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(rot || -0.12); c.scale(s, s);
+  for (const [r0, r1, fill] of [[1.0, 0.62, '#e8302a'], [0.86, 0.52, '#ffd23f']]) {
+    c.beginPath(); const n = 14;
+    for (let i = 0; i < n * 2; i++) { const ang = i / (n * 2) * TAU, r = (i % 2 ? r1 : r0) * 100 * (1 + (i % 4 === 0 ? 0.12 : 0)); c.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); }
+    c.closePath(); c.fillStyle = fill; c.fill(); c.lineWidth = 6; c.strokeStyle = '#2a1508'; c.stroke();
+  }
+  if (txt) { c.font = '46px "Bagel Fat One", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 9; c.strokeStyle = '#2a1508'; c.strokeText(txt, 0, 4); c.fillStyle = '#e8302a'; c.fillText(txt, 0, 4); c.fillStyle = '#fff3e0'; c.fillText(txt, -2, 1); }
+  c.restore();
+}
+// nuage en champignon (rise : 0 → 1 pendant la montée)
+function drawMushroom(c, x, y, s, rise, a, t) {
+  if (a <= 0) return;
+  c.save(); c.globalAlpha = a; c.translate(x, y); c.scale(s, s);
+  const top = -(60 + 170 * rise), capR = 30 + 50 * rise;
+  const puff = (px, py, r, hot) => { const g = c.createRadialGradient(px - r * 0.3, py - r * 0.4, r * 0.1, px, py, r); g.addColorStop(0, hot ? '#ffe2a0' : '#b8aaa0'); g.addColorStop(0.55, hot ? '#ff8a3d' : '#8a7a70'); g.addColorStop(1, hot ? 'rgba(200,70,30,.85)' : 'rgba(80,68,62,.9)'); c.fillStyle = g; c.beginPath(); c.arc(px, py, r, 0, TAU); c.fill(); };
+  // pied qui s'évase au sol
+  for (let i = 0; i <= 8; i++) { const q = i / 8, py = top * q, r = 16 + 10 * (1 - q) + Math.sin(t * 3 + i) * 2; puff(Math.sin(t * 2 + i) * 3, py, r, q < 0.25); }
+  puff(-34, -8, 22, true); puff(34, -8, 22, true); puff(0, 0, 26, true);
+  // collier et chapeau
+  for (let i = 0; i < 7; i++) { const ang = i / 7 * TAU; puff(Math.cos(ang) * capR * 0.55, top + capR * 0.55 + Math.sin(ang) * 7, 13 + 4 * rise, false); }
+  for (let i = 0; i < 9; i++) { const ang = Math.PI + i / 8 * Math.PI, rr0 = capR * (0.75 + 0.1 * Math.sin(t * 2 + i)); puff(Math.cos(ang) * rr0, top + Math.sin(ang) * rr0 * 0.6, capR * 0.42, i === 4); }
+  puff(0, top - capR * 0.1, capR * 0.6, true);
+  c.restore();
+}
+// trou noir : disque sombre au bord violet et bras en spirale qui tournent
+function drawVortex(c, x, y, r, t, a) {
+  if (a <= 0 || r <= 1) return;
+  c.save(); c.globalAlpha = a; c.translate(x, y); c.scale(1, 0.8);
+  const g = c.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 1.6); g.addColorStop(0, 'rgba(8,2,16,1)'); g.addColorStop(0.45, 'rgba(30,6,60,.95)'); g.addColorStop(0.7, 'rgba(180,107,255,.55)'); g.addColorStop(1, 'rgba(180,107,255,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, r * 1.6, 0, TAU); c.fill();
+  c.lineCap = 'round';
+  for (let k = 0; k < 4; k++) {
+    c.strokeStyle = k % 2 ? 'rgba(246,230,255,.75)' : 'rgba(192,112,255,.85)'; c.lineWidth = Math.max(1.5, r * 0.08);
+    c.beginPath();
+    for (let i = 0; i <= 24; i++) { const q = i / 24, ang = t * 5 + k * Math.PI / 2 + q * 4, rr0 = r * (1.45 - q * 1.2); c.lineTo(Math.cos(ang) * rr0, Math.sin(ang) * rr0); }
+    c.stroke();
+  }
+  c.fillStyle = '#050108'; c.beginPath(); c.arc(0, 0, r * 0.35, 0, TAU); c.fill();
+  c.restore();
+}
+// météore : rocher en feu avec sa traînée
+function drawMeteor(c, x, y, R, ang, t) {
+  c.save(); c.translate(x, y); c.rotate(ang);
+  const tail = c.createLinearGradient(0, 0, -R * 7, 0); tail.addColorStop(0, 'rgba(255,200,90,.95)'); tail.addColorStop(0.4, 'rgba(255,90,30,.6)'); tail.addColorStop(1, 'rgba(255,60,20,0)');
+  c.fillStyle = tail; c.beginPath(); c.moveTo(0, -R * 1.1); c.quadraticCurveTo(-R * 4, -R * 0.6, -R * 7, 0); c.quadraticCurveTo(-R * 4, R * 0.6, 0, R * 1.1); c.closePath(); c.fill();
+  const gl = c.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 2); gl.addColorStop(0, 'rgba(255,170,60,.6)'); gl.addColorStop(1, 'rgba(255,90,30,0)'); c.fillStyle = gl; c.beginPath(); c.arc(0, 0, R * 2, 0, TAU); c.fill();
+  c.rotate(t * 3);
+  c.fillStyle = '#4a3a32'; c.beginPath(); for (let i = 0; i < 9; i++) { const a2 = i / 9 * TAU, rr0 = R * (0.85 + 0.15 * Math.sin(i * 2.3)); c.lineTo(Math.cos(a2) * rr0, Math.sin(a2) * rr0); } c.closePath(); c.fill();
+  c.strokeStyle = '#ffb347'; c.lineWidth = Math.max(1.5, R * 0.08); c.beginPath(); c.moveTo(-R * 0.4, -R * 0.2); c.lineTo(0, R * 0.1); c.lineTo(R * 0.3, -R * 0.3); c.moveTo(0, R * 0.1); c.lineTo(-R * 0.1, R * 0.5); c.stroke();
+  c.restore();
+}
+function drawCrater(c, x, y, s, a, t) {
+  if (a <= 0) return;
+  c.save(); c.globalAlpha = a; c.translate(x, y); c.scale(s, s * 0.7);
+  c.fillStyle = 'rgba(40,28,22,.9)'; c.beginPath(); c.arc(0, 0, 60, 0, TAU); c.fill();
+  c.strokeStyle = `rgba(255,${130 + Math.round(40 * Math.sin(t * 6))},50,.9)`; c.lineWidth = 4;
+  for (let i = 0; i < 7; i++) { const ang = i / 7 * TAU + 0.3; c.beginPath(); c.moveTo(Math.cos(ang) * 14, Math.sin(ang) * 14); c.lineTo(Math.cos(ang + 0.2) * 38, Math.sin(ang + 0.2) * 38); c.lineTo(Math.cos(ang - 0.1) * 62, Math.sin(ang - 0.1) * 62); c.stroke(); }
+  c.restore();
+}
+function drawMiniBomb(c, x, y, R, t, w) { c.save(); c.translate(x, y); drawBombBody(c, csOf(w)[0] || 1, R, t, w.pal ? w.pal.ui : '#ffcf5a'); c.fillStyle = '#b8733a'; c.fillRect(-R * 0.15, -R * 1.2, R * 0.3, R * 0.3); c.restore(); }
+// ce qui se passe avant l'impact (pluie, météore, trou noir) et après (BOUM, champignon, cratère, trou noir)
+function drawMegaFinale(c, t) {
+  if (!G.megaOn && !G.megaFx) return;
+  const k = G.megaOn ? megaKind() : G.megaFx.k, m = G.megaT, X = (G.megaTx + 0.5) * T, Y = (G.megaTy + 0.5) * T, w = G.players[G.megaW];
+  if (G.megaOn && m < MEGA_HIT && w) {
+    if (k === 3 && m > 1.85) for (const sp of megaRainSpots()) {
+      const q = clamp((m - 1.85 - sp.d * 0.5) / 0.4, 0, 1); if (q <= 0) continue;
+      const px = (sp.x + 0.5) * T, py = (sp.y + 0.5) * T, hh = (1 - q) * 7 * T;
+      c.fillStyle = `rgba(15,20,10,${(0.35 * q).toFixed(3)})`; ell(c, px, py + 10, 10 * q + 2, 4 * q + 1); c.fill();
+      drawMiniBomb(c, px, py - hh, 11, t, w);
+    }
+    if (k === 4 && m > 1.85) { const q = clamp((m - 1.85) / 0.45, 0, 1), sx = X + 9 * T * (1 - q), sy = Y - 12 * T * (1 - q); drawMeteor(c, sx, sy - 10, 34, Math.atan2(Y - sy, X - sx), t); if (Math.random() < 0.8) addP({ kind: 'spark', x: sx, y: sy, vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 40, life: 0.5, max: 0.5, size: 3, color: '#ff8a3d' }); }
+    if (k === 6 && m > 1.9) drawVortex(c, X, Y, (m - 1.9) / 0.4 * 2.2 * T, t, 1);
+  }
+  const F = G.megaFx; if (!F) return;
+  const ft = F.t;
+  // feu d'artifice : le ciel s'assombrit pour faire ressortir les bouquets
+  if (F.k === 1 && ft < 2.4) { c.fillStyle = `rgba(8,10,40,${(0.55 * Math.min(1, ft * 3, (2.4 - ft) * 1.5)).toFixed(3)})`; c.fillRect(G.cam.x - T, G.cam.y - T, W + 2 * T, H + 2 * T); }
+  if (F.k === 6 && ft < 1.8) { c.fillStyle = `rgba(10,0,24,${(0.45 * Math.min(1, (1.8 - ft) * 2)).toFixed(3)})`; c.fillRect(G.cam.x - T, G.cam.y - T, W + 2 * T, H + 2 * T); }
+  for (const q of F.ps) {
+    const a = q.life / q.max;
+    if (q.kind === 'glow') { const g = c.createRadialGradient(q.x, q.y, 0, q.x, q.y, q.size); g.addColorStop(0, 'rgba(255,255,240,' + (0.8 * a).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,255,240,0)'); c.fillStyle = g; c.beginPath(); c.arc(q.x, q.y, q.size, 0, TAU); c.fill(); }
+    else if (q.kind === 'smoke') { c.fillStyle = `rgba(${q.color},${(0.5 * a).toFixed(3)})`; c.beginPath(); c.arc(q.x, q.y, q.size * (1 + (1 - a) * 1.6), 0, TAU); c.fill(); }
+    else if (q.kind === 'chip') { c.save(); c.globalAlpha = Math.min(1, a * 1.5); c.translate(q.x, q.y); c.rotate(q.rot); c.fillStyle = q.color; c.fillRect(-q.size / 2, -q.size / 4, q.size, q.size / 2); c.restore(); }
+    else { c.globalAlpha = Math.min(1, a * 1.4); c.fillStyle = q.color; c.beginPath(); c.arc(q.x, q.y, q.size, 0, TAU); c.fill(); c.globalAlpha = 1; }
+  }
+  if (F.k === 2 && ft < 2.2) { const s = ft < 0.3 ? 1.3 * Math.sin(ft / 0.3 * Math.PI / 2) + 0.05 * Math.sin(ft * 30) : 1.2 + 0.03 * Math.sin(ft * 8); drawStarburst(c, F.x, F.y - T * 1.4, s * 1.25, Math.min(1, (2.2 - ft) * 2), 'BOUM !'); }
+  if (F.k === 4 && ft < 2.4) drawCrater(c, F.x, F.y, 1.6, Math.min(1, (2.4 - ft) * 1.5), t);
+  if (F.k === 5 && ft < 2.4) drawMushroom(c, F.x, F.y + T * 0.3, 1.25, 1 - Math.pow(1 - Math.min(1, ft / 1.3), 3), Math.min(1, (2.4 - ft) * 1.6), t);
+  if (F.k === 6 && ft < 1.8) drawVortex(c, F.x, F.y, 2.2 * T * (1 + ft * 0.6) * Math.max(0, 1 - ft / 1.8), t, Math.min(1, (1.8 - ft) * 2));
+}
+// aperçu en boucle dans Personnaliser (toile de 128 × 128)
+function drawMegaPreview(c, k, t, me) {
+  const L = 2.6, q = (t % L) / L, cx = 64, cy = 84, w = { ...me, pal: me.pal };
+  c.fillStyle = 'rgba(15,20,10,.35)'; ell(c, cx, cy + 14, 40, 9); c.fill();
+  const pre = q < 0.4, u = pre ? q / 0.4 : (q - 0.4) / 0.6, ft = u * L * 0.6;
+  if (pre) {
+    if (k === 3) { for (let i = 0; i < 5; i++) { const x = 20 + i * 22, y = 10 + (cy - 10 + (i % 2) * 14) * Math.max(0, Math.min(1, u * 1.15 - i * 0.04)); drawMiniBomb(c, x, y, 9, t, w); } return; }
+    if (k === 4) { const x = 128 - 100 * u, y = -10 + (cy + 10) * u; drawMeteor(c, x, y, 16, Math.atan2(cy + 10, -100), t); return; }
+    const e = u * u * (3 - 2 * u), bx = 24 + (cx - 24) * e, by = 104 + (cy - 104) * e - Math.sin(u * Math.PI) * (k === 1 ? 70 : 46);
+    let R = 15; if (k === 6 && u > 0.6) R *= 1 - (u - 0.6) / 0.4 * 0.9;
+    drawMiniBomb(c, bx, by, R, t, w);
+    if (k === 1) for (let i = 1; i < 6; i++) { c.fillStyle = `rgba(255,${180 - i * 15},80,${(0.6 - i * 0.1).toFixed(2)})`; c.beginPath(); c.arc(bx - 2 * i, by + 6 * i, 2.4, 0, TAU); c.fill(); }
+    if (k === 6 && u > 0.6) drawVortex(c, cx, cy, (u - 0.6) / 0.4 * 18, t, 1);
+    return;
+  }
+  // l'impact
+  const flash = Math.max(0, 1 - ft * 4);
+  if (flash > 0) { const g = c.createRadialGradient(cx, cy, 0, cx, cy, 60); g.addColorStop(0, `rgba(255,250,220,${flash.toFixed(2)})`); g.addColorStop(1, 'rgba(255,150,60,0)'); c.fillStyle = g; c.fillRect(0, 0, 128, 128); }
+  const ringR = 8 + u * 70; c.strokeStyle = `rgba(255,200,120,${(0.8 * (1 - u)).toFixed(2)})`; c.lineWidth = 6 * (1 - u) + 1; c.beginPath(); c.ellipse(cx, cy, ringR, ringR * 0.7, 0, 0, TAU); c.stroke();
+  if (k === 0 || k === 3) {
+    const spots = k === 3 ? [[24, 60], [56, 40], [96, 54], [40, 96], [88, 100], [64, 76]] : [[cx, cy]];
+    for (const [x, y] of spots) { const r = (k === 3 ? 12 : 30) * Math.min(1, ft * 5) * (1 - u * 0.6); const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(255,244,194,${(1 - u).toFixed(2)})`); g.addColorStop(0.5, `rgba(255,176,32,${(0.9 * (1 - u)).toFixed(2)})`); g.addColorStop(1, 'rgba(255,92,24,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+  }
+  if (k === 1) for (const [x, y, col, d] of [[40, 40, '#ff5a4a', 0], [88, 32, '#5cc8ff', 0.12], [64, 58, '#ffd166', 0.25], [30, 66, '#8cf03c', 0.4]]) {
+    const v = clamp((u - d) / 0.5, 0, 1); if (v <= 0) continue;
+    c.globalAlpha = 1 - v; c.strokeStyle = col; c.lineWidth = 2;
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, r0 = v * 22, r1 = v * 28; c.beginPath(); c.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0 + v * 6); c.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1 + v * 6); c.stroke(); }
+    c.globalAlpha = 1;
+  }
+  if (k === 2) { const s = u < 0.18 ? Math.sin(u / 0.18 * Math.PI / 2) * 0.42 : 0.4; drawStarburst(c, cx, cy - 22, s, 1, 'BOUM !'); for (let i = 0; i < 14; i++) { const a = i * 2.4, r = 20 + u * 50; c.fillStyle = FW_COLS[i % FW_COLS.length]; c.fillRect(cx + Math.cos(a) * r, cy - 22 + Math.sin(a) * r + u * u * 40, 4, 3); } }
+  if (k === 4) drawCrater(c, cx, cy + 4, 0.55, 1 - u * 0.5, t);
+  if (k === 5) drawMushroom(c, cx, cy + 10, 0.36, 1 - Math.pow(1 - Math.min(1, u * 1.6), 3), Math.min(1, (1 - u) * 3), t);
+  if (k === 6) drawVortex(c, cx, cy - 6, 26 * (1 - u * 0.8), t, Math.min(1, (1 - u) * 2.5));
 }
 // onde de choc de l'impact
 function drawMegaRing(c) {
@@ -3193,7 +3383,7 @@ function startReplay() {
   G.burn = new Float32Array(N); G.grow = new Float32Array(N); G.flameT = new Float32Array(N); G.flameBits = new Uint8Array(N); G.flameOwner = new Int8Array(N).fill(-1);
   G.bombAt = new Array(N).fill(null); G.bombs = []; G.thrown = []; G.falling = []; G.flying = []; G.particles = []; G.players = [];
   G.cam = { x: G.cam.x, y: G.cam.y }; G.camF = undefined; G.camV = undefined; G.camP = undefined; G.camL = undefined; G.camSnap = true;
-  G.megaOn = false; G.megaRing = null; G.megaFlash = 0; G.vcard = null; G.shake = 0; G.paused = false;
+  G.megaOn = false; G.megaRing = null; G.megaFx = null; G.megaFlash = 0; G.vcard = null; G.shake = 0; G.paused = false;
   endEl.hidden = true; pauseEl.hidden = true; $('#replay-bar').hidden = false; $('#rp-dl').hidden = true; $('#rp-share').hidden = true; $('#rp-msg').textContent = '';
   $('#rp-label').textContent = R.mode === 'br' ? 'Les 30 dernières secondes' : `Manche ${R.round}`;
   replaySeek(R.t0); syncReplayBar(true);
@@ -3233,7 +3423,7 @@ function replaySeek(t) {
   const R = REPLAY; R.t = clamp(t, R.t0, R.t1); R.i = 0; R.endT = 0;
   while (R.i < R.frames.length - 2 && R.frames[R.i + 1].t <= R.t) R.i++;
   R.ei = 0; while (R.ei < R.ev.length && R.ev[R.ei][0] < R.t) R.ei++;
-  G.particles = []; G.flying = []; G.megaOn = false; G.megaRing = null; G.megaFlash = 0; G.camSnap = true;
+  G.particles = []; G.flying = []; G.megaOn = false; G.megaRing = null; G.megaFx = null; G.megaFlash = 0; G.camSnap = true;
   // en sautant au milieu de la cinématique de victoire, on la reprend où elle en est
   for (let j = R.ei - 1; j >= 0; j--) { const e = R.ev[j]; if (e[1] === 'megaGo') { const f = R.frames[R.i]; replayApply(f, null, 0); megaStart(e[2] | 0, R.t - e[0]); break; } }
   const f = R.frames[R.i]; replayApply(f, R.frames[R.i + 1], 0);
@@ -3349,7 +3539,7 @@ function brWorld() {
   G.bombs.length = 0; G.particles.length = 0; G.falling.length = 0; G.flying.length = 0; G.thrown.length = 0; G.bombAt.fill(null);
   G.time = 0; G.sudden = false; G.suddenFlash = 0; G.phase = 'play'; G.phaseT = 0; G.round = 1; G.lastWinner = -2; G.brT = 0; G.brRegrow = 2;
   for (const p of G.players) { p.kills = 0; p.pts = 0; p.peak = 0; brSpawn(p); }
-  G.brWinner = -1; G.brEndShown = false; G.megaOn = false; G.megaBoom = false; G.megaRing = null;
+  G.brWinner = -1; G.brEndShown = false; G.megaOn = false; G.megaBoom = false; G.megaRing = null; G.megaFx = null;
   G.chestK = -1; G.chestHp = 0; G.chestT = CHEST_EVERY; for (const p of G.players) { p.ct = null; p.ctNext = undefined; }
   G.camSnap = true; groundDirty = true;
   setupHud(); $('#br-ui').hidden = false; brHudTick(0, true);
@@ -3600,9 +3790,10 @@ function drawBrTargets(c, t) {
 function drawBrOverlay(c, t) {
   const me = G.players[localIdx()]; if (!me || me.alive || G.phase === 'brEnd') return;
   const left = Math.max(1, Math.ceil(BR_RESPAWN - me.deathT)), by = me.killedBy;
-  if (by >= 0 && by !== me.id && G.players[by]) { drawVictimCard(c, G.players[by], nameOf(by), W / 2, H / 2 - 12, Math.min(1, me.deathT * 3), `Retour dans ${left} s, sans bonus`, t); return; }
+  const had = `Tu avais ${me.lostPts | 0} point${(me.lostPts | 0) > 1 ? 's' : ''}`;
+  if (by >= 0 && by !== me.id && G.players[by]) { drawVictimCard(c, G.players[by], nameOf(by), W / 2, H / 2 - 12, Math.min(1, me.deathT * 3), `${had} · retour dans ${left} s`, t); return; }
   const who = by === me.id ? 'Ta propre bombe' : by >= 0 && G.players[by] ? `Soufflé par ${nameOf(by)}` : 'Soufflé';
-  drawBanner(c, 'Soufflé !', `${who} · retour dans ${left} s, sans bonus`, '#ff7a2f', Math.min(1, me.deathT * 3));
+  drawBanner(c, 'Soufflé !', `${who} · ${had} · retour dans ${left} s`, '#ff7a2f', Math.min(1, me.deathT * 3));
 }
 // Classement (10 premiers au nombre de bonus) et mini-carte, rafraîchis quelques fois par seconde
 let brHudT = 0, brMiniT = 0;
@@ -4837,7 +5028,7 @@ function render() {
 
   drawFlames(c);
   if (G.mode === 'br') {
-    drawMegaRing(c); drawMegaBomb(c, t);
+    drawMegaRing(c); drawMegaFinale(c, t); drawMegaBomb(c, t);
     const me = G.players[localIdx()], tg = me && me.ct && G.phase === 'play' ? G.players[me.ct.tg] : null;
     if (tg && tg.alive) drawReticle(c, ((tg.rx ?? tg.x) + 0.5) * T, ((tg.ry ?? tg.y) + 0.5) * T, t);
   }
@@ -6253,7 +6444,7 @@ function mergeProgLocal(p) {
   if (Number.isInteger(p.skin) && p.skin >= 0 && p.skin < CHARS.length && !charLocked(p.skin)) settings.skin = p.skin;
   if (p.st && typeof p.st === 'object') for (const k of STAT_KEYS) { const v = Math.floor(Number(p.st[k]) || 0); if (v > statOf(k)) settings.st[k] = v; }
   if (p.cos && typeof p.cos === 'object') {
-    const c = p.cos; settings.cos = { b: cosIdx(BOMB_SKINS, c.b), f: cosIdx(FLAME_SKINS, c.f), c: cosIdx(CARD_STYLES, c.c), p: cosIdx(CARD_PHRASES, c.p), t: clamp(Number(c.t) | 0, 0, ACH.length), e: Array.isArray(c.e) ? c.e.map(v => cosIdx(EMOTES, v)).slice(0, 4) : [0, 1, 2, 3] };
+    const c = p.cos; settings.cos = { b: cosIdx(BOMB_SKINS, c.b), f: cosIdx(FLAME_SKINS, c.f), c: cosIdx(CARD_STYLES, c.c), p: cosIdx(CARD_PHRASES, c.p), m: cosIdx(MEGA_FX, c.m), t: clamp(Number(c.t) | 0, 0, ACH.length), e: Array.isArray(c.e) ? c.e.map(v => cosIdx(EMOTES, v)).slice(0, 4) : [0, 1, 2, 3] };
   }
   cosCheckNew(true);
 }
@@ -6867,6 +7058,7 @@ const COS_HINTS = {
   e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone.',
   c: 'Ce que voient les joueurs que tu souffles : un style de carte et ta phrase.',
   t: 'Chaque succès débloque un titre, affiché sous ton pseudo en partie, sur ta carte de victime et sur ton profil.',
+  m: 'La finale de ta giga bombe quand tu atteins 1000 points en battle royale : tous les joueurs la voient. Elles se débloquent en jouant au battle royale.',
 };
 function cosHint(msg) { const h = $('#cos-hint'); h.textContent = msg; clearTimeout(cosHintT); cosHintT = setTimeout(() => { h.textContent = COS_HINTS[cosTab]; }, 3500); }
 function cosTile(k, L, i, sel, slot) {
@@ -6899,9 +7091,9 @@ function renderCustom(first) {
   customEl.querySelectorAll('.cos-tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.k === cosTab)));
   if (first || !cosHintT) $('#cos-hint').textContent = COS_HINTS[cosTab];
   const grid = $('#cos-grid'), phr = $('#cos-phr'), m = cosMap(), mine = myCos();
-  grid.innerHTML = ''; grid.className = 'cos-grid' + (cosTab === 'c' ? ' cards' : ''); grid.setAttribute('role', cosTab === 'e' ? 'group' : 'radiogroup');
+  grid.innerHTML = ''; grid.className = 'cos-grid' + (cosTab === 'c' ? ' cards' : cosTab === 'm' ? ' mega' : ''); grid.setAttribute('role', cosTab === 'e' ? 'group' : 'radiogroup');
   if (cosTab === 'e') { const eq = myEmotes(); EMOTES.forEach((_, i) => grid.appendChild(cosTile('e', EMOTES, i, eq.includes(i), eq.indexOf(i) + 1 || 0))); }
-  else if (cosTab !== 't') { const L = COS_KINDS[cosTab], cur = mine[{ b: 0, f: 1, c: 2 }[cosTab]]; L.forEach((_, i) => grid.appendChild(cosTile(cosTab, L, i, i === cur))); }
+  else if (cosTab !== 't') { const L = COS_KINDS[cosTab], cur = mine[{ b: 0, f: 1, c: 2, m: 6 }[cosTab]]; L.forEach((_, i) => grid.appendChild(cosTile(cosTab, L, i, i === cur))); }
   grid.hidden = cosTab === 't';
   $('#cos-card').hidden = cosTab !== 'c' && cosTab !== 't'; $('#cos-phr-lbl').hidden = cosTab !== 'c'; phr.hidden = cosTab !== 'c' && cosTab !== 't'; phr.innerHTML = '';
   if (cosTab === 't') [{ name: 'Aucun titre' }, ...ACH].forEach((it, j) => {
@@ -6963,6 +7155,7 @@ function drawCosPreviews(now) {
     if (cv.dataset.lk) { drawLockedTile(c, cv.width, cv.height); continue; }
     if (k === 'b') { c.setTransform(2.4, 0, 0, 2.4, 0, 0); drawBomb(c, 26.7, 26, { timer: FUSE * (0.8 + 0.2 * Math.sin(t)), owner: { ...me, cs: [i, 0, 0, 0] } }, t); }
     else if (k === 'f') drawFlamePreview(c, i, t);
+    else if (k === 'm') drawMegaPreview(c, i, t, me);
     else if (k === 'e') drawEmoteIcon(c, i, 64, 60, 2.2, me.pal.ui);
     else if (k === 'c') { c.setTransform(cv.width / 380, 0, 0, cv.width / 380, 0, 0); cardBg(c, i, 3, 3, 374, 106, t); if (i === 5) drawCrown(c, 56, 30, 1.6); }
   }
@@ -8416,7 +8609,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
