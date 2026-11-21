@@ -933,7 +933,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <p class="rule">En duel, le dernier debout gagne la manche. À 3 ou 4, on joue 3 manches et chaque place rapporte des points (1er 5, 2e 3, 3e 1, 4e 0) ; la manche s'arrête dès qu'il ne reste plus que des ordis.</p>
       <p class="rule">Au bout de 2 minutes, des rochers referment les deux rangées du bord, puis un bonus tombe du ciel toutes les 7 secondes.</p>
       <p class="rule">Battle royale : 30 artificiers sur une carte 9 fois plus grande, la partie dure jusqu'à ce qu'un joueur atteigne 1000 points. Si tu meurs, tu reviens 2 secondes plus tard, sans bonus et protégé un court instant ; les bonus que tu avais tombent autour de toi. Chaque victime rapporte 40 points ; à ta mort, tes points tombent en orbes que n'importe qui peut ramasser (petites orbes de 2 points, plus grosses de 6, 20 ou 60 quand tu en avais beaucoup), et certaines caisses cachent aussi une petite orbe. Le classement montre les 10 meilleurs scores atteints pendant la partie (ton record reste affiché même si tu meurs), et les 3 joueurs qui ont le plus de points en ce moment portent une couronne ou une médaille sur la carte. Ta bombe, à côté de l'arène, grossit avec tes points : le premier à 1000 points la fait exploser sur toute la carte et gagne la partie ; le classement final retient le meilleur score atteint par chacun. De temps en temps, un contrat te désigne une cible : souffle-la dans les 45 secondes pour 100 points de plus (une flèche rouge t'indique où elle est). Toutes les 2 minutes, un coffre au trésor apparaît au centre de la carte : il faut 3 explosions pour l'ouvrir, et il lâche un gros butin d'orbes et de bonus. Ici les bonus ont un plafond : vitesse 5, portée 5 cases, 8 bombes. Chaque vrai joueur qui arrive prend la place d'un ordi. Ici on se déplace librement, en diagonale aussi, sans suivre les lignes de cases. La touche C (ou le bouton Select de la manette) change de caméra : Réactive, Centrée, Anticipée ou Douce.</p>
-      <p class="rule">Personnaliser (à l'accueil) : skins de bombe, couleurs de flammes, emotes et carte de victime, à débloquer en jouant (parties, victimes, victoires et niveaux de tes persos). Tout le monde les voit, en ligne aussi. En partie, les touches 1 à 4 (boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone) lancent tes emotes.</p>
+      <p class="rule">Personnaliser (à l'accueil) : skins de bombe, couleurs de flammes, emotes et carte de victime, à débloquer en jouant (parties, victimes, victoires et niveaux de tes persos). Tout le monde les voit, en ligne aussi. En partie, les touches 1 à 4 (boutons Y, LB, RB et B de la manette (les 4 premiers boutons libres), ou le bouton 😀 sur téléphone) lancent tes emotes.</p>
       <p class="rule">Spectateur : si une partie est pleine ou déjà lancée, « Regarder une partie en cours » (dans Rejoindre avec un code, ou après une recherche) te la montre sans jouer ; en battle royale, ← et → changent le joueur suivi. Replay : à la fin d'une partie, « Revoir la manche » (touche R) rejoue la dernière manche en ×2 (les 30 dernières secondes en battle royale) ; le bouton Vidéo l'enregistre pour la partager.</p>
       <h2>Bonus cachés dans les caisses</h2>
       <ul class="items" id="legend"></ul>
@@ -1264,8 +1264,8 @@ const ITEMS = [
   { name: 'Bombe en plus',    short: '+1 bombe',  desc: 'Une bombe de plus à poser en même temps.', c1: '#9a90ff', c2: '#4a3cc0' },
   { name: 'Poudre vive',      short: '+1 portée', desc: 'Tes explosions vont une case plus loin.',  c1: '#ff9152', c2: '#c43f0b' },
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
-  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête. Tout le monde l\'a dès le départ, sauf en battle royale où il faut le trouver.', c1: '#ffd66e', c2: '#c4860c' },
-  { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde la touche « Lancer » enfoncée (Q par défaut, RT à la manette) et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
+  { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (A à la manette) l\'arrête. Tout le monde l\'a dès le départ, sauf en battle royale où il faut le trouver.', c1: '#ffd66e', c2: '#c4860c' },
+  { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde la touche « Lancer » enfoncée (Q par défaut, X à la manette) et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
   // orbes de points (battle royale) : pas dans la légende des bonus
   { name: 'Orbe', short: '+2', orb: 2, c1: '#ffe27a', c2: '#d99a1a' },
   { name: 'Orbe', short: '+6', orb: 6, c1: '#7dffb0', c2: '#18a85a' },
@@ -1674,8 +1674,10 @@ function rebuildKeyMap() {
 rebuildKeyMap();
 // boutons de manette (disposition standard) : un seul jeu, partagé par toutes les manettes
 const PAD_ACTIONS = [...ACTIONS, ['pause', 'Pause']];
-const DEFAULT_PAD = { up: 12, down: 13, left: 14, right: 15, bomb: 0, stop: 1, throw: 7, pause: 9 };
-if (settings.pad && typeof settings.pad === 'object' && !Number.isInteger(settings.pad.throw)) settings.pad.throw = Object.values(settings.pad).includes(7) ? 6 : 7;
+const DEFAULT_PAD = { up: 12, down: 13, left: 14, right: 15, bomb: 7, stop: 0, throw: 2, pause: 9 };
+// nouvelle disposition par défaut (poser RT, arrêter A, lancer X) : appliquée à ceux qui avaient l'ancienne (poser A, arrêter B, sans réglage perso)
+if (settings.pad && typeof settings.pad === 'object' && settings.pad.bomb === 0 && settings.pad.stop === 1 && [undefined, 7].includes(settings.pad.throw) && settings.pad.up === 12 && settings.pad.down === 13 && settings.pad.left === 14 && settings.pad.right === 15) Object.assign(settings.pad, { bomb: 7, stop: 0, throw: 2 });
+if (settings.pad && typeof settings.pad === 'object' && !Number.isInteger(settings.pad.throw)) settings.pad.throw = [2, 3, 6, 7].find(b => !Object.values(settings.pad).includes(b)) ?? 2;
 if (!settings.pad || typeof settings.pad !== 'object' || !PAD_ACTIONS.every(([a]) => Number.isInteger(settings.pad[a]) && settings.pad[a] >= 0 && settings.pad[a] < 32)) settings.pad = { ...DEFAULT_PAD };
 const PAD_NAMES_X = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Select', 'Start', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'Home'];
 const PAD_NAMES_PS = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Share', 'Options', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'PS'];
@@ -3329,6 +3331,7 @@ function aiThrowChoice(p, sx, sy, eks, bset) {
     if (k < 0) continue;
     const x = k % COLS, y = (k / COLS) | 0, fl = throwTime(n);
     if (Math.abs(x - sx) + Math.abs(y - sy) <= p.range) continue;   // trop près de soi
+    if (!passableAI(idx(sx - dx, sy - dy), -1) || G.players.some(o => o !== p && o.alive && Math.round(o.x) === sx - dx && Math.round(o.y) === sy - dy)) continue;   // il lui faut la case derrière pour prendre son élan, comme un humain
     const v = aiHitValue(p, x, y, FUSE + fl, p.range, eks, bset);
     if (v < 6 || (best && v <= best.v)) continue;
     if (!aiSafeWith(p, sx, sy, { x, y, r: p.range, t: FUSE + fl })) continue;
@@ -3343,8 +3346,11 @@ function thinkInner(p) {
   // plan « pose, recule et pousse » en cours
   if (ai.plan) {
     const P = ai.plan, b = P.b;
-    if (G.bombs.indexOf(b) < 0 || b.mdx || b.mdy || G.t > P.until || !p.kick) ai.plan = null;
-    else if (sk === P.from && off < 0.06) {
+    if (G.bombs.indexOf(b) < 0 || b.mdx || b.mdy || G.t > P.until || !(P.lob ? p.throw : p.kick)) ai.plan = null;
+    else if (P.lob && sk === P.from && off < 0.06) {
+      // revenu derrière sa bombe : il fonce dedans et la lance
+      ai.plan = null; p.face = faceOf(P.dx, P.dy); b.passers.delete(p.id); doThrow(b.x, b.y, P.dx, P.dy, p); ai.nThrow++;
+    } else if (sk === P.from && off < 0.06) {
       ai.plan = null;
       if (!bombBlocked(b.x + P.dx, b.y + P.dy, b)) { b.passers.delete(p.id); doKick(b.x, b.y, P.dx, P.dy, p); ai.kickT = G.t; ai.nKick++; if (P.stop >= 0) { ai.stopB = b; ai.stopK = P.stop; } }
     } else { setPath(p, [{ x: P.from % COLS, y: (P.from / COLS) | 0 }], sx, sy); return; }
@@ -3412,7 +3418,15 @@ function thinkInner(p) {
     // gant : lancer sa bombe par-dessus les obstacles, si ça vaut mieux que la poser ici
     if (lv.lob && p.throw && !G.boss && eks.length) {
       const tc = aiThrowChoice(p, sx, sy, eks, bset);
-      if (tc && tc.v > bv + 2) { p.x = sx; p.y = sy; if (placeBomb(p)) { doThrow(sx, sy, tc.dx, tc.dy, p); ai.nThrow++; setPath(p, [], sx, sy); return; } }
+      if (tc && tc.v > bv + 2) {
+        // comme un humain : il pose, recule d'une case, puis revient dans sa bombe pour la lancer
+        p.x = sx; p.y = sy;
+        if (placeBomb(p)) {
+          const fk = idx(sx - tc.dx, sy - tc.dy);
+          ai.plan = { b: G.bombAt[sk], dx: tc.dx, dy: tc.dy, from: fk, stop: -1, lob: true, until: G.t + step * 2 + 0.5 };
+          setPath(p, [{ x: fk % COLS, y: (fk / COLS) | 0 }], sx, sy); return;
+        }
+      }
     }
     // pose, recule et pousse
     if (lv.kick >= 3 && p.kick && !G.boss && eks.length && Math.random() < 0.85) {
@@ -8449,7 +8463,7 @@ function closeCustom() {
 const COS_HINTS = {
   b: "Le skin de tes bombes, que tout le monde voit et entend : chacun a son propre bruit d'explosion (clique pour l'écouter). « Bombe du perso » garde la bombe de ton perso. Reclique un élément obtenu pour voir comment tu l’as eu.",
   f: 'La couleur des flammes de tes explosions, et du souffle de ta giga bombe en battle royale.',
-  e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons X, Y, LB et RB de la manette, ou le bouton 😀 sur téléphone.',
+  e: 'Choisis jusqu’à 4 emotes. En partie : touches 1 à 4, boutons Y, LB, RB et B de la manette (les 4 premiers boutons libres), ou le bouton 😀 sur téléphone.',
   c: 'Ce que voient les joueurs que tu souffles : un style de carte et ta phrase.',
   t: 'Chaque succès débloque un titre, affiché sous ton pseudo en partie, sur ta carte de victime et sur ton profil.',
   m: 'La finale de ta giga bombe quand tu atteins 1000 points en battle royale : tous les joueurs la voient. Elles se débloquent en jouant au battle royale.',
@@ -9861,7 +9875,7 @@ function pollPads() {
           padVec[code] = dir ? vec : null;
           if (G.mode === 'br' && hit(8) && !Object.values(pb).includes(8)) cycleCam();
           if (G.tg && hit(8) && !Object.values(pb).includes(8)) { openTip(); document.body.classList.add('pad-nav'); }   // défi 4 : Select ouvre l'astuce
-          [2, 3, 4, 5].forEach((bi, sl) => { if (hit(bi) && !Object.values(pb).includes(bi)) emoteSlot(p, sl); });
+          [2, 3, 4, 5, 1, 6].filter(bi => !Object.values(pb).includes(bi)).slice(0, 4).forEach((bi, sl) => { if (hit(bi)) emoteSlot(p, sl); });   // emotes : les 4 premiers boutons libres
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
           if (!p.hold) p.hold = new Set();
