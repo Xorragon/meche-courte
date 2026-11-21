@@ -6585,7 +6585,7 @@ function drawCharPicker(t) {
     if (au) drawAura(c, 26, 32, au, t, false, i);
     drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false });
     if (au) drawAura(c, 26, 32, au, t, true, i);
-    else if (L > 1) {
+    if (L > 1) {   // le niveau reste affiché, même avec une aura (niveau 10 et plus)
       c.font = '800 9px system-ui, sans-serif'; c.textBaseline = 'top'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(20,12,4,.85)'; c.fillStyle = L >= LV_MAX ? '#ffe08a' : '#f3e5c0';
       c.strokeText(String(L), 3, 2); c.fillText(String(L), 3, 2);
     }
