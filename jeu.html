@@ -501,7 +501,8 @@ kbd{font:800 12px/1 var(--font-body);letter-spacing:.05em;padding:5px 7px;border
 .camp-node:hover .camp-med{transform:translateY(-3px)}
 body.pad-nav .camp-node:focus{outline:none}
 .camp-padhint{display:none;margin:12px 0 0;font-size:12.5px;color:var(--muted)}
-body.pad-nav .camp-padhint{display:block}
+body.pad-in .camp-padhint{display:block}
+kbd[hidden]{display:none}
 body.pad-nav .camp-node:focus .cl{opacity:1;color:var(--gold)}
 .camp-node .cn{position:absolute;top:-6px;left:50%;transform:translateX(-50%);min-width:20px;padding:3px 6px;border-radius:999px;background:#1b201c;border:2px solid rgba(243,229,192,.35);font:800 11px/1 var(--font-body)}
 .camp-node.done .cn{background:#e8b23a;border-color:#fff1a8;color:#2a1508}
@@ -8872,14 +8873,18 @@ function navMove(root, dir) {
   if (!els.includes(cur)) { els[0].focus({ preventScroll: true }); els[0].scrollIntoView({ block: 'nearest' }); return; }
   const r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   let best = null, bs = Infinity;
-  for (const el of els) {
+  // d'abord les éléments entièrement de ce côté ; sinon, ceux dont le centre l'est
+  const strict = els.filter(el => { if (el === cur) return false; const q = el.getBoundingClientRect(); return dir === 'left' ? q.right <= r.left + 2 : dir === 'right' ? q.left >= r.right - 2 : dir === 'up' ? q.bottom <= r.top + 2 : q.top >= r.bottom - 2; });
+  for (const el of strict.length ? strict : els) {
     if (el === cur) continue;
     const q = el.getBoundingClientRect(), dx = q.left + q.width / 2 - cx, dy = q.top + q.height / 2 - cy;
     const qx = cx + dx, qy = cy + dy;
     // la cible doit être franchement de ce côté (son centre au-delà du bord de l'élément courant)
     if (dir === 'left' ? qx >= r.left + 2 : dir === 'right' ? qx <= r.right - 2 : dir === 'up' ? qy >= r.top + 2 : qy <= r.bottom - 2) continue;
-    const main = Math.abs(dir === 'left' || dir === 'right' ? dx : dy);
-    const cross = dir === 'left' || dir === 'right' ? Math.abs(dy) : Math.abs(dx);
+    const gap = dir === 'left' ? r.left - q.right : dir === 'right' ? q.left - r.right : dir === 'up' ? r.top - q.bottom : q.top - r.bottom;
+    const main = Math.max(0, gap) + 0.3 * Math.abs(dir === 'left' || dir === 'right' ? dx : dy);
+    // écart sur l'autre axe : entre les bords (un bouton large au-dessus ou en dessous compte comme aligné)
+    const cross = dir === 'left' || dir === 'right' ? Math.max(0, q.top - r.bottom, r.top - q.bottom) : Math.max(0, q.left - r.right, r.left - q.right);
     const sc = main + cross * 2.5;
     if (sc < bs) { bs = sc; best = el; }
   }
@@ -8902,7 +8907,29 @@ function navBack(root) {
   else if (root === vsEl) vsSkip();
   else if (root === friendsEl) closeFriends();
 }
-window.addEventListener('pointerdown', () => document.body.classList.remove('pad-nav'));
+window.addEventListener('pointerdown', () => { document.body.classList.remove('pad-nav'); setInputMode('kb'); });
+// Indications de touches : celles du clavier, ou celles de la manette selon ce qu'on a touché en dernier
+let inputMode = 'kb', lastMouse = null;
+const PAD_HINT = { 'Entrée': 'A', 'Échap': 'B', 'Espace': 'A' };
+const PAD_HINT_BY_ID = { play: 'Start', 'camp-go': 'Start' };
+function syncInputHints() {
+  const pad = inputMode === 'pad';
+  document.querySelectorAll('button kbd').forEach(k => {
+    if (k.dataset.kb === undefined) { if (pad && /^(A|B|Start|Select|LB|RB|X|Y)$/.test(k.textContent)) return; k.dataset.kb = k.textContent; }
+    const kb = k.dataset.kb, btn = k.closest('button'), pv = (btn && PAD_HINT_BY_ID[btn.id] && kb === 'Entrée') ? PAD_HINT_BY_ID[btn.id] : PAD_HINT[kb];
+    const txt = pad ? (pv || '') : kb;
+    if (k.textContent !== txt) k.textContent = txt;
+    k.hidden = pad && !pv;
+  });
+}
+function setInputMode(m) {
+  if (m === inputMode) return;
+  inputMode = m; document.body.classList.toggle('pad-in', m === 'pad'); syncInputHints();
+}
+window.addEventListener('keydown', () => setInputMode('kb'), true);
+window.addEventListener('mousemove', e => { if (lastMouse && Math.hypot(e.clientX - lastMouse[0], e.clientY - lastMouse[1]) > 4) setInputMode('kb'); lastMouse = [e.clientX, e.clientY]; });
+// boutons créés plus tard (fin de partie, déblocage…) : mêmes indications
+new MutationObserver(() => { if (inputMode === 'pad') syncInputHints(); }).observe(document.body, { childList: true, subtree: true });
 function pollPads() {
   if (!navigator.getGamepads) return;
   let list; try { list = navigator.getGamepads(); } catch (e) { return; }
@@ -8914,6 +8941,7 @@ function pollPads() {
     const st = padSt[code] || (padSt[code] = { dir: null, owner: -1, pl: null, prev: [], nav: null, navT: 0 });
     const btn = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
     const hit = k => btn(k) && !st.prev[k];
+    if (gp.buttons.some(b => b && b.pressed) || gp.axes.some(a => Math.abs(a) > PAD_DEAD)) setInputMode('pad');
     let dir = null, vec = null;
     { // vecteur libre (battle royale) : croix en diagonale ou stick analogique
       const bx = (btn(pb.right) ? 1 : 0) - (btn(pb.left) ? 1 : 0), by = (btn(pb.down) ? 1 : 0) - (btn(pb.up) ? 1 : 0);
