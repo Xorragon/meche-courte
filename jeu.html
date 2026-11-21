@@ -171,7 +171,11 @@ body.touch #touch{display:flex}
 .tip-box p{margin:10px 0 14px;line-height:1.45}
 .tip-box kbd{font-weight:800}
 .box.unlbox{max-width:720px}
-#scrolls{background:rgba(8,13,9,.9)}
+#scrolls,#reward{background:rgba(8,13,9,.9)}
+.rw-scrolls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
+.rw-scrolls i{font-style:normal;font-size:54px;line-height:1;filter:drop-shadow(0 6px 14px rgba(255,190,80,.45));animation:unlPop .55s cubic-bezier(.2,1.6,.4,1) both}
+.rw-big{margin:6px 0 0;font:400 30px/1.1 var(--font-display);color:var(--gold)}
+@media (prefers-reduced-motion: reduce){.rw-scrolls i{animation:none}}
 .scr-pick{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 10px}
 .scr-pick canvas{width:104px;height:104px;border-radius:50%;background:rgba(243,229,192,.06);box-shadow:0 0 0 3px rgba(255,214,110,.35)}
 .scr-msg{min-height:1.3em;color:var(--gold);font-weight:800}
@@ -986,7 +990,6 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     <div class="row">
       <button class="cta" id="camp-go" type="button">Lancer le défi <kbd>Entrée</kbd></button>
-      <button class="ghost" id="camp-scrolls" type="button" hidden>📜 Parchemins</button>
       <button class="ghost" id="camp-back" type="button">Retour <kbd>Échap</kbd></button>
     </div>
     <p class="camp-padhint">Manette : croix pour choisir un défi, <kbd>A</kbd> ou <kbd>Start</kbd> pour le lancer, <kbd>LB</kbd> <kbd>RB</kbd> défi précédent ou suivant, <kbd>B</kbd> retour</p>
@@ -999,6 +1002,19 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <canvas id="tip-cv" width="420" height="120" aria-hidden="true"></canvas>
   <p id="tip-text"></p>
   <button class="cta" id="tip-ok" type="button">Compris <kbd>Entrée</kbd></button>
+</div>
+<div id="reward" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="rw-title">
+  <div class="box unlbox">
+    <p class="kicker" id="rw-kick">Défi réussi</p>
+    <h2 id="rw-title">Récompenses</h2>
+    <div class="rw-scrolls" id="rw-scrolls" aria-hidden="true"></div>
+    <p class="rw-big" id="rw-big"></p>
+    <p class="rule" id="rw-text"></p>
+    <div class="row">
+      <button class="cta" id="rw-use" type="button">Utiliser maintenant <kbd>Entrée</kbd></button>
+      <button class="ghost" id="rw-later" type="button">Plus tard <kbd>Échap</kbd></button>
+    </div>
+  </div>
 </div>
 <div id="scrolls" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="scr-title">
   <div class="box unlbox scrbox">
@@ -6819,7 +6835,7 @@ function renderCampCard() {
   go.firstChild.textContent = campRes && !campRes.won && campRes.i === campSel ? 'Réessayer ' : campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
   // résultat du défi qu'on vient de jouer
   const rs = $('#camp-res');
-  if (campRes) { rs.hidden = false; rs.className = 'camp-res ' + (campRes.won ? 'ok' : 'ko'); rs.textContent = `Défi ${campRes.i + 1} ${campRes.won ? 'réussi !' : 'raté'} · ${campRes.text}${campRes.scrolls ? ` · +${campRes.scrolls} parchemin${campRes.scrolls > 1 ? 's' : ''} d'XP !` : ''}`; }
+  if (campRes) { rs.hidden = false; rs.className = 'camp-res ' + (campRes.won ? 'ok' : 'ko'); rs.textContent = `Défi ${campRes.i + 1} ${campRes.won ? 'réussi !' : 'raté'} · ${campRes.text}`; }
   else rs.hidden = true;
   syncScrollBtns();
 }
@@ -6960,7 +6976,7 @@ function guestCampEnd(d) {
     if (!d && !NET.gotSnap) return;
     NET.campEndMi = NET.mi;
     NET.campCredit = won && campDone() === i;           // c'était aussi ton prochain défi : il est validé pour toi
-    if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); syncScrollBtns(); }
+    if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); syncScrollBtns(); campReward(i); }
     if (won) campUnlock(i);   // battre le Clown et le Mime avec un ami les débloque aussi
     guestToLobby('');
     $('#net-title').textContent = 'Campagne de ton ami';
@@ -6993,12 +7009,28 @@ function showUnlock(list) {
   unlockEl.hidden = false; Sfx.init(); Sfx.play('win');
   try { btns.querySelector('.unl-pick').focus({ preventScroll: true }); } catch (e) {}
 }
-function closeUnlock() { unlockEl.hidden = true; }
+function closeUnlock() { unlockEl.hidden = true; if (rewardWait !== null) { const i = rewardWait; rewardWait = null; campReward(i); } }
+// ---------- Récompenses d'un défi réussi pour la première fois (après la fenêtre des persos débloqués s'il y en a une)
+const rewardEl = $('#reward'); let rewardWait = null;
+function campReward(i) {
+  const n = scrollsOf(i); if (!n) return;
+  if (!unlockEl.hidden) { rewardWait = i; return; }
+  $('#rw-kick').textContent = `Défi ${i + 1} réussi`;
+  const box = $('#rw-scrolls'); box.innerHTML = '';
+  for (let k = 0; k < n; k++) { const e = document.createElement('i'); e.textContent = '📜'; e.style.animationDelay = (k * 0.12) + 's'; box.appendChild(e); }
+  $('#rw-big').textContent = `${n} parchemin${n > 1 ? 's' : ''} d'XP · ${(n * SCROLL_XP).toLocaleString('fr-FR')} XP`;
+  $('#rw-text').textContent = 'Utilise-les sur le perso de ton choix, maintenant ou plus tard depuis l\'accueil.';
+  rewardEl.hidden = false; Sfx.init(); Sfx.play('pickup');
+  try { $('#rw-use').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeReward() { rewardEl.hidden = true; }
+$('#rw-use').addEventListener('click', () => { closeReward(); openScrolls(); });
+$('#rw-later').addEventListener('click', closeReward);
 // ---------- Parchemins d'XP
 const scrollEl = $('#scrolls'); let scrSkin = 0;
 const scrChars = () => CHARS.map((_, i) => i).filter(i => !charLocked(i));
 function syncScrollBtns() {
-  const n = scrollsLeft(), b = $('#btn-scrolls'), cb = $('#camp-scrolls');
+  const n = scrollsLeft(), b = $('#btn-scrolls'), cb = null;
   if (b) { b.hidden = !n; $('#scroll-n').textContent = n; b.lastChild.textContent = ` parchemin${n > 1 ? 's' : ''} d'XP à utiliser`; }
   if (cb) { cb.hidden = !scrollsEarned(); cb.textContent = n ? `📜 Parchemins (${n})` : '📜 Parchemins'; }
 }
@@ -7030,7 +7062,6 @@ $('#scr-one').addEventListener('click', () => useScrolls(1));
 $('#scr-all').addEventListener('click', () => useScrolls(99));
 $('#scr-close').addEventListener('click', closeScrolls);
 $('#btn-scrolls').addEventListener('click', openScrolls);
-$('#camp-scrolls').addEventListener('click', openScrolls);
 syncScrollBtns();
 $('#unl-close').addEventListener('click', closeUnlock);
 function showEndCamp() {
@@ -7050,6 +7081,7 @@ function showEndCamp() {
     if (keep) { NET.started = false; for (const L of NET.links) { L.slot = -1; if (L.conn.open) { try { L.conn.send({ t: 'campend', i: c.i, won: won ? 1 : 0, text }); } catch (e) {} } } }
     toMenu(keep); openCamp(first ? c.i : undefined, res);
     if (won) campUnlock(c.i);
+    if (first) campReward(c.i);
   }, 350);
   return;
   $('#end-kicker').textContent = won ? (first ? 'Défi réussi !' : 'Défi réussi') : 'Défi raté';
@@ -7913,6 +7945,11 @@ window.addEventListener('keydown', e => {
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (!tipEl.hidden) { if (code === 'Escape' || code === 'Enter' || code === 'Space') { e.preventDefault(); closeTip(); } return; }
   if (!unlockEl.hidden) { if (code === 'Escape') { e.preventDefault(); closeUnlock(); } return; }
+  if (!rewardEl.hidden) {
+    if (code === 'Escape') { e.preventDefault(); closeReward(); }
+    else if ((code === 'Enter' || code === 'NumpadEnter') && document.activeElement === document.body) { e.preventDefault(); closeReward(); openScrolls(); }
+    return;
+  }
   if (!scrollEl.hidden) {
     if (code === 'Escape') { e.preventDefault(); closeScrolls(); }
     else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { e.preventDefault(); scrStep(code === 'ArrowLeft' ? -1 : 1); }
@@ -8994,7 +9031,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, scrollEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, scrollEl, rewardEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -9037,6 +9074,7 @@ function navBack(root) {
   else if (root === campEl) closeCamp();
   else if (root === unlockEl) closeUnlock();
   else if (root === scrollEl) closeScrolls();
+  else if (root === rewardEl) closeReward();
   else if (root === tipEl) closeTip();
   else if (root === vsEl) vsSkip();
   else if (root === friendsEl) closeFriends();
