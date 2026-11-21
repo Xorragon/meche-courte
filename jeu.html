@@ -174,8 +174,12 @@ body.touch #touch{display:flex}
 #scrolls,#reward{background:rgba(8,13,9,.9)}
 .rw-scrolls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
 .rw-scrolls i{font-style:normal;font-size:54px;line-height:1;filter:drop-shadow(0 6px 14px rgba(255,190,80,.45));animation:unlPop .55s cubic-bezier(.2,1.6,.4,1) both}
+.rw-scrolls i.gold{font-size:66px;filter:sepia(1) saturate(5) hue-rotate(-12deg) brightness(1.15) drop-shadow(0 0 10px rgba(255,209,102,.95)) drop-shadow(0 6px 16px rgba(255,170,40,.6));animation:unlPop .55s cubic-bezier(.2,1.6,.4,1) both,goldGlint 1.8s ease-in-out .6s infinite}
+@keyframes goldGlint{0%,100%{transform:rotate(-4deg) scale(1)}50%{transform:rotate(4deg) scale(1.08)}}
+.gold-cta{background:linear-gradient(135deg,#ffe08a,#f0a92c);border-color:#ffd66e;color:#3a2203;box-shadow:0 6px 0 #a8701a,0 0 24px rgba(255,209,102,.45)}
+.scroll-btn b.gold{color:#ffd66e;text-shadow:0 0 8px rgba(255,209,102,.8)}
 .rw-big{margin:6px 0 0;font:400 30px/1.1 var(--font-display);color:var(--gold)}
-@media (prefers-reduced-motion: reduce){.rw-scrolls i{animation:none}}
+@media (prefers-reduced-motion: reduce){.rw-scrolls i,.rw-scrolls i.gold{animation:none}}
 .scr-pick{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 10px}
 .scr-pick canvas{width:104px;height:104px;border-radius:50%;background:rgba(243,229,192,.06);box-shadow:0 0 0 3px rgba(255,214,110,.35)}
 .scr-msg{min-height:1.3em;color:var(--gold);font-weight:800}
@@ -1029,6 +1033,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="char-xp end" id="scr-who"></div>
     <div class="row">
       <button class="cta" id="scr-one" type="button">Utiliser 1 parchemin <kbd>Entrée</kbd></button>
+      <button class="cta gold-cta" id="scr-gold" type="button">Utiliser 1 doré</button>
       <button class="ghost" id="scr-all" type="button">Tout utiliser</button>
       <button class="ghost" id="scr-close" type="button">Fermer <kbd>Échap</kbd></button>
     </div>
@@ -1356,7 +1361,9 @@ const XP_LV_COEF = [0.3, 0.45, 0.6, 0.8, 1, 1.15, 1.3, 1.45, 1.6, 1.8], XP_HUMAN
 const XP_BR_TOP = 320, XP_BR_LAST = 40, XP_BR_CURVE = 1.6;
 const brPlaceXp = (r, n) => Math.round(XP_BR_LAST + (XP_BR_TOP - XP_BR_LAST) * Math.pow(n > 1 ? (n - r) / (n - 1) : 1, XP_BR_CURVE));
 // Parchemins d'XP : gagnés en réussissant les défis de la campagne, utilisables sur n'importe quel perso
-const SCROLL_XP = 500;
+const SCROLL_XP = 150, GOLD_XP = 1500, OLD_SCROLL_XP = 500;
+// récompense de chaque défi (première réussite) : [parchemins normaux, parchemins dorés]
+const CAMP_REWARD = [[2, 0], [3, 0], [4, 0], [5, 0], [0, 1], [6, 0], [7, 0], [8, 0], [9, 0], [0, 2]];
 const XP_TOTAL = Array.from({ length: LV_MAX + 1 }, (_, L) => L <= 1 ? 0 : Math.round(37.5 * Math.pow(L - 1, 1.631)));
 if (!settings.xp || typeof settings.xp !== 'object') settings.xp = {};
 // Mode admin (settings.admin, gardé seulement dans ce navigateur, jamais envoyé au compte) : tous les persos débloqués,
@@ -1436,7 +1443,7 @@ const ACH = [
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
 // g, w, k… : stats générales (tous modes). Matchs normaux (classique, en ligne, campagne) : ng parties, nw victoires, nk victimes.
 // Battle royale : bg parties, bw victoires (= top 1), bt top 3, bk victimes, ct contrats, ch coffres, o orbes. pa/po : anciens top 1/top 3 (tous modes), plus comptés.
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu'];   // cp : défis de campagne réussis · pu : parchemins utilisés
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu', 'pn', 'pg'];   // cp : défis de campagne réussis · pu : anciens parchemins (500 XP) utilisés · pn / pg : parchemins normaux / dorés utilisés
 function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('bt', 1); }   // top 3 : seulement en battle royale
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
@@ -6754,9 +6761,19 @@ function drawBossBar(c, t) {
 const campEl = $('#camp'), vsEl = $('#vs');
 const campDone = () => clamp(statOf('cp'), 0, CAMP.length);          // défis réussis (ils se font dans l'ordre)
 // parchemins d'XP : le défi n en donne n (CAMP[].scrolls pour changer) ; gagnés = somme des défis réussis, moins ceux utilisés
-const scrollsOf = i => (CAMP[i] && CAMP[i].scrolls) || i + 1;
-const scrollsEarned = () => { let n = 0; for (let i = 0; i < campDone(); i++) n += scrollsOf(i); return n; };
-const scrollsLeft = () => Math.max(0, scrollsEarned() - statOf('pu'));
+const rewardOf = i => (CAMP[i] && CAMP[i].reward) || CAMP_REWARD[i] || [0, 0];
+const rewardXp = r => r[0] * SCROLL_XP + r[1] * GOLD_XP;
+const rewardTxt = r => [r[0] ? `${r[0]} parchemin${r[0] > 1 ? 's' : ''}` : '', r[1] ? `${r[1]} parchemin${r[1] > 1 ? 's' : ''} doré${r[1] > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
+function scrollsEarnedNG() { let n = 0, g = 0; for (let i = 0; i < campDone(); i++) { const r = rewardOf(i); n += r[0]; g += r[1]; } return [n, g]; }
+// restants : gagnés − utilisés ; les anciens parchemins de 500 XP déjà utilisés (stat pu) sont décomptés, d'abord des normaux
+function scrollsLeftNG() {
+  const [n, g] = scrollsEarnedNG(); let debt = statOf('pu') * OLD_SCROLL_XP;
+  const ln = Math.min(n, Math.floor(debt / SCROLL_XP)); debt -= ln * SCROLL_XP;
+  const lg = Math.min(g, Math.floor(debt / GOLD_XP));
+  return [Math.max(0, n - ln - statOf('pn')), Math.max(0, g - lg - statOf('pg'))];
+}
+const scrollsEarned = () => { const e = scrollsEarnedNG(); return e[0] + e[1]; };
+const scrollsLeft = () => { const l = scrollsLeftNG(); return l[0] + l[1]; };
 const campReady = i => !!CAMP[i] && !!CAMP[i].name && (i <= campDone() || !!settings.admin);
 let campSel = 0, campJust = -1;
 function syncCampBtn() {
@@ -6827,7 +6844,7 @@ function renderCampCard() {
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
-      + ` · récompense : ${scrollsOf(campSel)} parchemin${scrollsOf(campSel) > 1 ? 's' : ''} d'XP (${(scrollsOf(campSel) * SCROLL_XP).toLocaleString('fr-FR')} XP)`
+      + (rewardXp(rewardOf(campSel)) ? ` · récompense : ${rewardTxt(rewardOf(campSel))} d'XP (${rewardXp(rewardOf(campSel)).toLocaleString('fr-FR')} XP)` : '')
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
@@ -6982,7 +6999,7 @@ function guestCampEnd(d) {
     $('#net-title').textContent = 'Campagne de ton ami';
   }
   const text = d && typeof d.text === 'string' ? ' ' + d.text.slice(0, 160) : '';
-  $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ` Il est validé dans ta campagne : +${scrollsOf(i)} parchemin${scrollsOf(i) > 1 ? 's' : ''} d'XP.` : ''}`;
+  $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ` Il est validé dans ta campagne : +${rewardTxt(rewardOf(i))} d'XP.` : ''}`;
   $('#net-wait-text').textContent = "En attente du prochain défi de ton ami…";
 }
 // Persos débloqués en réussissant un défi (CHARS[].camp = numéro du défi) : fenêtre avec leur image
@@ -7013,13 +7030,14 @@ function closeUnlock() { unlockEl.hidden = true; if (rewardWait !== null) { cons
 // ---------- Récompenses d'un défi réussi pour la première fois (après la fenêtre des persos débloqués s'il y en a une)
 const rewardEl = $('#reward'); let rewardWait = null;
 function campReward(i) {
-  const n = scrollsOf(i); if (!n) return;
+  const r = rewardOf(i); if (!rewardXp(r)) return;
   if (!unlockEl.hidden) { rewardWait = i; return; }
   $('#rw-kick').textContent = `Défi ${i + 1} réussi`;
-  const box = $('#rw-scrolls'); box.innerHTML = '';
-  for (let k = 0; k < n; k++) { const e = document.createElement('i'); e.textContent = '📜'; e.style.animationDelay = (k * 0.12) + 's'; box.appendChild(e); }
-  $('#rw-big').textContent = `${n} parchemin${n > 1 ? 's' : ''} d'XP · ${(n * SCROLL_XP).toLocaleString('fr-FR')} XP`;
-  $('#rw-text').textContent = 'Utilise-les sur le perso de ton choix, maintenant ou plus tard depuis l\'accueil.';
+  const box = $('#rw-scrolls'); box.innerHTML = ''; let k = 0;
+  for (let j = 0; j < r[1]; j++, k++) { const e = document.createElement('i'); e.className = 'gold'; e.textContent = '📜'; e.style.animationDelay = (k * 0.14) + 's'; box.appendChild(e); }
+  for (let j = 0; j < r[0]; j++, k++) { const e = document.createElement('i'); e.textContent = '📜'; e.style.animationDelay = (k * 0.12) + 's'; box.appendChild(e); }
+  $('#rw-big').textContent = `${rewardTxt(r)} d'XP · ${rewardXp(r).toLocaleString('fr-FR')} XP`;
+  $('#rw-text').textContent = `Utilise-${r[0] + r[1] > 1 ? 'les' : 'le'} sur le perso de ton choix, maintenant ou plus tard depuis l'accueil.`;
   rewardEl.hidden = false; Sfx.init(); Sfx.play('pickup');
   try { $('#rw-use').focus({ preventScroll: true }); } catch (e) {}
 }
@@ -7030,36 +7048,39 @@ $('#rw-later').addEventListener('click', closeReward);
 const scrollEl = $('#scrolls'); let scrSkin = 0;
 const scrChars = () => CHARS.map((_, i) => i).filter(i => !charLocked(i));
 function syncScrollBtns() {
-  const n = scrollsLeft(), b = $('#btn-scrolls'), cb = null;
-  if (b) { b.hidden = !n; $('#scroll-n').textContent = n; b.lastChild.textContent = ` parchemin${n > 1 ? 's' : ''} d'XP à utiliser`; }
-  if (cb) { cb.hidden = !scrollsEarned(); cb.textContent = n ? `📜 Parchemins (${n})` : '📜 Parchemins'; }
+  const [n, g] = scrollsLeftNG(), b = $('#btn-scrolls');
+  if (b) { b.hidden = !(n + g); b.innerHTML = `📜 ${[n ? `<b>${n}</b> parchemin${n > 1 ? 's' : ''}` : '', g ? `<b class="gold">${g}</b> doré${g > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')} à utiliser`; }
 }
 function renderScrolls(msg) {
-  const n = scrollsLeft(), list = scrChars();
+  const [n, g] = scrollsLeftNG(), list = scrChars();
   if (!list.includes(scrSkin)) scrSkin = list[0] || 0;
-  $('#scr-text').textContent = n ? `Tu as ${n} parchemin${n > 1 ? 's' : ''} de ${SCROLL_XP} XP. Choisis le perso qui en profite (◀ ▶), puis utilise-les quand tu veux.`
-    : scrollsEarned() ? 'Tu as utilisé tous tes parchemins. Réussis de nouveaux défis de la campagne pour en gagner d\'autres.' : 'Chaque défi réussi de la campagne donne des parchemins d\'XP (le défi 1 en donne 1, le défi 2 en donne 2…).';
+  const have = [n ? `${n} parchemin${n > 1 ? 's' : ''} (${SCROLL_XP} XP chacun)` : '', g ? `${g} parchemin${g > 1 ? 's' : ''} doré${g > 1 ? 's' : ''} (${GOLD_XP.toLocaleString('fr-FR')} XP chacun)` : ''].filter(Boolean).join(' et ');
+  $('#scr-text').textContent = n + g ? `Tu as ${have}. Choisis le perso qui en profite (◀ ▶), puis utilise-les quand tu veux.`
+    : scrollsEarned() ? 'Tu as utilisé tous tes parchemins. Réussis de nouveaux défis de la campagne pour en gagner d\'autres.' : 'Chaque défi réussi de la campagne donne des parchemins d\'XP, de plus en plus nombreux, et les défis 5 et 10 des parchemins dorés.';
   drawPortrait($('#scr-cv'), palFor(0), scrSkin);
   $('#scr-who').innerHTML = xpPanelHtml(scrSkin);
-  $('#scr-one').disabled = !n || settings.admin; $('#scr-all').disabled = n < 2 || settings.admin;
-  $('#scr-all').textContent = n > 1 ? `Tout utiliser (${n})` : 'Tout utiliser';
+  $('#scr-one').hidden = !n; $('#scr-gold').hidden = !g;
+  $('#scr-one').disabled = !n || settings.admin; $('#scr-gold').disabled = !g || settings.admin; $('#scr-all').disabled = n + g < 2 || settings.admin;
+  $('#scr-all').textContent = n + g > 1 ? `Tout utiliser (${(n * SCROLL_XP + g * GOLD_XP).toLocaleString('fr-FR')} XP)` : 'Tout utiliser';
   $('#scr-msg').textContent = settings.admin ? 'Mode admin : les parchemins ne s\'utilisent pas.' : msg || '';
   syncScrollBtns();
 }
-function openScrolls() { scrSkin = settings.skin | 0; scrollEl.hidden = false; renderScrolls(); try { $(scrollsLeft() ? '#scr-one' : '#scr-close').focus({ preventScroll: true }); } catch (e) {} }
+function openScrolls() { scrSkin = settings.skin | 0; scrollEl.hidden = false; renderScrolls(); const [n, g] = scrollsLeftNG(); try { $(n ? '#scr-one' : g ? '#scr-gold' : '#scr-close').focus({ preventScroll: true }); } catch (e) {} }
 function closeScrolls() { scrollEl.hidden = true; syncXpUi(); }
 function scrStep(d) { const l = scrChars(); if (!l.length) return; scrSkin = l[(l.indexOf(scrSkin) + d + l.length) % l.length]; renderScrolls(); }
-function useScrolls(k) {
-  const n = Math.min(k, scrollsLeft()); if (!n || settings.admin) return;
-  settings.st.pu = statOf('pu') + n; saveSettings();
-  const L0 = levelOf(scrSkin); addXp(scrSkin, n * SCROLL_XP); const L1 = levelOf(scrSkin);
-  Sfx.init(); Sfx.play('pickup');
-  renderScrolls(`+${(n * SCROLL_XP).toLocaleString('fr-FR')} XP pour ${CHARS[scrSkin].name}${L1 > L0 ? ` : niveau ${L0} → ${L1} !` : ' !'}`);
+// utiliser kn parchemins normaux et kg dorés
+function useScrolls(kn, kg = 0) {
+  const [ln, lg] = scrollsLeftNG(), n = Math.min(kn, ln), g = Math.min(kg, lg); if (!(n + g) || settings.admin) return;
+  if (n) settings.st.pn = statOf('pn') + n; if (g) settings.st.pg = statOf('pg') + g; saveSettings();
+  const xp = n * SCROLL_XP + g * GOLD_XP, L0 = levelOf(scrSkin); addXp(scrSkin, xp); const L1 = levelOf(scrSkin);
+  Sfx.init(); Sfx.play(g ? 'win' : 'pickup');
+  renderScrolls(`+${xp.toLocaleString('fr-FR')} XP pour ${CHARS[scrSkin].name}${L1 > L0 ? ` : niveau ${L0} → ${L1} !` : ' !'}`);
 }
 $('#scr-prev').addEventListener('click', () => scrStep(-1));
 $('#scr-next').addEventListener('click', () => scrStep(1));
 $('#scr-one').addEventListener('click', () => useScrolls(1));
-$('#scr-all').addEventListener('click', () => useScrolls(99));
+$('#scr-gold').addEventListener('click', () => useScrolls(0, 1));
+$('#scr-all').addEventListener('click', () => useScrolls(999, 999));
 $('#scr-close').addEventListener('click', closeScrolls);
 $('#btn-scrolls').addEventListener('click', openScrolls);
 syncScrollBtns();
@@ -7073,7 +7094,7 @@ function showEndCamp() {
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
-  const res = { i: c.i, won, text, scrolls: first ? scrollsOf(c.i) : 0 };
+  const res = { i: c.i, won, text };
   endEl.hidden = true; pauseEl.hidden = true;
   setTimeout(() => {
     if (!(G.camp && G.camp.i === c.i && G.phase === 'matchEnd')) return;
@@ -9364,7 +9385,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
