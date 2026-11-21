@@ -214,7 +214,21 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .cta:active{transform:translateY(4px);box-shadow:0 2px 0 #a3410f}
 .ghost{display:inline-flex;align-items:center;gap:10px;font:800 18px/1 var(--font-body);color:var(--parchment);background:transparent;border:2px solid rgba(243,229,192,.35);border-radius:14px;padding:14px 20px;cursor:pointer}
 .ghost:hover{border-color:var(--parchment)}
-.home{width:min(1000px,100%);margin:auto;display:flex;flex-direction:column;align-items:flex-start}
+.home{width:min(1180px,100%);margin:auto;display:flex;flex-direction:column;align-items:stretch}
+.home-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start}
+.home-play,.home-me{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.home-me{background:rgba(10,16,10,.62);border:1px solid rgba(243,229,192,.16);border-radius:22px;padding:18px 20px 12px;box-shadow:0 18px 40px rgba(0,0,0,.35);backdrop-filter:blur(3px)}
+.home-h{margin:0 0 12px;font:800 12px/1 var(--font-body);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.home-sub{margin:2px 0 6px;font:800 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.home-play .mbtns{margin-top:18px}
+.home-me .charpick,.home-me .char-xp,.home-me .aurapick{width:100%}
+@media (min-width:1100px){
+  .home-grid{grid-template-columns:minmax(0,500px) minmax(0,600px);gap:34px;justify-content:space-between}
+  .home .title{font-size:clamp(70px,7vw,104px)}
+  .home-me{margin-top:6px}
+}
+@media (max-height:820px) and (min-width:1100px){.home .title{font-size:78px}.home-top{margin-bottom:8px}.home-play .mbtns{margin-top:12px}.mbtn{padding:12px 18px 11px}.mbtn b{font-size:23px}}
+@media (max-width:640px){.home .mbtn.camp{grid-template-columns:1fr}.home .mbtn.camp .ci{grid-row:auto;margin-bottom:4px}.home .title{font-size:clamp(52px,16vw,72px)}.home-me{padding:14px 12px 8px;border-radius:18px}}
 .fusebox{width:min(460px,100%)}
 .nick{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-6px 0 18px}
 .nick label{font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -436,6 +450,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 @media (max-width:520px){.charpick{grid-template-columns:repeat(5,1fr);gap:5px}.charpick canvas{width:46px;height:48px}.charpick button{font-size:11px}}
 .net-players .ch{font-weight:800;font-size:12px;color:var(--parchment);opacity:.8}
 .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(580px,100%)}
+.home-play .mbtns{width:100%}
 @media (max-width:640px){.mbtns{grid-template-columns:1fr}}
 .mbtn{display:grid;gap:4px;text-align:left;font:inherit;color:var(--parchment);background:rgba(12,18,12,.55);border:2px solid rgba(243,229,192,.3);border-radius:16px;padding:16px 22px 15px;cursor:pointer;transition:transform .08s,border-color .15s,background .15s}
 .mbtn b{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1}
@@ -688,9 +703,21 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <div class="home">
     <div class="home-top"><a class="home-link" href="index.html">← Le site du jeu</a>
       <span class="home-snd"><button class="ibtn" id="home-mute" type="button" aria-label="Couper le son" aria-pressed="false" title="Son (M)"></button><button class="ibtn" id="home-music" type="button" aria-label="Couper la musique" aria-pressed="false" title="Musique (N)"></button></span></div>
+    <div class="home-grid">
+    <section class="home-play" aria-label="Jouer">
     <p class="kicker">Jusqu'à 4 artificiers</p>
     <h1 class="title">Mèche<br><span>Courte</span></h1>
     <div class="fusebox"><div class="fuse" aria-hidden="true"></div></div>
+    <div class="mbtns">
+      <button class="mbtn main" id="btn-search" type="button"><b>Classé</b><span>En ligne contre de vrais joueurs · rapporte de l'XP</span></button>
+      <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers, le premier à 1000 points gagne</span></button>
+      <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
+      <button class="mbtn" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, pour t'entraîner (sans XP)</span></button>
+      <button class="mbtn" id="btn-create" type="button"><b>Créer un groupe</b><span>Avec tes amis, le mode de votre choix</span></button>
+    </div>
+    </section>
+    <section class="home-me" aria-labelledby="home-me-h">
+    <p class="home-h" id="home-me-h">Ton artificier</p>
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
@@ -703,13 +730,9 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="pick-hint" role="status"></p>
     <div class="char-xp" id="char-xp"></div>
     <button class="ghost tiny scroll-btn" type="button" id="btn-scrolls" hidden>📜 <b id="scroll-n">0</b> parchemins d'XP à utiliser</button>
+    <p class="home-sub">Aura</p>
     <div class="aurapick" id="aurapick" role="radiogroup" aria-label="Aura du perso"></div>
-    <div class="mbtns">
-      <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
-      <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers sur une carte géante, sans fin</span></button>
-      <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
-      <button class="mbtn" id="btn-search" type="button"><b>Chercher une partie</b><span>Contre d'autres joueurs en ligne</span></button>
-      <button class="mbtn" id="btn-create" type="button"><b>Créer un groupe</b><span>Invite tes amis, puis lancez le mode de votre choix</span></button>
+    </section>
     </div>
     <div class="mlinks">
       <button class="ghost tiny cos-btn" type="button" id="btn-custom">Personnaliser<i class="cos-dot" hidden></i></button>
@@ -4459,6 +4482,8 @@ function xpRoundMul(i) {
   if (!foes.length) return { c: 1, m: 1 };   // défis sans adversaire (Kaboum, stand de tir)
   return { c: foes.reduce((a, o) => a + xpFoeCoef(o), 0) / foes.length, m: XP_NMULT[Math.min(3, foes.length)] };
 }
+// L'XP ne compte qu'en partie classée (trouvée par « Classé »), pas en solo, groupe, code ou campagne
+const xpRanked = () => !!(NET.pub && (NET.role === 'host' || NET.role === 'guest') && !NET.spec && !G.camp);
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
   if (!me || me.ai || !inGame()) {
@@ -4470,6 +4495,7 @@ function xpTick(dt) {
   }
   me.aura = auraOf(me.skin); me.elo = ELO.me ? ELO.me.elo | 0 : 0; me.cs = myCos();
   statTick(dt, me, i);
+  if (!xpRanked()) { xpPrevPhase = G.phase; xpPrevKills = me.kills | 0; return; }
   if (G.mode === 'match') {
     if (G.phase === 'roundEnd' && xpPrevPhase !== 'roundEnd' && xpPrevPhase) {
       const pts = G.pointsMode ? (G.gains[i] | 0) : (G.lastWinner === i ? PTS[0] : 0);
@@ -5809,7 +5835,7 @@ function toMenu(keepNet) {
   newRound(); setupHud(); syncMenu();
   menuEl.hidden = false; endEl.hidden = true; pauseEl.hidden = true; soloEl.hidden = true; helpEl.hidden = true; ranksEl.hidden = true; secretEl.hidden = true; accEl().hidden = true;
   clearTimeout(reportT); $('#end-elo').textContent = ''; if (settings.account) refreshMe();
-  try { $('#btn-solo').focus({ preventScroll: true }); } catch (e) {}
+  try { $('#btn-search').focus({ preventScroll: true }); } catch (e) {}
 }
 // Écrans du menu : solo (réglages de la partie locale) et « Comment jouer »
 function openSolo() {
@@ -7918,7 +7944,7 @@ window.addEventListener('keydown', e => {
   }
   if (!menuEl.hidden) {
     const f = document.activeElement;
-    if ((code === 'Enter' || code === 'NumpadEnter') && !(f && menuEl.contains(f) && f.tagName !== 'BODY')) { e.preventDefault(); openSolo(); }
+    if ((code === 'Enter' || code === 'NumpadEnter') && !(f && menuEl.contains(f) && f.tagName !== 'BODY')) { e.preventDefault(); searchGame(); }   // Entrée : le mode principal (Classé)
     return;
   }
   if (!endEl.hidden) {
@@ -9084,7 +9110,7 @@ function pollPads() {
         if (el && root.contains(el) && el !== document.body) el.click();
         else navMove(root, 'down');
       } else if (hit(1)) navBack(root);
-      else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); else if (root === campEl) startCamp(campSel); else if (root === tipEl) closeTip(); else if (root === unlockEl) closeUnlock(); }
+      else if (hit(pb.pause)) { if (root === menuEl) searchGame(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); else if (root === campEl) startCamp(campSel); else if (root === tipEl) closeTip(); else if (root === unlockEl) closeUnlock(); }
       // campagne : LB / RB passent au défi précédent / suivant
       else if (root === scrollEl && (hit(4) || hit(5))) scrStep(hit(4) ? -1 : 1);
       else if (root === campEl && (hit(4) || hit(5))) { document.body.classList.add('pad-nav'); campPick(campSel + (hit(4) ? -1 : 1), true); }
