@@ -1265,7 +1265,7 @@ const ITEMS = [
   { name: 'Poudre vive',      short: '+1 portée', desc: 'Tes explosions vont une case plus loin.',  c1: '#ff9152', c2: '#c43f0b' },
   { name: 'Bottes de lièvre', short: 'Vitesse +', desc: 'Tu cours plus vite.',                      c1: '#58dcc8', c2: '#0e8576' },
   { name: 'Coup de botte',    short: 'Coup de pied', desc: 'Fonce dans une bombe pour la faire glisser. E (B à la manette) l\'arrête. Tout le monde l\'a dès le départ, sauf en battle royale où il faut le trouver.', c1: '#ffd66e', c2: '#c4860c' },
-  { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde E (B à la manette) enfoncé et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
+  { name: 'Gant de lanceur',  short: 'Lancer', desc: 'Garde la touche « Lancer » enfoncée (Q par défaut, RT à la manette) et fonce dans ta bombe : elle vole 3 cases plus loin, rebondit sur les obstacles et passe d\'un bord de la carte à l\'autre.', c1: '#ff7ab8', c2: '#b02a6e' },
   // orbes de points (battle royale) : pas dans la légende des bonus
   { name: 'Orbe', short: '+2', orb: 2, c1: '#ffe27a', c2: '#d99a1a' },
   { name: 'Orbe', short: '+6', orb: 6, c1: '#7dffb0', c2: '#18a85a' },
@@ -1650,15 +1650,17 @@ cosCheckNew(true);
 saveSettings();
 
 /* ---------- Touches personnalisables ---------- */
-const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter / lancer la bombe']];
+const ACTIONS = [['up', 'Haut'], ['down', 'Bas'], ['left', 'Gauche'], ['right', 'Droite'], ['bomb', 'Poser une bombe'], ['stop', 'Arrêter la bombe'], ['throw', 'Lancer la bombe (gant)']];
 const DIRS = new Set(['up', 'down', 'left', 'right']);
 const DEFAULT_KEYS = [
-  { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', bomb: 'Space', stop: 'KeyE' },
-  { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', bomb: 'Enter', stop: 'ShiftRight' },
+  { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', bomb: 'Space', stop: 'KeyE', throw: 'KeyQ' },
+  { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', bomb: 'Enter', stop: 'ShiftRight', throw: 'ControlRight' },
 ];
 function validKeys(k) {
   return Array.isArray(k) && k.length === 2 && k.every(set => set && ACTIONS.every(([a]) => typeof set[a] === 'string' && set[a].length < 40));
 }
+// ajout de la touche « lancer » (séparée d'« arrêter ») : on garde les touches déjà réglées
+if (Array.isArray(settings.keys) && settings.keys.length === 2) settings.keys.forEach((set, i) => { if (set && typeof set === 'object' && typeof set.throw !== 'string') { const used = new Set(settings.keys.flatMap(k => k ? Object.values(k) : [])); set.throw = used.has(DEFAULT_KEYS[i].throw) ? '' : DEFAULT_KEYS[i].throw; } });
 if (!validKeys(settings.keys)) settings.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS));
 if (!settings.keyLabels || typeof settings.keyLabels !== 'object') settings.keyLabels = {};
 let keyMap = {};
@@ -1672,7 +1674,8 @@ function rebuildKeyMap() {
 rebuildKeyMap();
 // boutons de manette (disposition standard) : un seul jeu, partagé par toutes les manettes
 const PAD_ACTIONS = [...ACTIONS, ['pause', 'Pause']];
-const DEFAULT_PAD = { up: 12, down: 13, left: 14, right: 15, bomb: 0, stop: 1, pause: 9 };
+const DEFAULT_PAD = { up: 12, down: 13, left: 14, right: 15, bomb: 0, stop: 1, throw: 7, pause: 9 };
+if (settings.pad && typeof settings.pad === 'object' && !Number.isInteger(settings.pad.throw)) settings.pad.throw = Object.values(settings.pad).includes(7) ? 6 : 7;
 if (!settings.pad || typeof settings.pad !== 'object' || !PAD_ACTIONS.every(([a]) => Number.isInteger(settings.pad[a]) && settings.pad[a] >= 0 && settings.pad[a] < 32)) settings.pad = { ...DEFAULT_PAD };
 const PAD_NAMES_X = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Select', 'Start', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'Home'];
 const PAD_NAMES_PS = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Share', 'Options', 'L3', 'R3', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'PS'];
@@ -2134,7 +2137,7 @@ function thrownPos(f) {
   return [wx(f.sx + f.dx * s), wy(f.sy + f.dy * s), h, s];
 }
 function stopBomb(b) { b.mdx = b.mdy = 0; b.prog = 0; b.stopReq = false; }
-// Gant de lanceur : touche Stop/lancer maintenue + contact avec sa propre bombe (immobile) = lancer
+// Gant de lanceur : touche « lancer » maintenue + contact avec sa propre bombe (immobile) = lancer
 const holding = p => !!(p.hold && p.hold.size);
 function canThrow(p, b) { return !!(p.throw && !p.ai && holding(p) && b && b.owner === p && !b.mdx && !b.mdy); }
 function tryThrow(p, ax, dir, c, lane) {
@@ -8705,7 +8708,8 @@ window.addEventListener('keydown', e => {
   const p = G.players[NET.role || G.mode === 'br' ? localIdx() : settings.mode === 'duo' ? kb.set : 0]; if (!p || p.ai || p.remote) return;
   if (DIRS.has(kb.act)) { removeFrom(p.dirStack, code); p.dirStack.push(code); }
   else if (kb.act === 'bomb') { if (G.phase === 'play') p.bombQueued = true; }
-  else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; (p.hold || (p.hold = new Set())).add(code); }
+  else if (kb.act === 'stop') { if (G.phase === 'play') p.stopQueued = true; }
+  else if (kb.act === 'throw') (p.hold || (p.hold = new Set())).add(code);   // gant : touche maintenue
 });
 window.addEventListener('keyup', e => { for (const p of G.players) { removeFrom(p.dirStack, e.code); if (p.hold) p.hold.delete(e.code); } });
 window.addEventListener('blur', () => { for (const p of G.players) { p.dirStack = p.dirStack.filter(c => c === 'T' || c.startsWith('pad')); if (p.hold) for (const c of [...p.hold]) if (c !== 'T' && !c.startsWith('pad')) p.hold.delete(c); } });
@@ -9861,7 +9865,7 @@ function pollPads() {
           if (hit(pb.bomb) && G.phase === 'play' && !G.paused) p.bombQueued = true;
           if (hit(pb.stop) && G.phase === 'play' && !G.paused) p.stopQueued = true;
           if (!p.hold) p.hold = new Set();
-          if (btn(pb.stop)) p.hold.add(code); else p.hold.delete(code);
+          if (btn(pb.throw)) p.hold.add(code); else p.hold.delete(code);
         }
       }
     }
@@ -9898,10 +9902,10 @@ function renderKeyHelp() {
   const names = [['c1', '<svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><rect x="1" y="1" width="22" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 5h1.6M9 5h1.6M13 5h1.6M17 5h1.6M5 8.3h1.6M9 8.3h1.6M13 8.3h1.6M17 8.3h1.6M7 11.6h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Clavier'], ['c2', '<svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="8.5" y="1" width="7" height="6.5" rx="1.4"/><rect x="1" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="8.5" y="8.5" width="7" height="6.5" rx="1.4"/><rect x="16" y="8.5" width="7" height="6.5" rx="1.4"/></g><path d="M12 5.6V3M10.8 4.2 12 3l1.2 1.2M5.6 11.75H3.2M4.4 10.55 3.2 11.75l1.2 1.2M12 10.3v2.6M10.8 11.7 12 12.9l1.2-1.2M18.4 11.75h2.4M19.6 10.55l1.2 1.2-1.2 1.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Flèches']];
   settings.keys.forEach((k, i) => {
     const el = document.getElementById('keys-help-' + i); if (!el) return;
-    el.innerHTML = `<span class="who ${names[i][0]}">${names[i][1]}</span> ${kbd(k.up)} ${kbd(k.left)} ${kbd(k.down)} ${kbd(k.right)} pour bouger, ${kbd(k.bomb)} pour poser une bombe, ${kbd(k.stop)} pour arrêter la bombe poussée`;
+    el.innerHTML = `<span class="who ${names[i][0]}">${names[i][1]}</span> ${kbd(k.up)} ${kbd(k.left)} ${kbd(k.down)} ${kbd(k.right)} pour bouger, ${kbd(k.bomb)} pour poser une bombe, ${kbd(k.stop)} pour arrêter la bombe poussée${k.throw ? `, ${kbd(k.throw)} maintenu pour lancer ta bombe (gant)` : ''}`;
   });
   const pb = settings.pad, ph = document.getElementById('pad-help');
-  if (ph) ph.innerHTML = `<span class="who c3"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><path d="M7 2.5h10c3 0 4.6 2.2 5.3 5.6l.7 3.6c.4 2.1-1.6 3.6-3.3 2.4L16.8 12H7.2l-2.9 2.1C2.6 15.3.6 13.8 1 11.7l.7-3.6C2.4 4.7 4 2.5 7 2.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 5.8v3.6M5.2 7.6h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="16.4" cy="6.3" r="1.05" fill="currentColor"/><circle cx="18.6" cy="8.5" r="1.05" fill="currentColor"/></svg>Manette</span> ${pb.up === 12 && pb.down === 13 && pb.left === 14 && pb.right === 15 ? 'croix' : [pb.up, pb.left, pb.down, pb.right].map(i => `<kbd>${esc(padLabel(i))}</kbd>`).join(' ')} ou stick gauche pour bouger, <kbd>${esc(padLabel(pb.bomb))}</kbd> pour poser une bombe, <kbd>${esc(padLabel(pb.stop))}</kbd> pour arrêter la bombe poussée, <kbd>${esc(padLabel(pb.pause))}</kbd> pour la pause`;
+  if (ph) ph.innerHTML = `<span class="who c3"><svg class="ico" viewBox="0 0 24 16" aria-hidden="true"><path d="M7 2.5h10c3 0 4.6 2.2 5.3 5.6l.7 3.6c.4 2.1-1.6 3.6-3.3 2.4L16.8 12H7.2l-2.9 2.1C2.6 15.3.6 13.8 1 11.7l.7-3.6C2.4 4.7 4 2.5 7 2.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 5.8v3.6M5.2 7.6h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="16.4" cy="6.3" r="1.05" fill="currentColor"/><circle cx="18.6" cy="8.5" r="1.05" fill="currentColor"/></svg>Manette</span> ${pb.up === 12 && pb.down === 13 && pb.left === 14 && pb.right === 15 ? 'croix' : [pb.up, pb.left, pb.down, pb.right].map(i => `<kbd>${esc(padLabel(i))}</kbd>`).join(' ')} ou stick gauche pour bouger, <kbd>${esc(padLabel(pb.bomb))}</kbd> pour poser une bombe, <kbd>${esc(padLabel(pb.stop))}</kbd> pour arrêter la bombe poussée, <kbd>${esc(padLabel(pb.throw))}</kbd> maintenu pour lancer ta bombe (gant), <kbd>${esc(padLabel(pb.pause))}</kbd> pour la pause`;
   const body = $('#keys-body'); if (!body) return;
   const focusedId = document.activeElement && document.activeElement.id;
   body.innerHTML = '';
