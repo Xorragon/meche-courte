@@ -747,7 +747,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <button class="mbtn main" id="btn-search" type="button"><b>Classé</b><span>En ligne contre de vrais joueurs · rapporte de l'XP</span></button>
       <button class="mbtn br" id="btn-br" type="button"><b>Battle royale</b><span>30 artificiers, le premier à 1000 points gagne</span></button>
       <button class="mbtn camp" id="btn-camp" type="button"><span class="ci" aria-hidden="true"></span><b>Campagne</b><span id="camp-sub">10 défis à relever, un par un</span></button>
-      <button class="mbtn sm3" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis (sans XP)</span></button>
+      <button class="mbtn sm3" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis</span></button>
       <button class="mbtn sm3 train-btn" id="btn-train" type="button"><b>Entraînement</b><span>Seul, avec tes réglages</span></button>
       <button class="mbtn sm3" id="btn-create" type="button"><b>Créer un groupe</b><span>Avec tes amis</span></button>
     </div>
@@ -4980,7 +4980,8 @@ function xpRoundMul(i) {
   return { c: foes.reduce((a, o) => a + xpFoeCoef(o), 0) / foes.length, m: XP_NMULT[Math.min(3, foes.length)] };
 }
 // L'XP ne compte qu'en partie classée (trouvée par « Classé »), pas en solo, groupe, code ou campagne
-const xpRanked = () => !!(NET.pub && (NET.role === 'host' || NET.role === 'guest') && !NET.spec && !G.camp);
+// XP : en solo contre des ordis et en partie classée ; pas en partie personnalisée entre amis (abus), ni en campagne, entraînement ou spectateur
+const xpRanked = () => !!(G.mode !== 'demo' && !G.camp && !G.train && !NET.spec && (NET.role === 'host' || NET.role === 'guest' ? NET.pub : true));
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
   if (!me || me.ai || !inGame() || G.train) {   // entraînement : ni XP ni stats
