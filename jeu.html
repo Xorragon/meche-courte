@@ -160,6 +160,16 @@ body.touch #touch{display:flex}
 
 /* ---------- Surimpressions ---------- */
 .overlay.unlock{z-index:40}
+.ibtn.tip-btn{font-size:14px;line-height:1}
+.ibtn.tip-btn[hidden]{display:none}
+.ibtn.tip-btn.pulse{animation:tipPulse 1s ease-in-out 4;border-color:#ffd36e;box-shadow:0 0 12px rgba(255,211,110,.7)}
+@keyframes tipPulse{50%{transform:scale(1.25)}}
+.tip-box{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;width:min(480px,calc(100vw - 24px));padding:18px 20px 20px;border-radius:20px;background:rgba(14,20,12,.97);border:1.5px solid var(--gold);box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center}
+.tip-box[hidden]{display:none}
+.tip-box h3{margin:2px 0 10px;font:28px var(--font-display, inherit);color:var(--parchment)}
+.tip-box canvas{width:100%;max-width:420px;height:auto;border-radius:12px;background:#2c4a22}
+.tip-box p{margin:10px 0 14px;line-height:1.45}
+.tip-box kbd{font-weight:800}
 .box.unlbox{max-width:720px}
 .unl-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
 .unl-cards figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;animation:unlPop .6s cubic-bezier(.2,1.6,.4,1) both}
@@ -599,6 +609,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         </button>
         <button class="ibtn" id="btn-mute" type="button" aria-label="Couper le son" aria-pressed="false" title="Son (M)"></button>
         <button class="ibtn" id="btn-music" type="button" aria-label="Couper la musique" aria-pressed="false" title="Musique (N)"></button>
+        <button class="ibtn tip-btn" id="btn-tip" type="button" aria-label="Astuce" title="Astuce" hidden>💡</button>
       </div>
     </div>
     <div class="hside r">
@@ -942,6 +953,13 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   </div>
 </div>
 <div id="vs" hidden aria-live="polite"></div>
+<div class="tip-box" id="tip-box" role="dialog" aria-modal="true" aria-labelledby="tip-title" hidden>
+  <p class="kicker">Astuce</p>
+  <h3 id="tip-title">Arrête tes bombes</h3>
+  <canvas id="tip-cv" width="420" height="120" aria-hidden="true"></canvas>
+  <p id="tip-text"></p>
+  <button class="cta" id="tip-ok" type="button">Compris <kbd>Entrée</kbd></button>
+</div>
 <div id="unlock" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="unl-title">
   <div class="box unlbox">
     <p class="kicker">Défi réussi</p>
@@ -1146,11 +1164,17 @@ const CAMP = [
     foe: CLOWN_SKIN, team: true, ally: 6, foes: [CLOWN_SKIN, MIME_SKIN], foesTxt: 'le Clown et le Mime', lv: 1, wins: 2, tomb: 4,
     // les deux équipiers partent ensemble dans le même coin, avec de la place (pas de caisse dans ces rectangles)
     spawns: { 0: [1, 1, 'right'], 2: [3, 1, 'down'], 1: [13, 11, 'left'], 3: [11, 11, 'up'] }, clear: [[1, 1, 5, 3], [9, 9, 13, 11]] },
-  { name: 'Le tireur d\'élite', desc: 'Un stand de tir : derrière la corde, des cibles en bois que les explosions n\'égratignent même pas. Une seule façon de les faire tomber : leur pousser une bombe dessus ! Trois vagues, de moins en moins faciles, avec des bombes comptées.',
-    foe: TARGET_SKIN, wins: 1, time: 120, ammo: 16, noCrates: true, fence: 9,
-    // vagues de cibles : fixes, puis cachées derrière des caisses, puis une cible qui se déplace (x, y, et y0–y1 pour celle qui bouge)
-    targets: [[[11, 3], [13, 9]], [[13, 1], [13, 7]], [[11, 1, 1, 11]]],
-    crateCells: [[12, 1], [11, 7], [12, 7]], spawns: { 0: [3, 5, 'right'] } },
+  { name: 'Le tireur d\'élite', desc: 'Un stand de tir : derrière la corde, des cibles en bois. Pousse tes bombes pour les toucher, arrête-les au bon endroit pour que leur explosion les atteigne, et enchaîne-les pour un combo. Quatre vagues, avec des bombes comptées.',
+    foe: TARGET_SKIN, wins: 1, time: 150, ammo: 20, fuse: 4.5, noCrates: true, fence: 9,
+    // vagues : list = cibles [x, y] (et [x, y, y0, y1] pour celle qui bouge) ; stop : il faut arrêter la bombe au bon endroit ;
+    // combo : toutes les cibles de la vague doivent tomber en même temps ; crates : caisses posées au début de la vague
+    targets: [
+      { list: [[11, 3], [13, 9]] },
+      { list: [[11, 4], [11, 8]], stop: true },
+      { list: [[13, 3], [13, 5]], combo: true, crates: [[12, 3], [12, 5]] },
+      { list: [[11, 1, 1, 11]] },
+    ],
+    spawns: { 0: [3, 5, 'right'] } },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
     foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
   { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
@@ -1722,6 +1746,7 @@ function newRound() {
   G.lobs = []; G.rageFlash = 0; G.campT = 0; G.warn = []; G.tombs = [];
   G.boss = campFlag('boss') ? makeBoss(G.camp) : null;
   G.tg = campFlag('targets') ? tgtInit(G.camp) : null;
+  { const tb = document.getElementById('btn-tip'); if (tb) tb.hidden = !G.tg; }
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   groundDirty = true;
 }
@@ -1981,7 +2006,7 @@ function placeBomb(p) {
   if (G.bombAt[k] || G.grid[k] !== EMPTY) return false;
   if (G.tg && p.id === 0) { if (G.tg.ammo <= 0) { if (!G.tg.emptyMsg) { G.tg.emptyMsg = true; xpToast('Plus de bombes !', true); } return false; } G.tg.ammo--; }
   p.placeT = G.t;
-  const b = { x: cx, y: cy, owner: p, range: p.range, timer: FUSE, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
+  const b = { x: cx, y: cy, owner: p, range: p.range, timer: campFlag('fuse') || FUSE, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
   for (const o of G.players) if (o.alive && Math.abs(o.x - cx) < 0.98 && Math.abs(o.y - cy) < 0.98) b.passers.add(o.id);
   G.bombs.push(b); p.active++;
   rebuildBombAt();
@@ -2005,7 +2030,7 @@ function explode(b) {
     for (let s = 1; s <= b.range; s++) {
       const x = cx + dx * s, y = cy + dy * s, k = idx(x, y), g = G.grid[k];
       if (g === WALL || g === PILLAR || g === STONE) break;
-      if (G.tg) { const tg = tgtAt(x, y); if (tg) { tg.shrug = 0.35; break; } }   // défi 4 : une explosion ne fait rien aux cibles
+      if (G.tg) { const tg = tgtAt(x, y); if (tg) { igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who); tgtStrike(tg); break; } }   // défi 4 : l'explosion touche la cible et s'arrête dessus
       igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who);
       if (g === CRATE) { if (G.mode === 'br' && k === G.chestK) chestHit(k, who); else if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } break; }
       if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; break; }
@@ -2049,7 +2074,7 @@ function updateBombs(dt) {
   }
   for (let i = G.bombs.length - 1; i >= 0; i--) {
     const b = G.bombs[i]; if (!b.hitTgt) continue;
-    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); tgtHit(b.hitTgt, b);
+    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); tgtStrike(b.hitTgt);
   }
   for (let i = G.bombs.length - 1; i >= 0; i--) {
     const b = G.bombs[i]; if (!b.hitBoss) continue;
@@ -5073,7 +5098,7 @@ function render() {
   if (G.phase === 'intro') {
     const tt = G.phaseT;
     if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
-    else if (tt > 0.55 && campFlag('targets')) drawBanner(c, `Fais tomber les ${G.tg ? G.tg.total : 5} cibles !`, 'Pousse tes bombes dessus : une explosion ne leur fait rien', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55 && campFlag('targets')) drawBanner(c, `Fais tomber les ${G.tg ? G.tg.total : 7} cibles !`, 'Pousse tes bombes de l\'autre côté de la corde', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Pousse tes bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
@@ -5408,7 +5433,7 @@ function startMatch() {
   blurActive(); saveSettings();
 }
 function toMenu(keepNet) {
-  if (!keepNet) leaveOnline(); G.camp = null; G.tg = null; $('#end-fr').hidden = true; $('#end-group').hidden = true; $('#end-camp').hidden = true;
+  if (!keepNet) leaveOnline(); G.camp = null; G.tg = null; $('#btn-tip').hidden = true; tipEl.hidden = true; $('#end-fr').hidden = true; $('#end-group').hidden = true; $('#end-camp').hidden = true;
   onlineEl.hidden = true; $('#again').hidden = false; $('#end-note').textContent = '';
   G.mode = 'demo'; G.paused = false; $('#br-ui').hidden = true;
   setPlayers([0, 1, 2, 3].map(i => makePlayer(i, AI_LV[1])));
@@ -5795,14 +5820,24 @@ function teamEndRound(meDead) {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 /* ---------- Défi 4 : le stand de tir. Des cibles en bois qu'on ne fait tomber qu'en leur poussant une bombe dessus ---------- */
+const tgtCount = c => c.targets.reduce((a, w) => a + w.list.length, 0);
+const COMBO_WIN = 0.45;   // combo : les cibles doivent toutes être touchées dans cet intervalle
 function tgtInit(c) {
-  return { waves: c.targets, wave: -1, list: [], hits: 0, total: c.targets.flat().length, ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, msgT: 0 };
+  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {} };
 }
 function tgtWave(T4) {
   T4.wave++; const w = T4.waves[T4.wave]; if (!w) return;
-  T4.list = w.map(a => ({ x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: 1.15, dir: 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitT: 0 }));
+  T4.def = w; T4.comboT = 0;
+  T4.list = w.list.map(a => ({ x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: 1.15, dir: 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitAt: null }));
+  for (const [x, y] of w.crates || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = CRATE; G.hidden[k] = -1; G.burn[k] = 0; } }
   T4.waveT = 0;
-  if (T4.wave > 0) { G.rageMsg = [`Vague ${T4.wave + 1} sur ${T4.waves.length}`, T4.wave === 1 ? 'Ces cibles se cachent derrière des caisses' : 'Celle-ci se déplace : vise au bon moment !']; G.rageFlash = 2; fx('snd', 'go'); }
+  if (T4.wave > 0) {
+    const last = T4.wave === T4.waves.length - 1;
+    G.rageMsg = [last ? 'Dernière vague !' : `Vague ${T4.wave + 1} sur ${T4.waves.length}`,
+      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible' : w.combo ? 'Les deux en même temps ! Enchaîne tes bombes pour un combo' : w.list.some(a => a.length >= 4) ? 'Celle-ci se déplace : vise au bon moment !' : 'Pousse tes bombes sur les cibles'];
+    G.rageFlash = 2.4; fx('snd', 'go');
+    if (w.stop) tipPulse();
+  }
 }
 const tgtAt = (x, y) => G.tg ? G.tg.list.find(o => o.alive && Math.abs(o.x - x) < 0.9 && Math.abs(o.y - y) < 0.9) || null : null;
 // l'avant d'une bombe poussée touche-t-il une cible ? (les cibles mobiles peuvent arriver sur le côté)
@@ -5810,7 +5845,20 @@ function tgtFront(b) {
   const fx0 = b.x + b.mdx * (b.prog + 0.55), fy0 = b.y + b.mdy * (b.prog + 0.55);
   return G.tg.list.find(o => o.alive && Math.abs(o.x - fx0) < 0.62 && Math.abs(o.y - fy0) < 0.62) || null;
 }
-function tgtHit(o, b) {
+// une cible touchée (bombe poussée dessus, ou explosion) ; en combo, elle ne tombe que si toutes les cibles de la vague le sont ensemble
+function tgtStrike(o) {
+  const T4 = G.tg; if (!o.alive) return;
+  if (!T4.def.combo) { tgtHit(o); return; }
+  o.hitAt = G.t; o.shrug = 0.6;
+  const up = T4.list.filter(q => q.alive);
+  if (up.every(q => q.hitAt != null && G.t - q.hitAt <= COMBO_WIN)) {
+    const x = up.reduce((a, q) => a + q.x, 0) / up.length, y = Math.min(...up.map(q => q.y));
+    up.forEach(q => tgtHit(q));
+    addP({ kind: 'text', x: (x + 0.5) * T, y: (y + 0.5) * T - 60, vx: 0, vy: -36, life: 1.4, max: 1.4, size: 30, color: '#ffd36e', text: 'Combo !' });
+    T4.comboT = 0;
+  } else if (!T4.comboT) T4.comboT = G.t + COMBO_WIN;
+}
+function tgtHit(o) {
   const T4 = G.tg; if (!o.alive) return;
   o.alive = false; o.pop = 0.001; T4.hits++;
   const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T;
@@ -5822,6 +5870,12 @@ function tgtTick(dt) {
   const T4 = G.tg;
   if (T4.wave < 0 || (T4.list.every(o => !o.alive && o.pop > 0.7) && T4.wave < T4.waves.length - 1)) tgtWave(T4);
   T4.waveT += dt;
+  // combo raté : une seule cible touchée, elle se relève
+  if (T4.comboT && G.t > T4.comboT) {
+    T4.comboT = 0;
+    const up = T4.list.filter(q => q.alive);
+    if (up.length) { for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0]; addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a', text: 'En même temps !' }); Sfx.play('thud'); }
+  }
   for (const o of T4.list) {
     o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; if (o.pop > 0) o.pop += dt;
     if (!o.alive || !o.moving || o.spawn < 1) continue;
@@ -5830,6 +5884,38 @@ function tgtTick(dt) {
     const blocked = ny < o.y0 || ny > o.y1 || G.grid[idx(o.x, ahead)] !== EMPTY || (G.bombAt[idx(o.x, ahead)] && ahead !== Math.round(o.y));
     if (blocked) o.dir = -o.dir; else o.y = ny;
   }
+}
+// bouton Astuce (défi 4) : comment arrêter une bombe poussée, avec les touches du joueur
+const tipEl = $('#tip-box');
+function tipText() {
+  const k0 = keyLabel(settings.keys[0].stop), k1 = keyLabel(settings.keys[1].stop), pd = padLabel(settings.pad.stop);
+  return `Après avoir poussé une bombe, appuie sur <kbd>${esc(k0)}</kbd> (ou <kbd>${esc(k1)}</kbd>), <kbd>${esc(pd)}</kbd> à la manette, ou le bouton <kbd>Stop</kbd> sur téléphone : elle s'arrête sur la case suivante. Arrête-la juste à côté d'une cible : son explosion la fera tomber. Deux bombes arrêtées à 2 cases l'une de l'autre explosent en chaîne : parfait pour un combo !`;
+}
+function openTip() {
+  if (!G.tg) return;
+  $('#tip-text').innerHTML = tipText(); tipEl.hidden = false; G.tipPaused = !G.paused; G.paused = true; $('#btn-tip').classList.remove('pulse');
+  try { $('#tip-ok').focus({ preventScroll: true }); } catch (e) {}
+}
+function closeTip() { tipEl.hidden = true; if (G.tipPaused) G.paused = false; G.tipPaused = false; blurActive(); }
+function tipPulse() { const b = $('#btn-tip'); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
+$('#btn-tip').addEventListener('click', openTip);
+$('#tip-ok').addEventListener('click', closeTip);
+// petite animation : la bombe glisse, on appuie sur Stop, elle s'arrête à côté de la cible et explose
+function drawTipAnim(now) {
+  if (tipEl.hidden) return;
+  const cv = $('#tip-cv'), c = cv.getContext('2d'), L = 3.2, q = (now / 1000 % L) / L, S = 42, y = 66;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 420, 120);
+  c.fillStyle = '#356b2a'; c.fillRect(0, 0, 420, 120);
+  for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)'; c.fillRect(i * S, 0, S, 120); }
+  c.strokeStyle = '#f6efe0'; c.lineWidth = 3; c.setLineDash([6, 6]); c.beginPath(); c.moveTo(4 * S, 8); c.lineTo(4 * S, 112); c.stroke(); c.setLineDash([]);
+  drawTarget(c, 9 * S + S / 2, y - 10, 15, {});
+  drawTarget(c, 7 * S + S / 2, y - 44, 11, {});
+  const me = { id: 0, skin: settings.skin, pal: palFor(0), cs: myCos() };
+  const stopAt = 7, bx = q < 0.1 ? 1.5 : Math.min(stopAt, 1.5 + (q - 0.1) * 14);
+  if (q < 0.62) { c.save(); c.translate((bx + 0.5) * S, y); drawBombBody(c, myCos()[0] || 1, 12, now / 1000, me.pal.ui); c.restore(); }
+  if (q > 0.38 && q < 0.6) { c.fillStyle = '#ffd36e'; c.font = '800 18px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.fillText('Stop !', (stopAt + 0.5) * S, y + 38); }
+  if (q >= 0.62 && q < 0.85) { const a = 1 - (q - 0.62) / 0.23; c.fillStyle = `rgba(255,176,32,${a.toFixed(2)})`; c.fillRect((stopAt - 2) * S + 6, y - 12, S * 5 - 12, 24); c.fillRect((stopAt) * S + 9, y - 2 * S, 24, S * 3); }
+  c.save(); c.translate(0.9 * S, y + 4); c.scale(0.8, 0.8); drawChar(c, 0, -8, settings.skin, palFor(0), 'right', now / 200, q < 0.1, now / 1000, { noShadow: true }); c.restore();
 }
 function tgtEnd(won) {
   if (G.phase !== 'play') return;
@@ -5876,17 +5962,29 @@ function drawRange(c, t) {
     const e = o.spawn, sc = e < 1 ? 1 - Math.pow(1 - e, 3) * 1 + Math.sin(e * Math.PI) * 0.15 : 1;
     const wob = o.shrug > 0 ? Math.sin(o.shrug * 40) * 0.12 : Math.sin(t * 2 + o.x) * 0.03;
     c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, x, y + T * 0.42, T * 0.3, T * 0.09); c.fill();
-    drawTarget(c, x, y - T * 0.08, T * 0.32, { scale: sc, tilt: wob, flash: o.shrug > 0 ? 0.25 : 0 });
+    drawTarget(c, x, y - T * 0.08, T * 0.32, { scale: sc, tilt: wob, flash: o.hitAt != null ? 0.5 + 0.3 * Math.sin(t * 30) : o.shrug > 0 ? 0.25 : 0 });
   }
   c.restore();
 }
 function drawTgtBar(c, t) {
   const T4 = G.tg, n = T4.total, w = Math.min(380, W - 160), x = (W - w) / 2, y = 12;
+  c.save(); c.translate(-G.cam.x, -G.cam.y);
+  if (T4.def.combo) {
+      const up = T4.list.filter(q => q.alive && q.spawn >= 1);
+      if (up.length > 1) {
+        c.save(); c.setLineDash([6, 8]); c.lineDashOffset = -t * 30; c.lineWidth = 3; c.strokeStyle = `rgba(255,211,110,${(0.5 + 0.3 * Math.sin(t * 5)).toFixed(3)})`;
+        c.beginPath(); up.forEach((q, i) => { const px = (q.x + 0.5) * T - T * 0.5, py = (q.y + 0.5) * T - T * 0.1; if (i) c.lineTo(px, py); else c.moveTo(px, py); }); c.stroke(); c.setLineDash([]);
+        const mx = up.reduce((a, q) => a + (q.x + 0.5) * T, 0) / up.length - T * 0.5, my = up.reduce((a, q) => a + (q.y + 0.5) * T, 0) / up.length - T * 0.1;
+        c.fillStyle = 'rgba(20,14,6,.85)'; rr(c, mx - 15, my - 11, 30, 22, 8); c.fill(); c.fillStyle = '#ffd36e'; c.font = '800 14px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('×' + up.length, mx, my + 1);
+        c.restore();
+      }
+    }
+  c.restore();
   c.save();
   c.fillStyle = 'rgba(10,14,10,.72)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
   c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'middle'; c.fillStyle = '#f3e5c0';
   c.fillText(`Vague ${Math.max(1, T4.wave + 1)} / ${T4.waves.length}`, x, y + 16);
-  for (let i = 0; i < n; i++) { const cx = x + 96 + i * 26; if (i < T4.hits) drawTarget(c, cx, y + 16, 9, {}); else { c.globalAlpha = 0.35; drawTarget(c, cx, y + 16, 9, {}); c.globalAlpha = 1; } }
+  for (let i = 0; i < n; i++) { const cx = x + 100 + i * Math.min(26, (w - 200) / Math.max(1, n - 1)); if (i < T4.hits) drawTarget(c, cx, y + 16, 9, {}); else { c.globalAlpha = 0.35; drawTarget(c, cx, y + 16, 9, {}); c.globalAlpha = 1; } }
   c.textAlign = 'right'; c.fillStyle = T4.ammo <= 3 ? (Math.sin(t * 8) > 0 ? '#ff8a6a' : '#f3e5c0') : '#f3e5c0';
   c.font = '800 15px "Alegreya Sans", sans-serif'; c.fillText(`${T4.ammo} bombe${T4.ammo > 1 ? 's' : ''}`, x + w, y + 16);
   c.restore();
@@ -6180,7 +6278,7 @@ function renderCamp() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
-      : c.targets ? `${c.targets.flat().length} cibles en ${c.targets.length} vagues · seule une bombe poussée les fait tomber · ${c.ammo} bombes · ${c.time / 60} minutes · attention, tes bombes peuvent te souffler`
+      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min ${c.time % 60 ? (c.time % 60) + ' s' : ''} · attention, tes bombes peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
@@ -6205,7 +6303,7 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.npc ? 'Boss' : c.targets ? `${c.targets.flat().length} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   const fr = campSeats(c);
   if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = fr.length ? `Toi, ${fr.map(L => cleanNick(L.nick, 'Ami')).join(', ')}${c.allies > fr.length ? ` + ${c.allies - fr.length} allié${c.allies - fr.length > 1 ? 's' : ''}` : ''}` : `Toi + ${c.allies} alliés`;
@@ -7240,6 +7338,7 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
+  if (!tipEl.hidden) { if (code === 'Escape' || code === 'Enter' || code === 'Space') { e.preventDefault(); closeTip(); } return; }
   if (!unlockEl.hidden) { if (code === 'Escape') { e.preventDefault(); closeUnlock(); } return; }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
@@ -8567,7 +8666,7 @@ function loop(now) {
     pollPads(); replayTick(dt); updateCamera(dt); render(); updateHud(); netTick(); if (G.mode === 'br') brHudTick(now);
     Music.tick(); requestAnimationFrame(loop); return;
   }
-  pollPads(); update(dt); recTick(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); syncSpecBar(); if (G.mode === 'br') brHudTick(now);
+  pollPads(); update(dt); recTick(dt); xpTick(dt); updateCamera(dt); render(); updateHud(); netTick(); drawCharPicker(now / 1000); if (!customEl.hidden) drawCosPreviews(now); drawTipAnim(now); syncSpecBar(); if (G.mode === 'br') brHudTick(now);
   syncBg(); Music.tick(); requestAnimationFrame(loop);
 }
 // Onglet caché pendant une partie en ligne : le navigateur arrête requestAnimationFrame (et ralentit les minuteries).
