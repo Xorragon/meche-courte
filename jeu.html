@@ -203,7 +203,7 @@ body.train-on #hud-b{display:none}
 .scr-pick{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 10px}
 .scr-pick canvas{width:104px;height:104px;border-radius:50%;background:rgba(243,229,192,.06);box-shadow:0 0 0 3px rgba(255,214,110,.35)}
 .scr-msg{min-height:1.3em;color:var(--gold);font-weight:800}
-.scroll-btn{margin:-6px 0 14px}
+.scroll-btn{margin:-6px 0 14px;border-color:rgba(255,209,102,.55)!important;color:#ffe7a8!important;background:rgba(255,209,102,.1)!important;font-weight:800}
 .scroll-btn b{color:var(--gold)}
 .unl-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
 .unl-cards figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;animation:unlPop .6s cubic-bezier(.2,1.6,.4,1) both}
@@ -7428,10 +7428,12 @@ const rewardXp = r => r[0] * SCROLL_XP + r[1] * GOLD_XP;
 const rewardTxt = r => [r[0] ? `${r[0]} parchemin${r[0] > 1 ? 's' : ''}` : '', r[1] ? `${r[1]} parchemin${r[1] > 1 ? 's' : ''} doré${r[1] > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
 function scrollsEarnedNG() { let n = 0, g = 0; for (let i = 0; i < campDone(); i++) { const r = rewardOf(i); n += r[0]; g += r[1]; } return [n, g]; }
 // restants : gagnés − utilisés ; les anciens parchemins de 500 XP déjà utilisés (stat pu) sont décomptés, d'abord des normaux
+// (la dette ne porte que sur les défis 1 à 5, les seuls de l'ancien barème : les récompenses des défis suivants restent toujours à toi)
 function scrollsLeftNG() {
   const [n, g] = scrollsEarnedNG(); let debt = statOf('pu') * OLD_SCROLL_XP;
-  const ln = Math.min(n, Math.floor(debt / SCROLL_XP)); debt -= ln * SCROLL_XP;
-  const lg = Math.min(g, Math.floor(debt / GOLD_XP));
+  let on = 0, og = 0; for (let i = 0; i < Math.min(5, campDone()); i++) { const r = rewardOf(i); on += r[0]; og += r[1]; }
+  const ln = Math.min(on, Math.floor(debt / SCROLL_XP)); debt -= ln * SCROLL_XP;
+  const lg = Math.min(og, Math.floor(debt / GOLD_XP));
   return [Math.max(0, n - ln - statOf('pn')), Math.max(0, g - lg - statOf('pg'))];
 }
 const scrollsEarned = () => { const e = scrollsEarnedNG(); return e[0] + e[1]; };
