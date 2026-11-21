@@ -1164,8 +1164,8 @@ const CAMP = [
     foe: CLOWN_SKIN, team: true, ally: 6, foes: [CLOWN_SKIN, MIME_SKIN], foesTxt: 'le Clown et le Mime', lv: 1, wins: 2, tomb: 4,
     // les deux équipiers partent ensemble dans le même coin, avec de la place (pas de caisse dans ces rectangles)
     spawns: { 0: [1, 1, 'right'], 2: [3, 1, 'down'], 1: [13, 11, 'left'], 3: [11, 11, 'up'] }, clear: [[1, 1, 5, 3], [9, 9, 13, 11]] },
-  { name: 'Le tireur d\'élite', desc: 'Un stand de tir : derrière la corde, des cibles en bois. Pousse tes bombes pour les toucher, arrête-les au bon endroit pour que leur explosion les atteigne, et enchaîne-les pour un combo. Quatre vagues, avec des bombes comptées.',
-    foe: TARGET_SKIN, wins: 1, time: 150, ammo: 20, fuse: 4.5, noCrates: true, fence: 9,
+  { name: 'Le tireur d\'élite', desc: 'Un stand de tir : derrière la corde, des cibles en bois. Pousse tes bombes, arrête-les au bon endroit, enchaîne-les en combo, déjoue les boucliers, vise les cibles éclair et déclenche une réaction en chaîne. Sept vagues de plus en plus dures, avec des bombes comptées.',
+    foe: TARGET_SKIN, wins: 1, time: 240, ammo: 30, fuse: 4.5, noCrates: true, fence: 9,
     // vagues : list = cibles [x, y] (et [x, y, y0, y1] pour celle qui bouge) ; stop : il faut arrêter la bombe au bon endroit ;
     // combo : toutes les cibles de la vague doivent tomber en même temps ; crates / stones : caisses ou blocs de pierre posés au début de la vague ;
     // spots : cases conseillées pour les bombes (cercles pointillés)
@@ -1174,11 +1174,18 @@ const CAMP = [
       { list: [[11, 4], [11, 8]], stop: true },
       // combo : un bloc de pierre arrête la 1re bombe en (11,3) ; la 2e s'arrête à la main en (11,5) ; elles explosent en chaîne
       { list: [[11, 2], [11, 6]], combo: true, stones: [[12, 3]], spots: [[11, 3], [11, 5]] },
-      { list: [[11, 1, 1, 11]] },
+      // boucliers : un bouclier tourne autour de la cible et arrête ce qui arrive de son côté
+      { list: [[13, 3], [13, 9]], shield: true },
+      // cibles éclair : elles apparaissent l'une après l'autre quelques secondes ; il faut en toucher `need`
+      { flash: [[13, 7], [11, 1], [13, 11], [11, 5], [13, 3], [11, 9]], need: 3, life: 4.2 },
+      // réaction en chaîne : 3 cibles ensemble ; les barils de poudre explosent quand une flamme les touche
+      { list: [[11, 2], [13, 6], [11, 8]], combo: true, kegs: [[11, 5], [13, 5]], spots: [[11, 3], [11, 7]] },
+      // deux cibles mobiles rapides (x, y, y0, y1, vitesse)
+      { list: [[11, 1, 1, 11, 1.7], [13, 11, 1, 11, 1.4]] },
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
-    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600 },
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 1, wins: 1, time: 600, tomb: 8 },
   { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
@@ -1775,7 +1782,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
-  if (G.tg && tgtAt(x, y)) return true;
+  if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;
   const o = G.bombAt[k]; if (o && o !== self) return true;
   for (const f of G.falling) if (f.k === k) return true;
   if (ignorePlayers) return false;
@@ -2032,7 +2039,10 @@ function explode(b) {
     for (let s = 1; s <= b.range; s++) {
       const x = cx + dx * s, y = cy + dy * s, k = idx(x, y), g = G.grid[k];
       if (g === WALL || g === PILLAR || g === STONE) break;
-      if (G.tg) { const tg = tgtAt(x, y); if (tg) { igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who); tgtStrike(tg); break; } }   // défi 4 : l'explosion touche la cible et s'arrête dessus
+      if (G.tg) {   // défi 4 : l'explosion touche la cible (ou allume le baril) et s'arrête dessus
+        const tg = tgtAt(x, y), kg = !tg && kegAt(x, y);
+        if (tg || kg) { igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who); if (tg) tgtStrike(tg, -dx, -dy); else kegIgnite(kg); break; }
+      }
       igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who);
       if (g === CRATE) { if (G.mode === 'br' && k === G.chestK) chestHit(k, who); else if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } break; }
       if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; break; }
@@ -2059,7 +2069,7 @@ function updateBombs(dt) {
       // défi du boss : une bombe poussée qui arrive contre lui le frappe (-2 PV), sans explosion autour
       const boom = () => { b.hitBoss = true; stopBomb(b); };
       const tg = G.tg && tgtFront(b);
-      if (tg) { b.hitTgt = tg; stopBomb(b); }
+      if (tg) { if (tgtShieldBlocks(tg, -b.mdx, -b.mdy)) { tgtBlocked(tg); tgtBounce(b); } else { b.hitTgt = tg; stopBomb(b); } }
       else if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
@@ -2067,7 +2077,7 @@ function updateBombs(dt) {
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
           if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
-          else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy)) { b.hitTgt = tgtAt(b.x + b.mdx, b.y + b.mdy); stopBomb(b); }
+          else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy)) { const tg2 = tgtAt(b.x + b.mdx, b.y + b.mdy); if (tgtShieldBlocks(tg2, -b.mdx, -b.mdy)) { tgtBlocked(tg2); tgtBounce(b); } else { b.hitTgt = tg2; stopBomb(b); } }
           else if (bossAt(b.x + b.mdx, b.y + b.mdy)) boom();
           else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
         }
@@ -2869,13 +2879,14 @@ function update(dt) {
     tgtTick(dt);
     // défi 4 : gagné quand la dernière cible tombe ; perdu si tu es soufflé, si le temps est écoulé, ou s'il n'y a plus de bombes
     const T4 = G.tg, me = G.players[0], left = T4.total - T4.hits;
-    const dry = T4.ammo <= 0 && !G.bombs.some(b => b.owner === me) && !G.thrown.length;
+    const dry = T4.ammo <= 0 && !G.bombs.some(b => b.owner === me || b.keg) && !G.thrown.length && !T4.kegs.some(k => k.alive && k.fuse >= 0);
     if (!left) { T4.endT += dt; if (T4.endT > 0.9) tgtEnd(true); }
     else if (!me.alive || G.time <= 0 || dry) { T4.why = !me.alive ? 'dead' : G.time <= 0 ? 'time' : 'ammo'; G.endTimer = G.endTimer || 1.2; G.endTimer -= dt; if (G.endTimer <= 0) tgtEnd(false); }
   } else if (G.phase === 'play' && G.boss) {
+    if (campFlag('tomb')) tombTick(dt);   // défi du boss : un équipier soufflé laisse une tombe, à relever
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
     if (!G.boss.alive) { if (G.boss.deadT > 1.6) bossEnd(true); }
-    else if (!G.players.some(o => !o.ai && o.alive) || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // perdu dès que le joueur (et ses amis) sont soufflés
+    else if (humansOut() || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }   // perdu dès que le joueur (et ses amis) sont soufflés
   } else if (G.phase === 'play' && G.mode !== 'br') {
     const alive = G.players.filter(p => p.alive);
     // plus aucun joueur humain en vie (ordis seuls) : la manche s'arrête
@@ -5762,6 +5773,12 @@ function bossDeathFx(B) {
   }
 }
 function teamTick(dt) {
+  tombTick(dt);
+  teamKickTick(dt);
+}
+// plus aucun humain ne peut revenir : tous soufflés, sans tombe qu'un coéquipier vivant pourrait relever
+const humansOut = () => G.players.filter(o => !o.ai && o.team === 0).every(h => !h.alive && !(G.tombs.some(tb => tb.p === h) && G.players.some(o => o.alive && o.team === 0)));
+function tombTick(dt) {
   // tombes : le temps passe, un coéquipier vivant qui passe dessus relève le mort
   for (let i = G.tombs.length - 1; i >= 0; i--) {
     const tb = G.tombs[i]; tb.t -= dt;
@@ -5778,6 +5795,8 @@ function teamTick(dt) {
     }
     if (tb.t <= 0) { G.tombs.splice(i, 1); const cx = (tb.x + 0.5) * T, cy = (tb.y + 0.5) * T; for (let j = 0; j < 8; j++) addP({ kind: 'smoke', x: cx + (Math.random() - 0.5) * 20, y: cy, vx: (Math.random() - 0.5) * 30, vy: -30 - Math.random() * 30, life: 0.6, max: 0.6, size: 6, color: '200,200,200' }); }
   }
+}
+function teamKickTick(dt) {
   // l'allié (le Chevalier) pousse vers les adversaires les bombes alignées avec eux
   for (const p of G.players) {
     if (!p.alive || !p.ai || p.team !== 0) continue;
@@ -5822,35 +5841,78 @@ function teamEndRound(meDead) {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 /* ---------- Défi 4 : le stand de tir. Des cibles en bois qu'on ne fait tomber qu'en leur poussant une bombe dessus ---------- */
-const tgtCount = c => c.targets.reduce((a, w) => a + w.list.length, 0);
-const COMBO_WIN = 0.45;   // combo : les cibles doivent toutes être touchées dans cet intervalle
+const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need : w.list.length), 0);
+const COMBO_WIN = 0.6;   // combo : les cibles doivent toutes être touchées dans cet intervalle
 function tgtInit(c) {
-  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {} };
+  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, nextT: 0, blockT: 0 };
 }
 function tgtWave(T4) {
   T4.wave++; const w = T4.waves[T4.wave]; if (!w) return;
-  T4.def = w; T4.comboT = 0;
-  T4.list = w.list.map(a => ({ x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: 1.15, dir: 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitAt: null }));
-  for (const [x, y] of w.crates || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = CRATE; G.hidden[k] = -1; G.burn[k] = 0; } }
-  for (const [x, y] of w.stones || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = STONE; G.hidden[k] = -1; G.burn[k] = 0; fx('crate', x, y); } }
+  T4.def = w; T4.comboT = 0; T4.flashI = 0; T4.flashHits = 0; T4.nextT = 0;
+  // ce que la vague d'avant avait posé (blocs, caisses) disparaît
+  for (const k of T4.placed) if ((G.grid[k] === STONE || G.grid[k] === CRATE) && !G.bombAt[k]) { G.grid[k] = EMPTY; G.burn[k] = 0; fx('crate', k % COLS, (k / COLS) | 0); }
+  T4.placed = [];
+  T4.list = (w.list || []).map((a, i) => tgtMake(a, i));
+  T4.kegs = (w.kegs || []).map(([x, y]) => ({ x, y, alive: true, fuse: -1, back: 0 }));
+  if (w.flash) tgtFlashNext(T4);
+  for (const [x, y] of w.crates || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = CRATE; G.hidden[k] = -1; G.burn[k] = 0; T4.placed.push(k); } }
+  for (const [x, y] of w.stones || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = STONE; G.hidden[k] = -1; G.burn[k] = 0; T4.placed.push(k); fx('crate', x, y); } }
   T4.waveT = 0;
   if (T4.wave > 0) {
     const last = T4.wave === T4.waves.length - 1;
     G.rageMsg = [last ? 'Dernière vague !' : `Vague ${T4.wave + 1} sur ${T4.waves.length}`,
-      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible' : w.combo ? 'Les deux en même temps ! Deux bombes l\'une au-dessus de l\'autre explosent en chaîne' : w.list.some(a => a.length >= 4) ? 'Celle-ci se déplace : vise au bon moment !' : 'Pousse tes bombes sur les cibles'];
+      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible'
+        : w.kegs ? 'Les trois ensemble ! Une flamme fait sauter les barils'
+        : w.combo ? 'Les deux en même temps ! Deux bombes l\'une au-dessus de l\'autre explosent en chaîne'
+        : w.shield ? 'Boucliers tournants : tire quand le bouclier est de l\'autre côté'
+        : w.flash ? `Cibles éclair : touches-en ${w.need} avant qu'elles ne disparaissent`
+        : w.list.filter(a => a.length >= 4).length > 1 ? 'Deux cibles rapides : vise au bon moment !'
+        : w.list.some(a => a.length >= 4) ? 'Celle-ci se déplace : vise au bon moment !' : 'Pousse tes bombes sur les cibles'];
     G.rageFlash = 2.4; fx('snd', 'go');
     if (w.stop) tipPulse();
   }
 }
 const tgtAt = (x, y) => G.tg ? G.tg.list.find(o => o.alive && Math.abs(o.x - x) < 0.9 && Math.abs(o.y - y) < 0.9) || null : null;
+const kegAt = (x, y) => G.tg ? G.tg.kegs.find(k => k.alive && k.x === x && k.y === y) || null : null;
+function tgtMake(a, i) {
+  return { x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: a[4] || 1.15, dir: i % 2 ? -1 : 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitAt: null,
+    shield: !!(G.tg && G.tg.def && G.tg.def.shield), sa: i * Math.PI + 0.4, sdir: i % 2 ? -1 : 1 };
+}
+// cibles éclair : la suivante apparaît (elles reviennent dans le même ordre)
+function tgtFlashNext(T4) {
+  const w = T4.def; let a = w.flash[T4.flashI++ % w.flash.length];
+  for (let j = 0; j < w.flash.length && G.bombAt[idx(a[0], a[1])]; j++) a = w.flash[T4.flashI++ % w.flash.length];   // pas sur une bombe
+  T4.list = [{ ...tgtMake(a, 0), life: w.life, max: w.life }];
+}
+// bouclier tournant : il arrête ce qui arrive du côté où il se trouve (sx, sy : côté d'où vient le coup)
+const tgtShieldBlocks = (o, sx, sy) => o.shield && Math.cos(o.sa) * sx + Math.sin(o.sa) * sy > 0.26;
+function tgtBlocked(o) {
+  o.shrug = 0.4;
+  const x = (o.x + 0.5) * T + Math.cos(o.sa) * T * 0.46, y = (o.y + 0.5) * T + Math.sin(o.sa) * T * 0.4;
+  for (let j = 0; j < 10; j++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 120; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4, max: 0.4, size: 2.2, color: j % 2 ? '#e8eef8' : '#ffd166' }); }
+  if (G.t - G.tg.blockT > 0.8) { G.tg.blockT = G.t; addP({ kind: 'text', x, y: y - 26, vx: 0, vy: -30, life: 0.9, max: 0.9, size: 16, color: '#cfe0ff', text: 'Bloqué !' }); Sfx.play('halt'); }
+}
+// bombe renvoyée par un bouclier : elle repart d'où elle vient, sans à-coup
+function tgtBounce(b) {
+  if (b.prog > 0) { b.x += b.mdx; b.y += b.mdy; b.prog = Math.max(0, 1 - b.prog); }
+  b.mdx = -b.mdx; b.mdy = -b.mdy; b.stopReq = false; b.passers.clear(); rebuildBombAt();
+}
+// baril de poudre touché par une flamme : il explose juste après (portée 2), comme une bombe du joueur
+function kegIgnite(kg) { if (kg.fuse < 0) kg.fuse = 0.12; }
+function kegBoom(kg) {
+  kg.alive = false; kg.fuse = -1; kg.back = 3;   // il revient quelques secondes plus tard
+  const me = G.players[0], b = { x: kg.x, y: kg.y, owner: { id: 0, active: 1, pal: me.pal }, range: 2, timer: 0, mdx: 0, mdy: 0, prog: 0, passers: new Set(), keg: true };
+  G.bombs.push(b); explode(b);
+}
 // l'avant d'une bombe poussée touche-t-il une cible ? (les cibles mobiles peuvent arriver sur le côté)
 function tgtFront(b) {
   const fx0 = b.x + b.mdx * (b.prog + 0.55), fy0 = b.y + b.mdy * (b.prog + 0.55);
   return G.tg.list.find(o => o.alive && Math.abs(o.x - fx0) < 0.62 && Math.abs(o.y - fy0) < 0.62) || null;
 }
 // une cible touchée (bombe poussée dessus, ou explosion) ; en combo, elle ne tombe que si toutes les cibles de la vague le sont ensemble
-function tgtStrike(o) {
+function tgtStrike(o, sx, sy) {
   const T4 = G.tg; if (!o.alive) return;
+  if (sx !== undefined && tgtShieldBlocks(o, sx, sy)) { tgtBlocked(o); return; }
   if (!T4.def.combo) { tgtHit(o); return; }
   o.hitAt = G.t; o.shrug = 0.6;
   const up = T4.list.filter(q => q.alive);
@@ -5864,6 +5926,7 @@ function tgtStrike(o) {
 function tgtHit(o) {
   const T4 = G.tg; if (!o.alive) return;
   o.alive = false; o.pop = 0.001; T4.hits++;
+  if (T4.def.flash) { T4.flashHits++; T4.nextT = G.t + 0.7; }
   const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T;
   for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.6, max: 0.6, size: 2.6, color: ['#ffd166', '#ff5a3c', '#fff3e0', '#a8743f'][j % 4] }); }
   addP({ kind: 'text', x, y: y - 30, vx: 0, vy: -46, life: 1, max: 1, size: 22, color: '#ffd166', text: T4.hits === T4.total ? 'Dernière !' : `${T4.hits} / ${T4.total}` });
@@ -5871,16 +5934,34 @@ function tgtHit(o) {
 }
 function tgtTick(dt) {
   const T4 = G.tg;
-  if (T4.wave < 0 || (T4.list.every(o => !o.alive && o.pop > 0.7) && T4.wave < T4.waves.length - 1)) tgtWave(T4);
+  const done = T4.def.flash ? T4.flashHits >= T4.def.need && T4.list.every(o => !o.alive && o.pop > 0.7) : T4.list.every(o => !o.alive && o.pop > 0.7);
+  if (T4.wave < 0 || (done && T4.wave < T4.waves.length - 1)) tgtWave(T4);
   T4.waveT += dt;
+  // cibles éclair : chacune ne reste que quelques secondes
+  if (T4.def.flash && T4.flashHits < T4.def.need) {
+    const o = T4.list[0];
+    if (o && o.alive && o.spawn >= 1) { o.life -= dt; if (o.life <= 0) { o.alive = false; o.miss = true; o.pop = 0.001; T4.nextT = G.t + 0.45; Sfx.play('thud'); } }
+    if (o && !o.alive && T4.nextT && G.t >= T4.nextT) { T4.nextT = 0; tgtFlashNext(T4); }
+  }
+  // barils allumés
+  for (const kg of T4.kegs) {
+    if (kg.alive && kg.fuse >= 0) { kg.fuse -= dt; if (kg.fuse <= 0) kegBoom(kg); }
+    if (!kg.alive && kg.back > 0) { kg.back -= dt; if (kg.back <= 0 && !G.bombAt[idx(kg.x, kg.y)] && G.grid[idx(kg.x, kg.y)] === EMPTY) { kg.alive = true; kg.fuse = -1; fx('crate', kg.x, kg.y); } }
+  }
   // combo raté : une seule cible touchée, elle se relève
   if (T4.comboT && G.t > T4.comboT) {
     T4.comboT = 0;
     const up = T4.list.filter(q => q.alive);
-    if (up.length) { for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0]; addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a', text: 'En même temps !' }); Sfx.play('thud'); }
+    if (up.length) {
+      for (const kg of T4.kegs) if (!kg.alive) kg.back = Math.min(kg.back || 1.2, 1.2);   // les barils reviennent pour un nouvel essai
+      const three = T4.list.length > 2;
+      for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0];
+      addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a', text: three ? 'Les trois ensemble !' : 'En même temps !' }); Sfx.play('thud');
+    }
   }
   for (const o of T4.list) {
     o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; if (o.pop > 0) o.pop += dt;
+    if (o.shield) o.sa += dt * (TAU / 2.6) * o.sdir;
     if (!o.alive || !o.moving || o.spawn < 1) continue;
     // cible mobile : va et vient sur sa colonne, fait demi-tour au bout ou devant un obstacle
     const ny = o.y + o.dir * o.v * dt, ahead = Math.round(o.y + o.dir * 0.95);
@@ -5940,6 +6021,32 @@ function drawTarget(c, x, y, r, o) {
   c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1.2; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke();
   c.restore();
 }
+// bouclier rond en acier qui tourne autour de la cible, avec l'arc du côté qu'il protège
+function drawTgtShield(c, x, y, a, t) {
+  c.save();
+  c.strokeStyle = 'rgba(190,210,240,.35)'; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y, T * 0.5, T * 0.44, 0, a - 1.3, a + 1.3); c.stroke();
+  const sx = x + Math.cos(a) * T * 0.46, sy = y + Math.sin(a) * T * 0.4, r = T * 0.2;
+  const g = c.createRadialGradient(sx - r * 0.3, sy - r * 0.3, 1, sx, sy, r); g.addColorStop(0, '#f2f6fc'); g.addColorStop(0.6, '#9aa6b8'); g.addColorStop(1, '#5a6578');
+  c.fillStyle = g; c.beginPath(); c.arc(sx, sy, r, 0, TAU); c.fill();
+  c.lineWidth = 2.5; c.strokeStyle = '#3a4252'; c.stroke();
+  c.fillStyle = '#ffd36e'; c.beginPath(); c.arc(sx, sy, r * 0.28, 0, TAU); c.fill();
+  c.restore();
+}
+// baril de poudre (défi 4) : il saute quand une flamme le touche
+function drawKeg(c, x, y, t, lit) {
+  c.save(); c.translate(x, y + 2);
+  if (lit) { c.translate((Math.random() - 0.5) * 3, 0); }
+  c.fillStyle = 'rgba(15,20,10,.3)'; ell(c, 0, T * 0.36, T * 0.3, T * 0.09); c.fill();
+  const w = T * 0.34, h = T * 0.4;
+  const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, '#5a3418'); g.addColorStop(0.5, '#a8682f'); g.addColorStop(1, '#5a3418');
+  c.fillStyle = g; c.beginPath(); c.ellipse(0, 0, w, h, 0, 0, TAU); c.fill();
+  c.fillStyle = '#3a3f48'; c.fillRect(-w * 0.98, -h * 0.55, w * 1.96, h * 0.14); c.fillRect(-w * 0.98, h * 0.4, w * 1.96, h * 0.14);
+  c.fillStyle = '#d8302a'; c.fillRect(-w * 0.8, -h * 0.18, w * 1.6, h * 0.36);
+  c.fillStyle = '#fff3e0'; c.font = `900 ${Math.round(T * 0.14)}px "Alegreya Sans", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('POUDRE', 0, 1);
+  c.strokeStyle = '#6b4a2b'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -h); c.quadraticCurveTo(3, -h - 6, 6, -h - 8); c.stroke();
+  if (lit) { c.save(); c.translate(6, -h - 8); c.scale(1.4, 1.4); drawSpark(c, 0, 0); c.restore(); c.fillStyle = `rgba(255,90,40,${(0.3 + 0.3 * Math.sin(t * 40)).toFixed(2)})`; c.beginPath(); c.ellipse(0, 0, w, h, 0, 0, TAU); c.fill(); }
+  c.restore();
+}
 function drawRange(c, t) {
   const T4 = G.tg, fx0 = T4.fence;
   // sol du stand (sable) et corde rouge et blanche qui le ferme
@@ -5955,8 +6062,13 @@ function drawRange(c, t) {
   c.setLineDash([]);
   // rail de la cible mobile
   for (const o of T4.list) if (o.moving && (o.alive || o.pop < 0.7)) { c.strokeStyle = 'rgba(90,58,30,.55)'; c.lineWidth = 3; c.beginPath(); c.moveTo((o.x + 0.5) * T - 7, (o.y0 + 0.5) * T); c.lineTo((o.x + 0.5) * T - 7, (o.y1 + 0.5) * T); c.moveTo((o.x + 0.5) * T + 7, (o.y0 + 0.5) * T); c.lineTo((o.x + 0.5) * T + 7, (o.y1 + 0.5) * T); c.stroke(); }
+  for (const kg of T4.kegs) if (kg.alive) drawKeg(c, (kg.x + 0.5) * T, (kg.y + 0.5) * T, t, kg.fuse >= 0);
   for (const o of T4.list) {
     const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T - 2;
+    if (!o.alive && o.miss) {   // cible éclair ratée : elle rentre dans le sol
+      if (o.pop > 0.45) continue;
+      const k = o.pop / 0.45; c.save(); c.globalAlpha = 1 - k; drawTarget(c, x, y - T * 0.08 + k * 14, T * 0.32, { scale: 1 - k * 0.7 }); c.restore(); continue;
+    }
     if (!o.alive) {
       if (o.pop > 0.7) continue;
       const k = o.pop / 0.7;   // elle bascule en arrière et disparaît
@@ -5966,11 +6078,16 @@ function drawRange(c, t) {
     const wob = o.shrug > 0 ? Math.sin(o.shrug * 40) * 0.12 : Math.sin(t * 2 + o.x) * 0.03;
     c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, x, y + T * 0.42, T * 0.3, T * 0.09); c.fill();
     drawTarget(c, x, y - T * 0.08, T * 0.32, { scale: sc, tilt: wob, flash: o.hitAt != null ? 0.5 + 0.3 * Math.sin(t * 30) : o.shrug > 0 ? 0.25 : 0 });
+    if (o.life !== undefined && o.spawn >= 1) {   // cible éclair : anneau du temps qui reste
+      const f = Math.max(0, o.life / o.max); c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.arc(x, y - T * 0.08, T * 0.42, 0, TAU); c.stroke();
+      c.strokeStyle = f < 0.3 && Math.sin(t * 20) > 0 ? '#ff5a4a' : '#ffd36e'; c.beginPath(); c.arc(x, y - T * 0.08, T * 0.42, -Math.PI / 2, -Math.PI / 2 + f * TAU); c.stroke();
+    }
+    if (o.shield) drawTgtShield(c, x, y - T * 0.08, o.sa, t);
   }
   c.restore();
 }
 function drawTgtBar(c, t) {
-  const T4 = G.tg, n = T4.total, w = Math.min(380, W - 160), x = (W - w) / 2, y = 12;
+  const T4 = G.tg, n = T4.total, w = Math.min(n > 8 ? 470 : 380, W - 120), x = (W - w) / 2, y = 12, ir = n > 8 ? 7 : 9;
   c.save(); c.translate(-G.cam.x, -G.cam.y);
   if (T4.def.spots && T4.list.some(q => q.alive)) for (const [sx, sy] of T4.def.spots) {
     if (G.bombAt[idx(sx, sy)]) continue;
@@ -5983,7 +6100,8 @@ function drawTgtBar(c, t) {
       if (up.length > 1) {
         c.save(); c.setLineDash([6, 8]); c.lineDashOffset = -t * 30; c.lineWidth = 3; c.strokeStyle = `rgba(255,211,110,${(0.5 + 0.3 * Math.sin(t * 5)).toFixed(3)})`;
         c.beginPath(); up.forEach((q, i) => { const px = (q.x + 0.5) * T - T * 0.5, py = (q.y + 0.5) * T - T * 0.1; if (i) c.lineTo(px, py); else c.moveTo(px, py); }); c.stroke(); c.setLineDash([]);
-        const mx = up.reduce((a, q) => a + (q.x + 0.5) * T, 0) / up.length - T * 0.5, my = up.reduce((a, q) => a + (q.y + 0.5) * T, 0) / up.length - T * 0.1;
+        let mx = up.reduce((a, q) => a + (q.x + 0.5) * T, 0) / up.length - T * 0.5, my = up.reduce((a, q) => a + (q.y + 0.5) * T, 0) / up.length - T * 0.1;
+        if (up.length > 2) { const top = up.reduce((a, q) => q.y < a.y ? q : a); mx = (top.x + 0.5) * T + T * 0.62; my = (top.y + 0.5) * T - T * 0.3; }   // pas sur un baril
         c.fillStyle = 'rgba(20,14,6,.85)'; rr(c, mx - 15, my - 11, 30, 22, 8); c.fill(); c.fillStyle = '#ffd36e'; c.font = '800 14px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('×' + up.length, mx, my + 1);
         c.restore();
       }
@@ -5993,7 +6111,7 @@ function drawTgtBar(c, t) {
   c.fillStyle = 'rgba(10,14,10,.72)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
   c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'middle'; c.fillStyle = '#f3e5c0';
   c.fillText(`Vague ${Math.max(1, T4.wave + 1)} / ${T4.waves.length}`, x, y + 16);
-  for (let i = 0; i < n; i++) { const cx = x + 100 + i * Math.min(26, (w - 200) / Math.max(1, n - 1)); if (i < T4.hits) drawTarget(c, cx, y + 16, 9, {}); else { c.globalAlpha = 0.35; drawTarget(c, cx, y + 16, 9, {}); c.globalAlpha = 1; } }
+  for (let i = 0; i < n; i++) { const cx = x + 100 + i * Math.min(26, (w - 200) / Math.max(1, n - 1)); if (i < T4.hits) drawTarget(c, cx, y + 16, ir, {}); else { c.globalAlpha = 0.35; drawTarget(c, cx, y + 16, ir, {}); c.globalAlpha = 1; } }
   c.textAlign = 'right'; c.fillStyle = T4.ammo <= 3 ? (Math.sin(t * 8) > 0 ? '#ff8a6a' : '#f3e5c0') : '#f3e5c0';
   c.font = '800 15px "Alegreya Sans", sans-serif'; c.fillText(`${T4.ammo} bombe${T4.ammo > 1 ? 's' : ''}`, x + w, y + 16);
   c.restore();
@@ -6285,9 +6403,9 @@ function renderCamp() {
   else {
     $('#camp-desc').textContent = c.desc;
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
-      : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
+      : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
-      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min ${c.time % 60 ? (c.time % 60) + ' s' : ''} · attention, tes bombes peuvent te souffler`
+      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
@@ -6339,6 +6457,7 @@ function startCampMatch(i) {
   if (c.boss) {
     // défi du boss : le joueur et ses alliés (ordis, ou amis en ligne) ; le boss n'est pas un joueur (G.boss)
     const list = [me]; for (let j = 1; j <= c.allies; j++) list.push(seats[j - 1] ? seatFriend(seats[j - 1], j) : makePlayer(j, AI_LV[c.allyLv]));
+    for (const o of list) o.team = 0;   // une seule équipe face au boss (tombes, tirs amis)
     setPlayers(list); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
     newRound(); setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
@@ -6475,7 +6594,7 @@ function showEndCamp() {
   // retour direct à l'écran de la campagne (courbe de progression), avec le résultat ; un court délai laisse compter l'XP et les stats
   const text = c.targets ? (won ? `Les ${G.tg.total} cibles sont tombées, avec ${G.tg.ammo} bombe${G.tg.ammo > 1 ? 's' : ''} en réserve et ${Math.ceil(G.time)} s d'avance !` : `${G.tg.hits} cible${G.tg.hits > 1 ? 's' : ''} sur ${G.tg.total} · ${{ time: 'temps écoulé', ammo: 'plus de bombes', dead: 'soufflé par ta propre bombe' }[G.tg.why] || 'raté'}.`)
     : c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
-    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
   const res = { i: c.i, won, text };
