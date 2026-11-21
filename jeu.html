@@ -1288,6 +1288,7 @@ function allySafe(p, owner) {
   if (sideMode()) { const o = G.players[owner]; return !!o && o.team === p.team; }
   return false;
 }
+const DEMON_SKIN = 94;   // défi 10 : Malakor, le Seigneur démon (planche du joueur)
 const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9, CLOWN_SKIN = 97, MIME_SKIN = 96, TARGET_SKIN = 95;   // TARGET_SKIN : icône du défi 4 (cible)
    // Clown et Mime (défi 3) : planches du joueur ; portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
@@ -1324,10 +1325,12 @@ const CAMP = [
     foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
   { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe, mais il est vif : il permute avec tes bombes, saute par-dessus les murs et lance des shurikens. Souffle-le avec tes explosions, ou pousse-lui une bombe dessus quand il prépare une technique. Trois coups pour le vaincre !',
     foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
-  { foe: 11 }, { foe: 5 }, { foe: 2 },
+  { foe: 11 }, { foe: 5 },
+  { name: 'Le Seigneur démon', desc: 'Malakor, le Seigneur démon, domine l\'arène depuis son trône. Immense et immobile, il couvre toute l\'arène de sorts : souffle infernal, météores, griffes, bombes démoniaques, cage de feu. Tu as tous tes pouvoirs au maximum dès le départ. Quand son cœur s\'ouvre, pousse-lui une bombe dedans. Le combat le plus dur de la campagne.',
+    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 6, wins: 1, time: 300, noCrates: true, spawns: { 0: [7, 10, 'up'] } },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
-const foeName = c => c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe));
+const foeName = c => c.dname || (c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe)));
 const campFlag = k => G.mode === 'match' && G.camp ? G.camp[k] : undefined;
 // défis en équipes : 2 contre 2 (team) et Gloop qui se divise (split, tous les Gloop dans l'équipe 1)
 const sideMode = () => !!(G.camp && (G.camp.team || G.camp.split || G.camp.ninja));
@@ -1593,8 +1596,8 @@ const Music = {
     const cur = this.slots[this.ci];
     if (!this.on()) { for (const sl of this.slots) if (!sl.el.paused) sl.el.pause(); this.paused = true; return; }
     if (this.paused) { this.paused = false; if (cur.name && !cur.el.ended) this.start(cur); }
-    const raging = (G.boss && G.boss.rage) || (G.camp && G.camp.survive && G.phase === 'play' && G.time <= G.camp.rageAt);
-    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? (G.camp && G.camp.npc ? (raging ? 'rage' : 'boss') : 'classic')
+    const raging = (G.boss && G.boss.rage) || (G.dk && G.dk.phase >= 1) || (G.camp && G.camp.survive && G.phase === 'play' && G.time <= G.camp.rageAt);
+    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? (G.camp && (G.camp.npc || G.camp.demon) ? (raging ? 'rage' : 'boss') : 'classic')
       : (!document.getElementById('camp').hidden || !document.getElementById('vs').hidden) ? 'camp' : 'home';
     const ph = G.phase, newGame = (this.prevPh === 'matchEnd' || this.prevPh === 'brEnd') && ph !== this.prevPh && !REPLAY.on
       || (scene === 'classic' && G.round < this.prevRound);
@@ -1758,7 +1761,7 @@ function assignChars(list) {
 }
 function setPlayers(list) {
   G.train = null;   // l'entraînement le remet juste après
-  G.nj = null; G.shur = [];
+  G.nj = null; G.shur = []; G.dk = null;
   assignChars(list);
   G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
@@ -1964,6 +1967,7 @@ function newRound() {
   { const tb = document.getElementById('btn-tip'); if (tb) tb.hidden = !G.tg; }
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   G.shur = []; G.nj = campFlag('ninja') && G.players[1] ? njInit(G.players[1]) : null;
+  G.dk = campFlag('demon') ? dkInit(G.camp) : null;
   groundDirty = true;
 }
 
@@ -1987,6 +1991,7 @@ function rebuildBombAt() {
 }
 function bombBlocked(x, y, self, ignorePlayers) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
+  if (G.dk && self && dkOpen() && dkHeartAt(x, y)) return false;   // défi 10 : cœur ouvert, la bombe peut y entrer
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
   if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;
@@ -2281,6 +2286,7 @@ function updateBombs(dt) {
       else if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
       // défi 7 : contre le Ninja qui prépare une technique, la bombe le frappe ; sinon il la pare et elle reste collée contre lui
       else if (G.nj && njOpen() && njAt(nx, ny)) { b.hitNinja = true; stopBomb(b); }
+      else if (G.dk && dkOpen() && dkHeartAt(nx, ny)) { b.hitDk = true; stopBomb(b); }
       else if (G.nj && cloneAt(nx, ny)) cloneGone(cloneAt(nx, ny));
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
@@ -2307,6 +2313,10 @@ function updateBombs(dt) {
     for (let j = 0; j < 14; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4, max: 0.4, size: 2.4, color: j % 2 ? '#ffd166' : '#ff8a3d' }); }
     Sfx.boom(boomKind(b.owner && b.owner.id !== BOSS_ID ? G.players[b.owner.id] : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 4);
     if (B && B.alive) bossDamage(2, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner);
+  }
+  for (let i = G.bombs.length - 1; i >= 0; i--) {
+    const b = G.bombs[i]; if (!b.hitDk) continue;
+    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); dkHit(b);
   }
   for (let i = G.bombs.length - 1; i >= 0; i--) {
     const b = G.bombs[i]; if (!b.hitNinja) continue;
@@ -2402,6 +2412,222 @@ function gloopSplit(p) {
   Sfx.play('pickup');
 }
 
+
+/* ---------- Défi 10 : Malakor, le Seigneur démon. Immense et immobile en haut de l'arène (cases x 5-9, y 1-3) ;
+   seule une bombe poussée dans son cœur (par la colonne 7, quand il s'ouvre) le blesse ---------- */
+const DK_X0 = 5, DK_X1 = 9, DK_Y1 = 3, DK_HX = 7;
+const DK_WARN = [1.15, 1.0, 0.9], DK_GAP = [1.5, 1.1, 0.75], DK_HEART = [2.8, 2.5, 2.2];
+const DK_SPELLS = { souffle: 'Souffle infernal', meteores: 'Pluie de météores', griffes: 'Griffes de l\'abîme', bombes: 'Bombes démoniaques', cage: 'Cage de feu' };
+function dkInit(c) {
+  const cells = new Set();
+  for (let y = 1; y <= DK_Y1; y++) for (let x = DK_X0; x <= DK_X1; x++) { const k = idx(x, y); G.grid[k] = WALL; G.items[k] = -1; cells.add(k); }
+  const owner = { id: BOSS_ID, npc: true, demon: true, name: c.dname, skin: DEMON_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#3a1d3f', ui: '#c04cff' }, active: 0, alive: true };
+  return { cells, owner, name: c.dname, hp: c.hp, max: c.hp, phase: 0, alive: true, deadT: 0, castT: 3.2, busy: 0, since: 0, last: '', heart: 0, heartMax: 0,
+    pose: 'down0', poseT: 0, hitT: 0, spell: '', spellT: 0, intro: false, hint: false };
+}
+const dkOpen = () => !!(G.dk && G.dk.alive && G.dk.heart > 0);
+const dkHeartAt = (x, y) => x === DK_HX && y === DK_Y1;
+const dkFree = k => G.grid[k] === EMPTY && !(G.dk && G.dk.cells.has(k));
+function dkAllFree() { const out = []; for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); if (dkFree(k)) out.push(k); } return out; }
+function dkTick(dt) {
+  const D = G.dk, me = G.players[0];
+  D.hitT = Math.max(0, D.hitT - dt); D.poseT -= dt; if (D.poseT <= 0) D.pose = 'down0';
+  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Quand son cœur s\'ouvre, pousse une bombe dedans par la colonne du milieu']; G.rageFlash = 2.8; }
+  if (!D.alive) { dkDeathTick(D, dt); return; }
+  if (D.heart > 0) {
+    D.heart -= dt;
+    if (D.heart <= 0) { D.heart = 0; D.castT = 0.5; dkText('Son cœur se referme', '#d9b3ff', 15); }
+    else if (D.phase >= 2) { D.drip = (D.drip || 0) - dt; if (D.drip <= 0) { D.drip = 0.9; dkMeteor(me, 1, true); } }   // déchaîné : quelques météores même cœur ouvert
+    return;
+  }
+  D.castT -= dt;
+  if (D.castT > 0 || !me.alive) return;
+  // après un souffle (il s'épuise) ou tous les 3 sorts : son cœur s'ouvre
+  if (D.openNext) { D.openNext = false; dkOpenHeart(); return; }
+  const kind = dkPick();
+  const busy = dkCast(kind);
+  // déchaîné : un second sort en même temps
+  if (D.phase >= 2 && kind !== 'souffle') dkCast(kind === 'meteores' ? 'bombes' : 'meteores', true);
+  D.since++; if (kind === 'souffle' || D.since >= 3) { D.openNext = true; D.since = 0; }
+  D.castT = busy + DK_GAP[D.phase];
+}
+function dkPick() {
+  const D = G.dk, pool = [['souffle', 1.2], ['meteores', 1.3], ['griffes', 1.1], ['bombes', 1], ['cage', 1]].filter(o => o[0] !== D.last);
+  let r = Math.random() * pool.reduce((a, o) => a + o[1], 0);
+  for (const [k, w] of pool) { r -= w; if (r <= 0) return (D.last = k); }
+  return (D.last = pool[0][0]);
+}
+function dkText(text, color = '#f0d6ff', size = 18) { addP({ kind: 'text', x: (DK_HX + 0.5) * T, y: (DK_Y1 + 1.2) * T, vx: 0, vy: -28, life: 1.4, max: 1.4, size, color, text }); }
+function dkFire(cells, quiet) {
+  for (const k of cells) bossBurn(k);
+  if (!quiet) { Sfx.boom('classic', 0.8, 1); if (!reduceMotion) G.shake = Math.max(G.shake, 5); }
+}
+// une croix de rayon 1 (météore)
+function dkPlus(x, y) { const out = []; for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = idx(x + dx, y + dy); if (x + dx > 0 && y + dy > 0 && x + dx < COLS - 1 && y + dy < ROWS - 1 && dkFree(k)) out.push(k); } return out; }
+function dkMeteor(me, n, fast) {
+  const D = G.dk, W = DK_WARN[D.phase] + (fast ? 0.15 : 0.25), free = dkAllFree();
+  for (let j = 0; j < n; j++) {
+    let x, y;
+    if (j % 3 === 0 && me.alive) { x = Math.round(me.x) + ((Math.random() * 3) | 0) - 1; y = Math.round(me.y) + ((Math.random() * 3) | 0) - 1; }
+    else { const k = free[(Math.random() * free.length) | 0]; x = k % COLS; y = (k / COLS) | 0; }
+    const cells = dkPlus(x, y); if (!cells.length) continue;
+    warnCells(cells, W, () => { dkFire(cells, true); Sfx.boom('classic', 0.45, 0.8); for (let i = 0; i < 8; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 120; addP({ kind: 'spark', x: (x + 0.5) * T, y: (y + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.5, max: 0.5, size: 3, color: i % 2 ? '#c04cff' : '#ff7a3a' }); } if (!reduceMotion) G.shake = Math.max(G.shake, 3); }, j * 0.12);
+  }
+}
+// une case est-elle à l'abri du souffle (un pilier, un bloc ou le mur entre sa gueule et elle) ?
+function dkShadowed(x, y) {
+  // l'ombre d'un pilier : la case juste derrière lui, vue depuis sa gueule (une case par pilier)
+  const dx = DK_HX - x, dy = DK_Y1 - y, ax = Math.abs(dx), ay = Math.abs(dy);
+  if (ax === ay) return false;
+  const k = ax > ay ? idx(x + Math.sign(dx), y) : idx(x, y + Math.sign(dy));
+  if (G.dk.cells.has(k)) return false;
+  const g = G.grid[k]; return g === PILLAR || g === STONE;
+}
+function dkCast(kind, extra) {
+  const D = G.dk, me = G.players[0], W = DK_WARN[D.phase], px = Math.round(me.x), py = Math.round(me.y);
+  if (!extra) { D.spell = kind; D.spellT = G.t; D.pose = kind === 'bombes' ? 'castS' : 'castF'; D.flip = px < DK_HX; dkText(DK_SPELLS[kind] + (D.phase >= 2 && kind !== 'souffle' ? ' !' : '')); Sfx.play('njcast'); }
+  if (kind === 'souffle') {
+    // souffle infernal : un balayage en 4 secteurs depuis sa gueule ; seules les cases cachées derrière un pilier sont à l'abri
+    const secs = [[], [], [], []], cx = DK_HX, cy = DK_Y1 + 0.55, rev = Math.random() < 0.5;
+    for (const k of dkAllFree()) {
+      const x = k % COLS, y = (k / COLS) | 0; if (dkShadowed(x, y)) continue;
+      const a = Math.atan2(y - cy, x - cx);   // 0 (droite) … π (gauche)
+      let i = Math.min(3, Math.max(0, Math.floor((Math.PI - Math.max(0, Math.min(Math.PI, a < -0.5 ? Math.PI : a))) / (Math.PI / 4))));
+      if (rev) i = 3 - i; secs[i].push(k);
+    }
+    secs.forEach((cells, i) => warnCells(cells, W + 0.15, () => dkFire(cells), i * 0.38));
+    D.poseT = W + 1.4; return W + 1.6;
+  }
+  if (kind === 'meteores') { const n = [7, 9, 11][D.phase]; dkMeteor(me, extra ? Math.ceil(n / 2) : n); D.poseT = Math.max(D.poseT, 1); return W + n * 0.12 + 0.3; }
+  if (kind === 'griffes') {
+    // griffes de l'abîme : une rangée sur deux s'embrase, puis les autres
+    const even = [], odd = [], first = Math.random() < 0.5;
+    for (const k of dkAllFree()) (((k / COLS) | 0) % 2 ? odd : even).push(k);
+    const A = first ? even : odd, B = first ? odd : even;
+    warnCells(A, W, () => dkFire(A)); warnCells(B, W, () => dkFire(B), W);
+    if (D.phase >= 1) warnCells(A, W, () => dkFire(A), 2 * W);
+    D.poseT = W * (D.phase >= 1 ? 3 : 2); return W * (D.phase >= 1 ? 3 : 2) + 0.3;
+  }
+  if (kind === 'bombes') {
+    // bombes démoniaques, lancées en cloche près du joueur (on peut les lui renvoyer dans le cœur)
+    const n = extra ? 3 : [4, 5, 6][D.phase], used = new Set();
+    for (let j = 0; j < n; j++) {
+      const cands = [];
+      for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) { if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue; const k = idx(x, y); if (dkFree(k) && !G.bombAt[k] && !used.has(k) && !(x === px && y === py)) cands.push(k); }
+      if (!cands.length) break;
+      const k = cands[(Math.random() * cands.length) | 0]; used.add(k);
+      G.lobs.push({ k, sx: D.flip ? DK_X0 : DK_X1, sy: 1.6, t: -j * 0.1, dur: 1.0, fuse: [2.4, 2.1, 1.8][D.phase], range: 3, owner: D.owner });
+    }
+    Sfx.play('throw'); D.poseT = Math.max(D.poseT, 0.9); return 1.4;
+  }
+  // cage de feu : un anneau autour du joueur, puis son centre
+  const ring = [], mid = [];
+  for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) {
+    if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue;
+    const k = idx(x, y); if (!dkFree(k)) continue;
+    (Math.max(Math.abs(x - px), Math.abs(y - py)) === 2 ? ring : mid).push(k);
+  }
+  warnCells(ring, W, () => dkFire(ring)); warnCells(mid, 1.0, () => dkFire(mid), W);
+  D.poseT = W + 1; return W + 1.3;
+}
+function dkOpenHeart() {
+  const D = G.dk; D.heart = D.heartMax = DK_HEART[D.phase]; D.pose = 'castF'; D.poseT = D.heart; D.drip = 0.6;
+  dkText('Son cœur s\'ouvre !', '#ff8ad8', 20); Sfx.play('sudden');
+  if (!D.hint) { D.hint = true; addP({ kind: 'text', x: (DK_HX + 0.5) * T, y: (DK_Y1 + 2) * T, vx: 0, vy: -16, life: 2.4, max: 2.4, size: 15, color: '#ffd6f0', text: 'Pousse une bombe vers le haut, dans la colonne rose !' }); }
+}
+function dkHit(b) {
+  const D = G.dk; if (!D || !D.alive) return;
+  D.hp--; D.hitT = 0.35; D.heart = 0; D.castT = 1.2; D.openNext = false;
+  const x = (DK_HX + 0.5) * T, y = (DK_Y1 + 1) * T - DK_H() * 0.52;
+  for (let j = 0; j < 30; j++) { const a = Math.random() * TAU, sp = 100 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, max: 0.6, size: 3.2, color: j % 3 ? '#ff8ad8' : '#ffd166' }); }
+  addP({ kind: 'text', x, y: y - 20, vx: 0, vy: -40, life: 1.2, max: 1.2, size: 26, color: '#ffd166', text: D.hp ? `-1 · ${D.hp} PV` : 'Coup fatal !' });
+  Sfx.boom('mega', 0.8); Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, 10); rumble(0.6, 0.8, 300);
+  if (D.hp <= 0) { dkDie(D); return; }
+  const ph = D.hp <= 2 ? 2 : D.hp <= 4 ? 1 : 0;
+  if (ph !== D.phase) {
+    D.phase = ph; fx('snd', 'sudden');
+    G.rageMsg = ph === 1 ? [`${D.name} enrage !`, 'Ses sorts frappent plus vite'] : [`${D.name} se déchaîne !`, 'Deux sorts à la fois, et des météores même cœur ouvert'];
+    G.rageFlash = 1.8;
+  }
+}
+function dkDie(D) {
+  D.alive = false; D.deadT = 0; D.heart = 0; G.warn.length = 0; G.lobs.length = 0;
+  for (let i = G.bombs.length - 1; i >= 0; i--) if (G.bombs[i].owner === D.owner) G.bombs.splice(i, 1);
+  rebuildBombAt(); G.rageMsg = [`${D.name} est vaincu !`, '']; G.rageFlash = 2.4;
+}
+function dkDeathTick(D, dt) {
+  const t0 = D.deadT; D.deadT += dt;
+  // une série d'explosions sur tout son corps, puis la grande
+  if (Math.floor(t0 * 7) !== Math.floor(D.deadT * 7) && D.deadT < 2) {
+    const x = (DK_X0 + Math.random() * (DK_X1 - DK_X0 + 1)) * T, y = (0.6 + Math.random() * DK_Y1) * T;
+    for (let j = 0; j < 12; j++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 200; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, max: 0.5, size: 3, color: j % 2 ? '#c04cff' : '#ffb03b' }); }
+    Sfx.boom('classic', 0.7, 1); if (!reduceMotion) G.shake = Math.max(G.shake, 6);
+  }
+  if (t0 < 2 && D.deadT >= 2) {
+    Sfx.boom('mega', 1); setTimeout(() => Sfx.boom('classic', 1), 160); if (!reduceMotion) G.shake = 24; rumble(1, 1, 900); G.megaFlash = 1.2;
+    const x = (DK_HX + 0.5) * T, y = 2 * T;
+    for (let i = 0; i < 50; i++) addP({ kind: 'smoke', x: x + (Math.random() - 0.5) * 160, y: y + (Math.random() - 0.5) * 100, vx: (Math.random() - 0.5) * 260, vy: -40 - Math.random() * 160, life: 1.4, max: 1.4, size: 14, color: '90,40,110' });
+  }
+}
+const DK_H = () => T * 4.3;
+// estrade sombre sous le trône (dessinée avant la rangée 1)
+function drawDkBack(c, t) {
+  const x = (DK_HX + 0.5) * T, y = (DK_Y1 + 0.75) * T;
+  c.save();
+  const g = c.createRadialGradient(x, y, 10, x, y, T * 3); g.addColorStop(0, 'rgba(25,10,30,.75)'); g.addColorStop(0.6, 'rgba(40,15,50,.45)'); g.addColorStop(1, 'rgba(40,15,50,0)');
+  c.fillStyle = g; ell(c, x, y, T * 3, T * 1.6); c.fill();
+  c.globalAlpha = 0.4 + 0.25 * Math.sin(t * 2.2); c.strokeStyle = '#c04cff'; c.lineWidth = 2; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x - 70, y + 20); c.lineTo(x - 100, y + 4); c.lineTo(x - 112, y + 22); c.moveTo(x + 70, y + 22); c.lineTo(x + 98, y + 6); c.lineTo(x + 116, y + 18); c.stroke();
+  c.restore();
+}
+function drawDk(c, t) {
+  const D = G.dk, x = (DK_HX + 0.5) * T, feet = (DK_Y1 + 1) * T - 4, h = DK_H();
+  if (!D.alive && D.deadT > 2.1) return;
+  // colonne rose du cœur ouvert : le chemin des bombes
+  if (D.heart > 0) {
+    const a = 0.16 + 0.1 * Math.sin(t * 10), f = D.heart / D.heartMax;
+    c.save(); c.fillStyle = `rgba(255,110,210,${a.toFixed(3)})`; c.fillRect(DK_HX * T + 6, feet, T - 12, (ROWS - 1) * T - feet);
+    c.strokeStyle = 'rgba(255,170,230,.8)'; c.lineWidth = 3; c.beginPath(); c.arc(x, feet + 14, 16, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore();
+  }
+  c.save();
+  if (!D.alive) { c.globalAlpha = Math.max(0, 1 - D.deadT / 2.1); c.translate((Math.random() - 0.5) * 8 * D.deadT, 0); }
+  // halo violet
+  const hg = c.createRadialGradient(x, feet - h * 0.5, 10, x, feet - h * 0.5, h * 0.75); hg.addColorStop(0, `rgba(192,76,255,${(0.22 + 0.08 * Math.sin(t * 3)).toFixed(3)})`); hg.addColorStop(1, 'rgba(192,76,255,0)');
+  c.fillStyle = hg; c.fillRect(x - h, feet - h * 1.3, h * 2, h * 1.4);
+  if (sheetReady(DK_IMG)) {
+    const rage = D.phase >= 2 ? 0.1 + 0.08 * Math.sin(t * 8) : D.phase === 1 ? 0.06 : 0;
+    bossFrame(c, D.pose || 'down0', x, feet, h, { rage, hit: D.hitT > 0 ? 0.7 : 0, flip: D.pose === 'castS' && D.flip, swell: 1 + 0.012 * Math.sin(t * 2.2) }, DK_IMG);
+  }
+  // le cœur : la gemme de son torse brille, et s'ouvre en grand
+  const gy = feet - h * 0.52, open = D.heart > 0;
+  if (D.alive) {
+    const r = open ? 16 + 4 * Math.sin(t * 14) : 7 + 1.5 * Math.sin(t * 4);
+    const gg = c.createRadialGradient(x, gy, 1, x, gy, r * 2.2); gg.addColorStop(0, open ? 'rgba(255,240,250,.95)' : 'rgba(255,140,220,.55)'); gg.addColorStop(0.4, open ? 'rgba(255,80,200,.75)' : 'rgba(255,60,180,.25)'); gg.addColorStop(1, 'rgba(255,60,180,0)');
+    c.fillStyle = gg; c.beginPath(); c.arc(x, gy, r * 2.2, 0, TAU); c.fill();
+  }
+  c.restore();
+}
+function drawDkBomb(c, x, y, b, t) {
+  const left = Math.max(0, b.timer ?? 2), pulse = 1 + Math.sin(t * (8 + (2.4 - Math.min(2.4, left)) * 10)) * 0.05;
+  c.save(); c.translate(x, y + 2);
+  c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 13, 12, 4); c.fill();
+  c.scale(pulse, 2 - pulse); c.drawImage(DK_BOMB, -22, -26, 44, 44);
+  if (left < 0.6 && Math.sin(t * 32) > 0) { c.fillStyle = 'rgba(200,80,255,.35)'; c.beginPath(); c.arc(0, -2, 16, 0, TAU); c.fill(); }
+  c.restore();
+}
+// barre de vie en bas de l'arène (le boss occupe le haut)
+function drawDkBar(c, t) {
+  const D = G.dk, w = Math.min(380, W - 180), x = (W - w) / 2, y = H - 50;
+  c.save();
+  if (G.players.some(o => o.alive && o.y > ROWS - 3.2)) c.globalAlpha = 0.35;
+  c.fillStyle = 'rgba(10,8,14,.75)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
+  c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = '#e6c8ff';
+  c.fillText(D.name + (D.heart > 0 ? ' · cœur ouvert !' : D.phase >= 2 ? ' · déchaîné' : D.phase ? ' · enragé' : ''), x, y + 1);
+  c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.8)'; c.fillText(`${Math.max(0, D.hp)} / ${D.max} PV`, x + w, y + 1); c.textAlign = 'left';
+  const gw = (w - 4 * (D.max - 1)) / D.max;
+  for (let i = 0; i < D.max; i++) { c.fillStyle = i < D.hp ? (D.hitT > 0 ? '#ffffff' : D.heart > 0 ? '#ff6ad0' : '#a45bff') : '#2a1f3a'; rr(c, x + i * (gw + 4), y + 19, gw, 11, 5.5); c.fill(); }
+  c.restore();
+}
 /* ---------- Défi 7 : le Ninja. Tes explosions le blessent, et une bombe poussée sur lui pendant
    qu'il prépare une technique le touche (3 coups). Il lance des shurikens, qui soufflent et font sauter les bombes ---------- */
 const NJ_HP = 3, NJ_SHUR_V = 7.5, NJ_CD = [3.3, 2.7, 2.2], NJ_CAST_K = [1, 0.92, 0.85];
@@ -3763,6 +3989,11 @@ function update(dt) {
     const dry = T4.ammo <= 0 && !G.bombs.some(b => b.owner === me || b.keg) && !G.thrown.length && !T4.kegs.some(k => k.alive && k.fuse >= 0);
     if (!left) { T4.endT += dt; if (T4.endT > 0.9) tgtEnd(true); }
     else if (!me.alive || G.time <= 0 || dry) { T4.why = !me.alive ? 'dead' : G.time <= 0 ? 'time' : 'ammo'; G.endTimer = G.endTimer || 1.2; G.endTimer -= dt; if (G.endTimer <= 0) tgtEnd(false); }
+  } else if (G.phase === 'play' && G.dk) {
+    // défi 10 : gagné quand Malakor a fini d'exploser ; perdu si tu es soufflé ou si le temps est écoulé
+    dkTick(dt);
+    if (!G.dk.alive) { if (G.dk.deadT > 2.6) bossEnd(true); }
+    else if (!G.players[0].alive || G.time <= 0) { G.endTimer = G.endTimer || 1.0; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }
   } else if (G.phase === 'play' && G.boss) {
     if (campFlag('tomb')) tombTick(dt);   // défi du boss : un équipier soufflé laisse une tombe, à relever
     // défi du boss : gagné quand il a fini d'exploser, perdu quand toute l'équipe est soufflée ou que le temps est écoulé
@@ -5373,6 +5604,7 @@ function drawBombBody(c, kind, R, t, col) {
 }
 function drawBomb(c, x, y, b, t) {
   if (b && b.kunai) { drawKunai(c, x, y, b, t); return; }
+  if (b && b.owner && b.owner.demon && sheetReady(DK_BOMB)) { drawDkBomb(c, x, y, b, t); return; }
   const o = b && b.owner, bs = o ? csOf(o)[0] : 1;
   if (o && o.skin && bs === 0) { const ch = CHARS[o.skin], im = ch && charImg[ch.key]; if (im) { drawCharBomb(c, x, y, b, t, im, CHAR_RECTS[ch.key].bomb[0]); return; } }
   const left = b ? Math.max(0, b.timer) : FUSE, u = 1 - left / FUSE;
@@ -5935,7 +6167,7 @@ function render() {
   for (let y = vy0; y <= vy1; y++) {
     for (let x = vx0; x <= vx1; x++) {
       const k = idx(x, y), g = G.grid[k], px = x * T, py = y * T;
-      if (g === WALL) drawSpr(sprites.wall[(x * 7 + y * 3) % 3], px, py);
+      if (g === WALL) { if (!(G.dk && G.dk.cells.has(k))) drawSpr(sprites.wall[(x * 7 + y * 3) % 3], px, py); }
       else if (g === CRATE && G.mode === 'br' && k === G.chestK) drawChest(c, px, py, t);
       else if (g === PILLAR) drawSpr(sprites.pillar[(x + y * 5) % 3], px, py);
       else if (g === STONE) drawSpr(sprites.stone[0], px, py);
@@ -5951,6 +6183,7 @@ function render() {
         } else drawSpr(spr, px, py);
       } else if (G.items[k] >= 0) drawFieldItem(c, k, t);
     }
+    if (G.dk && y === 1) drawDkBack(c, t);
     for (const [bx, by, b] of bombRows[y]) if (bx >= vx0 - 1 && bx <= vx1 + 1) drawBomb(c, (bx + 0.5) * T, (by + 0.5) * T, b, t);
     for (const p of heroRows[y]) {
       if (p.x < vx0 - 1 || p.x > vx1 + 1) continue;
@@ -5975,6 +6208,7 @@ function render() {
       if (zs) c.restore();
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, true, p.id);
     }
+    if (G.dk && y === DK_Y1) drawDk(c, t);
   }
 
   drawFlames(c);
@@ -6055,6 +6289,7 @@ function render() {
   if (G.rageFlash > 0 && G.phase === 'play' && G.rageMsg) drawBanner(c, G.rageMsg[0], G.rageMsg[1], '#ff3b2f', Math.min(1, G.rageFlash * 2));
   if (G.boss && inGame()) drawBossBar(c, t);
   if (G.nj && inGame()) drawNjBar(c, t);
+  if (G.dk && inGame()) drawDkBar(c, t);
   if (G.tg && inGame()) drawTgtBar(c, t);
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
@@ -6078,6 +6313,7 @@ function drawPortrait(cv, pal, skin) {
   if (skin === TARGET_SKIN) { c.fillStyle = '#3a2a18'; c.fillRect(0, 0, 52, 52); drawTarget(c, 26, 27, 17, {}); c.restore(); return; }
   if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
   { const SS = sheetOfSkin(skin); if (SS) { const im = SS.happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; } }
+  if (skin === DEMON_SKIN) { if (sheetReady(DK_IMG)) c.drawImage(DK_IMG, 22, 2, 184, 184, -3, 2, 58, 58); c.restore(); return; }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
   const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
   if (im) {
@@ -6118,6 +6354,7 @@ function buildStatics() {
 const hudPlayer = i => G.mode === 'br' ? (i === 0 ? G.players[viewIdx()] : null)
   : G.train ? (i === 0 ? G.players[0] : null)
   : G.camp && G.camp.ninja && G.mode === 'match' ? (i < 2 ? G.players[i] : null)
+  : G.camp && G.camp.demon && G.mode === 'match' ? (i === 0 ? G.players[0] : null)
   : G.camp && G.camp.split && G.mode === 'match' ? (i === 0 ? G.players[0] : i === 1 ? G.players.find(o => o.team === 1 && o.alive) || G.players[1] : null) : G.players[i];
 function setupHud() {
   document.body.classList.toggle('hudmany', G.mode !== 'br' && G.players.length > 2 && !(G.camp && (G.camp.split || G.camp.ninja)));
@@ -6781,6 +7018,7 @@ const SHEET_FR = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', 'down1', 
 const SHEET_FR4 = ['down0', 'left0', 'up0', 'right0', 'castF', 'castS', ...['down', 'left', 'up', 'right'].flatMap(d => [1, 2, 3, 4].map(i => d + i))];   // planches à 4 images de marche (6 × 4 cases)
 function loadSheet(src, fr) { const im = new Image(); if (fr) im.fr = fr; im.onload = () => { if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
 const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png'), KAB_RAGE = loadSheet('assets/npc-kaboum-rage.png');   // Kaboum en colère : planche à part
+const DK_IMG = loadSheet('assets/boss-demon.png', SHEET_FR4), DK_BOMB = new Image(); DK_BOMB.src = 'assets/boss-demon-bombe.png';   // défi 10 : Malakor
 const sheetReady = im => im.complete && im.naturalWidth > 0, bossReady = () => sheetReady(BOSS_IMG);
 // persos joueurs dessinés avec une planche (version joyeuse, et version triste quand leur coéquipier est tombé)
 const SHEET_SKINS = {
@@ -7506,6 +7744,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
+      : c.demon ? `Seul contre ${c.dname}, immense et immobile en haut de l'arène · tous tes pouvoirs au maximum dès le départ, ni caisses ni bonus · quand son cœur s'ouvre, pousse une bombe dedans par la colonne du milieu : ${c.hp} coups · ses sorts couvrent toute l'arène · ${c.time / 60} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
@@ -7535,7 +7774,7 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.ninja ? 'Boss · 3 PV' : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.demon ? `Boss final · ${c.hp} coups au cœur` : c.ninja ? 'Boss · 3 PV' : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   const fr = campSeats(c);
   if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = fr.length ? `Toi, ${fr.map(L => cleanNick(L.nick, 'Ami')).join(', ')}${c.allies > fr.length ? ` + ${c.allies - fr.length} allié${c.allies - fr.length > 1 ? 's' : ''}` : ''}` : `Toi + ${c.allies} alliés`;
@@ -7577,6 +7816,15 @@ function startCampMatch(i) {
     me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
     setPlayers([me, e1, al, e2]); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
     newRound(); setupHud();
+    menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+    blurActive(); return;
+  }
+  if (c.demon) {
+    // défi 10 : seul contre Malakor (G.dk, pas un joueur), avec tous les pouvoirs au maximum
+    setPlayers([me]); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
+    newRound();
+    Object.assign(me, { maxBombs: MAX_BOMBS, range: MAX_RANGE, speedLv: MAX_SPEED_LV, kick: true, throw: true });
+    setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
@@ -7776,6 +8024,7 @@ function showEndCamp() {
   const text = c.targets ? (won ? `Les ${G.tg.total} cibles sont tombées, avec ${G.tg.ammo} bombe${G.tg.ammo > 1 ? 's' : ''} en réserve et ${Math.ceil(G.time)} s d'avance !` : `${G.tg.hits} cible${G.tg.hits > 1 ? 's' : ''} sur ${G.tg.total} · ${{ time: 'temps écoulé', ammo: 'plus de bombes', dead: 'soufflé par ta propre bombe' }[G.tg.why] || 'raté'}.`)
     : c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.demon ? (won ? `${c.dname} est vaincu ! La campagne est terminée !` : G.time <= 0 ? `Temps écoulé : ${c.dname} avait encore ${G.dk ? G.dk.hp : '?'} PV sur ${c.hp}.` : `${c.dname} avait encore ${G.dk ? G.dk.hp : '?'} PV sur ${c.hp}.`)
     : c.ninja ? (won ? 'Le Ninja est vaincu !' : `Le Ninja avait encore ${G.nj ? G.nj.hp : '?'} PV sur 3.`)
     : c.split ? (won ? 'Les 7 Gloop ont éclaté !' : `Il restait ${G.players.filter(o => o.team === 1 && o.alive).length} Gloop.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
@@ -10072,7 +10321,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
