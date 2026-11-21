@@ -171,6 +171,12 @@ body.touch #touch{display:flex}
 .tip-box p{margin:10px 0 14px;line-height:1.45}
 .tip-box kbd{font-weight:800}
 .box.unlbox{max-width:720px}
+#scrolls{background:rgba(8,13,9,.9)}
+.scr-pick{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 10px}
+.scr-pick canvas{width:104px;height:104px;border-radius:50%;background:rgba(243,229,192,.06);box-shadow:0 0 0 3px rgba(255,214,110,.35)}
+.scr-msg{min-height:1.3em;color:var(--gold);font-weight:800}
+.scroll-btn{margin:-6px 0 14px}
+.scroll-btn b{color:var(--gold)}
 .unl-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
 .unl-cards figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;animation:unlPop .6s cubic-bezier(.2,1.6,.4,1) both}
 .unl-cards figure:nth-child(2){animation-delay:.15s}
@@ -696,6 +702,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
     <p class="pick-hint" role="status"></p>
     <div class="char-xp" id="char-xp"></div>
+    <button class="ghost tiny scroll-btn" type="button" id="btn-scrolls" hidden>📜 <b id="scroll-n">0</b> parchemins d'XP à utiliser</button>
     <div class="aurapick" id="aurapick" role="radiogroup" aria-label="Aura du perso"></div>
     <div class="mbtns">
       <button class="mbtn main" id="btn-solo" type="button"><b>Jouer en solo</b><span>Contre des ordis, seul ou à deux sur un clavier</span></button>
@@ -956,6 +963,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     <div class="row">
       <button class="cta" id="camp-go" type="button">Lancer le défi <kbd>Entrée</kbd></button>
+      <button class="ghost" id="camp-scrolls" type="button" hidden>📜 Parchemins</button>
       <button class="ghost" id="camp-back" type="button">Retour <kbd>Échap</kbd></button>
     </div>
     <p class="camp-padhint">Manette : croix pour choisir un défi, <kbd>A</kbd> ou <kbd>Start</kbd> pour le lancer, <kbd>LB</kbd> <kbd>RB</kbd> défi précédent ou suivant, <kbd>B</kbd> retour</p>
@@ -968,6 +976,25 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
   <canvas id="tip-cv" width="420" height="120" aria-hidden="true"></canvas>
   <p id="tip-text"></p>
   <button class="cta" id="tip-ok" type="button">Compris <kbd>Entrée</kbd></button>
+</div>
+<div id="scrolls" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="scr-title">
+  <div class="box unlbox scrbox">
+    <p class="kicker">Récompenses de la campagne</p>
+    <h2 id="scr-title">Parchemins d'XP</h2>
+    <p class="rule" id="scr-text"></p>
+    <div class="scr-pick">
+      <button class="ghost tiny" id="scr-prev" type="button" aria-label="Perso précédent">◀</button>
+      <canvas id="scr-cv" width="104" height="104" aria-hidden="true"></canvas>
+      <button class="ghost tiny" id="scr-next" type="button" aria-label="Perso suivant">▶</button>
+    </div>
+    <div class="char-xp end" id="scr-who"></div>
+    <div class="row">
+      <button class="cta" id="scr-one" type="button">Utiliser 1 parchemin <kbd>Entrée</kbd></button>
+      <button class="ghost" id="scr-all" type="button">Tout utiliser</button>
+      <button class="ghost" id="scr-close" type="button">Fermer <kbd>Échap</kbd></button>
+    </div>
+    <p class="rule scr-msg" id="scr-msg" role="status"></p>
+  </div>
 </div>
 <div id="unlock" class="overlay unlock" hidden role="dialog" aria-modal="true" aria-labelledby="unl-title">
   <div class="box unlbox">
@@ -1282,7 +1309,15 @@ if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp) && !settings.admin &
 // XP gagnée : 10 par point marqué + 10 par manche jouée (battle royale : 3 points par victime, 1 point par 45 s en vie).
 // Courbe : XP totale pour le niveau L = 37,5 × (L − 1)^1,631. Calée pour ~1350 XP/h avec un score moyen plutôt bas
 // (≈ 2 points par manche) : niveau 10 vers 1 h de jeu, niveau 100 vers 50 h ; plus vite si on gagne souvent.
-const LV_MAX = 100, XP_PER_PT = 10, XP_BR_KILL = 3, XP_BR_ALIVE = 45;
+const LV_MAX = 100, XP_PER_PT = 10, XP_BR_KILL = 1;
+// Matchs classiques : la part « résultat » de l'XP (10 par point) est multipliée par la force des adversaires
+// (moyenne : ordi selon son niveau 1 à 10, vrai joueur ×2, boss ×1,5) et par leur nombre (1 → ×1, 2 → ×1,25, 3 → ×1,5).
+const XP_LV_COEF = [0.3, 0.45, 0.6, 0.8, 1, 1.15, 1.3, 1.45, 1.6, 1.8], XP_HUMAN = 2, XP_BOSS = 1.5, XP_NMULT = [1, 1, 1.25, 1.5];
+// Battle royale : XP selon la place finale (de 320 pour le 1er à 40 pour le dernier) + 10 XP par victime
+const XP_BR_TOP = 320, XP_BR_LAST = 40, XP_BR_CURVE = 1.6;
+const brPlaceXp = (r, n) => Math.round(XP_BR_LAST + (XP_BR_TOP - XP_BR_LAST) * Math.pow(n > 1 ? (n - r) / (n - 1) : 1, XP_BR_CURVE));
+// Parchemins d'XP : gagnés en réussissant les défis de la campagne, utilisables sur n'importe quel perso
+const SCROLL_XP = 500;
 const XP_TOTAL = Array.from({ length: LV_MAX + 1 }, (_, L) => L <= 1 ? 0 : Math.round(37.5 * Math.pow(L - 1, 1.631)));
 if (!settings.xp || typeof settings.xp !== 'object') settings.xp = {};
 // Mode admin (settings.admin, gardé seulement dans ce navigateur, jamais envoyé au compte) : tous les persos débloqués,
@@ -1362,7 +1397,7 @@ const ACH = [
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
 // g, w, k… : stats générales (tous modes). Matchs normaux (classique, en ligne, campagne) : ng parties, nw victoires, nk victimes.
 // Battle royale : bg parties, bw victoires (= top 1), bt top 3, bk victimes, ct contrats, ch coffres, o orbes. pa/po : anciens top 1/top 3 (tous modes), plus comptés.
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt'];   // cp : défis de campagne réussis
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu'];   // cp : défis de campagne réussis · pu : parchemins utilisés
 function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('bt', 1); }   // top 3 : seulement en battle royale
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
@@ -3687,7 +3722,7 @@ function recFrame() {
   // infos fixes des joueurs (perso, pseudo, cosmétiques) : vérifiées une fois par seconde
   if (!REC.meta || ++REC.metaN >= 20 || REC.meta.length !== G.players.length) {
     REC.metaN = 0;
-    const m = G.players.map(o => ({ skin: o.skin | 0, nick: o.nick, ai: !!(o.ai || o.isBot), bot: !!o.isBot, aura: o.ai ? 0 : o.aura | 0, cs: csOf(o).slice(), elo: o.elo | 0, aid: o.aid || '' })), sig = JSON.stringify(m);
+    const m = G.players.map(o => ({ skin: o.skin | 0, nick: o.nick, ai: !!(o.ai || o.isBot), bot: !!o.isBot, lv: o.ai && o.ai.lv ? o.ai.lv.n | 0 : 0, aura: o.ai ? 0 : o.aura | 0, cs: csOf(o).slice(), elo: o.elo | 0, aid: o.aid || '' })), sig = JSON.stringify(m);
     if (sig !== REC.metaSig) { REC.meta = m; REC.metaSig = sig; }
   }
   return { t: REC.t, g, it, fl, bu, gr, b, tw, fa, p, m: REC.meta,
@@ -3729,7 +3764,7 @@ function startReplay() {
 }
 function replayMeta(m) {
   const R = REPLAY; if (m === R.metaRef) return; R.metaRef = m;
-  G.players = m.map((q, i) => { const p = makePlayer(i, null); Object.assign(p, { skin: q.skin, nick: q.nick, ai: q.ai ? {} : null, isBot: q.bot, aura: q.aura, cs: q.cs.slice(), elo: q.elo, aid: q.aid, remote: false }); return p; });
+  G.players = m.map((q, i) => { const p = makePlayer(i, null); Object.assign(p, { skin: q.skin, nick: q.nick, ai: q.ai ? {} : null, isBot: q.bot, botLv: num(q.lv) | 0, aura: q.aura, cs: q.cs.slice(), elo: q.elo, aid: q.aid, remote: false }); return p; });
   hudCache = {}; setupHud();
 }
 function replayApply(f, f2, a) {
@@ -4322,7 +4357,7 @@ function xpPanelHtml(i, gainLine) {
 function syncXpUi() {
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
-  syncAuraPick();
+  syncAuraPick(); try { syncScrollBtns(); } catch (e) {}   // (pas encore prêt au tout début du chargement)
 }
 // Sélecteur d'aura du perso choisi : « Aucune » + les 10 auras (verrouillées au-dessus de son niveau)
 const auraBtns = [];
@@ -4350,7 +4385,7 @@ function syncAuraPick() {
   }
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
-function addXp(skin, amount) {
+function addXp(skin, amount, note = '') {
   if (!(amount > 0) || !CHARS[skin] || REPLAY.on) return;
   if (settings.admin) { xpToast(`+${amount} XP (mode admin : non compté)`); return; }
   const before = realXpOf(skin), L0 = levelOfXp(before), after = before + amount, L1 = levelOfXp(after);
@@ -4360,8 +4395,8 @@ function addXp(skin, amount) {
   const a0 = auraOfLevel(L0), a1 = auraOfLevel(L1), P0 = presOfXp(before), P1 = presOfXp(after);
   if (P1 > P0) { xpToast(`★ Étoile de prestige n° ${P1} pour ${CHARS[skin].name} !`, true); Sfx.play('pickup'); }
   else if (a1 > a0) { xpToast(`${CHARS[skin].name} passe niveau ${L1} : aura « ${AURAS[a1]} » débloquée !`, true); Sfx.play('pickup'); }
-  else if (L1 > L0) xpToast(`+${amount} XP · ${CHARS[skin].name} passe niveau ${L1} !`, true);
-  else xpToast(`+${amount} XP`);
+  else if (L1 > L0) xpToast(`+${amount} XP${note} · ${CHARS[skin].name} passe niveau ${L1} !`, true);
+  else xpToast(`+${amount} XP${note}`);
   syncXpUi(); if (L1 > L0) cosCheckNew();
 }
 function renderEndXp() {
@@ -4411,6 +4446,19 @@ function statTick(dt, me, i) {
   }
   stPrevPhase = G.phase;
 }
+// Force des adversaires pour l'XP d'une manche : { c : coefficient moyen, m : bonus selon leur nombre }
+function xpFoeCoef(o) {
+  if (o.npc) return XP_BOSS;
+  if (o.ai || o.isBot) { const n = o.ai && o.ai.lv && o.ai.lv.n ? o.ai.lv.n : o.botLv || 5; return XP_LV_COEF[clamp(n - 1, 0, 9)]; }
+  return XP_HUMAN;
+}
+function xpRoundMul(i) {
+  const me = G.players[i], c0 = G.camp;
+  if (!me) return { c: 1, m: 1 };
+  let foes = c0 && c0.boss ? (G.boss ? [G.boss] : []) : G.players.filter((o, j) => j !== i && !(c0 && c0.team && o.team === me.team));
+  if (!foes.length) return { c: 1, m: 1 };   // défis sans adversaire (Kaboum, stand de tir)
+  return { c: foes.reduce((a, o) => a + xpFoeCoef(o), 0) / foes.length, m: XP_NMULT[Math.min(3, foes.length)] };
+}
 function xpTick(dt) {
   const i = localIdx(), me = G.players[i];
   if (!me || me.ai || !inGame()) {
@@ -4425,13 +4473,19 @@ function xpTick(dt) {
   if (G.mode === 'match') {
     if (G.phase === 'roundEnd' && xpPrevPhase !== 'roundEnd' && xpPrevPhase) {
       const pts = G.pointsMode ? (G.gains[i] | 0) : (G.lastWinner === i ? PTS[0] : 0);
-      addXp(me.skin, XP_PER_PT * (pts + 1));
+      const { c, m } = xpRoundMul(i), f = c * m;
+      const gain = XP_PER_PT + Math.round(XP_PER_PT * pts * f);
+      addXp(me.skin, gain, pts && Math.abs(f - 1) > 0.01 ? ` (×${String(Math.round(f * 100) / 100).replace('.', ',')})` : '');
     }
   } else if (G.mode === 'br') {
     const k = me.kills | 0;
     if (k > xpPrevKills) addXp(me.skin, XP_PER_PT * XP_BR_KILL * (k - xpPrevKills));
     xpPrevKills = k;
-    if (me.alive && G.phase === 'play' && !(G.paused && !NET.role)) { xpBrT += dt; if (xpBrT >= XP_BR_ALIVE) { xpBrT -= XP_BR_ALIVE; addXp(me.skin, XP_PER_PT); } }
+    // fin de partie : XP selon la place (classement au meilleur score, comme l'écran de fin)
+    if (G.phase === 'brEnd' && xpPrevPhase && xpPrevPhase !== 'brEnd') {
+      const rk = G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id), r = rk.indexOf(me) + 1;
+      if (r > 0) addXp(me.skin, brPlaceXp(r, G.players.length), ` · ${r === 1 ? '1re' : r + 'e'} place sur ${G.players.length}`);
+    }
   }
   xpPrevPhase = G.phase;
 }
@@ -6657,6 +6711,10 @@ function drawBossBar(c, t) {
 /* ---------- Campagne ---------- */
 const campEl = $('#camp'), vsEl = $('#vs');
 const campDone = () => clamp(statOf('cp'), 0, CAMP.length);          // défis réussis (ils se font dans l'ordre)
+// parchemins d'XP : le défi n en donne n (CAMP[].scrolls pour changer) ; gagnés = somme des défis réussis, moins ceux utilisés
+const scrollsOf = i => (CAMP[i] && CAMP[i].scrolls) || i + 1;
+const scrollsEarned = () => { let n = 0; for (let i = 0; i < campDone(); i++) n += scrollsOf(i); return n; };
+const scrollsLeft = () => Math.max(0, scrollsEarned() - statOf('pu'));
 const campReady = i => !!CAMP[i] && !!CAMP[i].name && (i <= campDone() || !!settings.admin);
 let campSel = 0, campJust = -1;
 function syncCampBtn() {
@@ -6727,6 +6785,7 @@ function renderCampCard() {
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
+      + ` · récompense : ${scrollsOf(campSel)} parchemin${scrollsOf(campSel) > 1 ? 's' : ''} d'XP (${(scrollsOf(campSel) * SCROLL_XP).toLocaleString('fr-FR')} XP)`
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
@@ -6734,8 +6793,9 @@ function renderCampCard() {
   go.firstChild.textContent = campRes && !campRes.won && campRes.i === campSel ? 'Réessayer ' : campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
   // résultat du défi qu'on vient de jouer
   const rs = $('#camp-res');
-  if (campRes) { rs.hidden = false; rs.className = 'camp-res ' + (campRes.won ? 'ok' : 'ko'); rs.textContent = `Défi ${campRes.i + 1} ${campRes.won ? 'réussi !' : 'raté'} · ${campRes.text}`; }
+  if (campRes) { rs.hidden = false; rs.className = 'camp-res ' + (campRes.won ? 'ok' : 'ko'); rs.textContent = `Défi ${campRes.i + 1} ${campRes.won ? 'réussi !' : 'raté'} · ${campRes.text}${campRes.scrolls ? ` · +${campRes.scrolls} parchemin${campRes.scrolls > 1 ? 's' : ''} d'XP !` : ''}`; }
   else rs.hidden = true;
+  syncScrollBtns();
 }
 // écran « VS » avant le défi, puis la partie
 let vsT = 0, vsNext = null;
@@ -6874,13 +6934,13 @@ function guestCampEnd(d) {
     if (!d && !NET.gotSnap) return;
     NET.campEndMi = NET.mi;
     NET.campCredit = won && campDone() === i;           // c'était aussi ton prochain défi : il est validé pour toi
-    if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); }
+    if (NET.campCredit) { statMax('cp', i + 1); syncCampBtn(); syncScrollBtns(); }
     if (won) campUnlock(i);   // battre le Clown et le Mime avec un ami les débloque aussi
     guestToLobby('');
     $('#net-title').textContent = 'Campagne de ton ami';
   }
   const text = d && typeof d.text === 'string' ? ' ' + d.text.slice(0, 160) : '';
-  $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ' Il est validé dans ta campagne.' : ''}`;
+  $('#net-status').textContent = `Défi ${i + 1} ${won ? 'réussi !' : 'raté.'}${text}${NET.campCredit ? ` Il est validé dans ta campagne : +${scrollsOf(i)} parchemin${scrollsOf(i) > 1 ? 's' : ''} d'XP.` : ''}`;
   $('#net-wait-text').textContent = "En attente du prochain défi de ton ami…";
 }
 // Persos débloqués en réussissant un défi (CHARS[].camp = numéro du défi) : fenêtre avec leur image
@@ -6908,6 +6968,44 @@ function showUnlock(list) {
   try { btns.querySelector('.unl-pick').focus({ preventScroll: true }); } catch (e) {}
 }
 function closeUnlock() { unlockEl.hidden = true; }
+// ---------- Parchemins d'XP
+const scrollEl = $('#scrolls'); let scrSkin = 0;
+const scrChars = () => CHARS.map((_, i) => i).filter(i => !charLocked(i));
+function syncScrollBtns() {
+  const n = scrollsLeft(), b = $('#btn-scrolls'), cb = $('#camp-scrolls');
+  if (b) { b.hidden = !n; $('#scroll-n').textContent = n; b.lastChild.textContent = ` parchemin${n > 1 ? 's' : ''} d'XP à utiliser`; }
+  if (cb) { cb.hidden = !scrollsEarned(); cb.textContent = n ? `📜 Parchemins (${n})` : '📜 Parchemins'; }
+}
+function renderScrolls(msg) {
+  const n = scrollsLeft(), list = scrChars();
+  if (!list.includes(scrSkin)) scrSkin = list[0] || 0;
+  $('#scr-text').textContent = n ? `Tu as ${n} parchemin${n > 1 ? 's' : ''} de ${SCROLL_XP} XP. Choisis le perso qui en profite (◀ ▶), puis utilise-les quand tu veux.`
+    : scrollsEarned() ? 'Tu as utilisé tous tes parchemins. Réussis de nouveaux défis de la campagne pour en gagner d\'autres.' : 'Chaque défi réussi de la campagne donne des parchemins d\'XP (le défi 1 en donne 1, le défi 2 en donne 2…).';
+  drawPortrait($('#scr-cv'), palFor(0), scrSkin);
+  $('#scr-who').innerHTML = xpPanelHtml(scrSkin);
+  $('#scr-one').disabled = !n || settings.admin; $('#scr-all').disabled = n < 2 || settings.admin;
+  $('#scr-all').textContent = n > 1 ? `Tout utiliser (${n})` : 'Tout utiliser';
+  $('#scr-msg').textContent = settings.admin ? 'Mode admin : les parchemins ne s\'utilisent pas.' : msg || '';
+  syncScrollBtns();
+}
+function openScrolls() { scrSkin = settings.skin | 0; scrollEl.hidden = false; renderScrolls(); try { $(scrollsLeft() ? '#scr-one' : '#scr-close').focus({ preventScroll: true }); } catch (e) {} }
+function closeScrolls() { scrollEl.hidden = true; syncXpUi(); }
+function scrStep(d) { const l = scrChars(); if (!l.length) return; scrSkin = l[(l.indexOf(scrSkin) + d + l.length) % l.length]; renderScrolls(); }
+function useScrolls(k) {
+  const n = Math.min(k, scrollsLeft()); if (!n || settings.admin) return;
+  settings.st.pu = statOf('pu') + n; saveSettings();
+  const L0 = levelOf(scrSkin); addXp(scrSkin, n * SCROLL_XP); const L1 = levelOf(scrSkin);
+  Sfx.init(); Sfx.play('pickup');
+  renderScrolls(`+${(n * SCROLL_XP).toLocaleString('fr-FR')} XP pour ${CHARS[scrSkin].name}${L1 > L0 ? ` : niveau ${L0} → ${L1} !` : ' !'}`);
+}
+$('#scr-prev').addEventListener('click', () => scrStep(-1));
+$('#scr-next').addEventListener('click', () => scrStep(1));
+$('#scr-one').addEventListener('click', () => useScrolls(1));
+$('#scr-all').addEventListener('click', () => useScrolls(99));
+$('#scr-close').addEventListener('click', closeScrolls);
+$('#btn-scrolls').addEventListener('click', openScrolls);
+$('#camp-scrolls').addEventListener('click', openScrolls);
+syncScrollBtns();
 $('#unl-close').addEventListener('click', closeUnlock);
 function showEndCamp() {
   const c = G.camp, won = G.lastWinner === 0, first = won && c.i >= campDone();
@@ -6918,7 +7016,7 @@ function showEndCamp() {
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
     : c.team ? `Ton équipe ${G.scores[0]} – ${G.scores[1]} ${foeName(c)}.`
     : `${nameOf(0)} ${G.scores[0]} – ${G.scores[1]} ${nameOf(1)}`;
-  const res = { i: c.i, won, text };
+  const res = { i: c.i, won, text, scrolls: first ? scrollsOf(c.i) : 0 };
   endEl.hidden = true; pauseEl.hidden = true;
   setTimeout(() => {
     if (!(G.camp && G.camp.i === c.i && G.phase === 'matchEnd')) return;
@@ -7789,6 +7887,12 @@ window.addEventListener('keydown', e => {
   if (!keysEl.hidden) { if (code === 'Escape') closeKeys(); return; }
   if (!tipEl.hidden) { if (code === 'Escape' || code === 'Enter' || code === 'Space') { e.preventDefault(); closeTip(); } return; }
   if (!unlockEl.hidden) { if (code === 'Escape') { e.preventDefault(); closeUnlock(); } return; }
+  if (!scrollEl.hidden) {
+    if (code === 'Escape') { e.preventDefault(); closeScrolls(); }
+    else if ((code === 'ArrowLeft' || code === 'ArrowRight') && !e.repeat) { e.preventDefault(); scrStep(code === 'ArrowLeft' ? -1 : 1); }
+    else if ((code === 'Enter' || code === 'NumpadEnter') && document.activeElement === document.body) { e.preventDefault(); useScrolls(1); }
+    return;
+  }
   if (e.target && e.target.tagName === 'INPUT') { if (code === 'Escape') { if (!secretEl.hidden) closeSecret(); else if (!accEl().hidden) closeAccount(); else toMenu(); } return; }
   if (!secretEl.hidden) { if (code === 'Escape') closeSecret(); return; }
   if (!customEl.hidden) { if (code === 'Escape') closeCustom(); return; }
@@ -8864,7 +8968,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, scrollEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -8906,6 +9010,7 @@ function navBack(root) {
   else if (root === accEl()) closeAccount();
   else if (root === campEl) closeCamp();
   else if (root === unlockEl) closeUnlock();
+  else if (root === scrollEl) closeScrolls();
   else if (root === tipEl) closeTip();
   else if (root === vsEl) vsSkip();
   else if (root === friendsEl) closeFriends();
@@ -8981,6 +9086,7 @@ function pollPads() {
       } else if (hit(1)) navBack(root);
       else if (hit(pb.pause)) { if (root === menuEl) openSolo(); else if (root === soloEl) onPlay(); else if (root === pauseEl) resume(); else if (root === campEl) startCamp(campSel); else if (root === tipEl) closeTip(); else if (root === unlockEl) closeUnlock(); }
       // campagne : LB / RB passent au défi précédent / suivant
+      else if (root === scrollEl && (hit(4) || hit(5))) scrStep(hit(4) ? -1 : 1);
       else if (root === campEl && (hit(4) || hit(5))) { document.body.classList.add('pad-nav'); campPick(campSel + (hit(4) ? -1 : 1), true); }
     } else if (REPLAY.on) {
       if (hit(1) || hit(pb.pause)) stopReplay(); else if (hit(0)) replayTogglePause(); else if (hit(3)) replaySpeed();
@@ -9194,7 +9300,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
