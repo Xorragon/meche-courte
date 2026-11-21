@@ -1193,7 +1193,7 @@ const CAMP = [
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { name: 'Le colosse de poudre', desc: 'Grondor, un golem géant bourré de poudre, arpente une grande arène. Avec tes 3 alliés, fais-le sauter à coups de bombes. Une bombe poussée contre lui le frappe de plein fouet : double dégât !',
-    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 5, wins: 1, time: 600, tomb: 4 },
+    foe: BOSS_SKIN, npc: 'Grondor', boss: true, hp: 32, cols: 23, rows: 17, crates: 0.5, spawnRoom: 2, allies: 3, allyLv: 3, wins: 1, time: 600, tomb: 4, allyDmg: 0.3 },
   { foe: 8 }, { foe: 10 }, { foe: 11 }, { foe: 5 }, { foe: 2 },
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
@@ -2100,7 +2100,7 @@ function explode(b) {
       prev = k;
     }
   }
-  if (hurt) { const hit = [...G.bossHit].some(k => bossAt(k % COLS, (k / COLS) | 0)); G.bossHit = null; if (hit) bossDamage(b.kickHit ? 2 : 1); }
+  if (hurt) { const hit = [...G.bossHit].some(k => bossAt(k % COLS, (k / COLS) | 0)); G.bossHit = null; if (hit) bossDamage(b.kickHit ? 2 : 1, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner); }
   rebuildBombAt();
   fx('boom', cx, cy, who);
 }
@@ -2144,7 +2144,7 @@ function updateBombs(dt) {
     const B = G.boss, x = (b.x + b.mdx * b.prog + 0.5) * T, y = (b.y + b.mdy * b.prog + 0.5) * T;
     for (let j = 0; j < 14; j++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 160; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4, max: 0.4, size: 2.4, color: j % 2 ? '#ffd166' : '#ff8a3d' }); }
     Sfx.boom(boomKind(b.owner && b.owner.id !== BOSS_ID ? G.players[b.owner.id] : null), 0.6, earVol(b.x, b.y)); if (!reduceMotion) G.shake = Math.max(G.shake, 4);
-    if (B && B.alive) bossDamage(2);
+    if (B && B.alive) bossDamage(2, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner);
   }
   rebuildBombAt();
   // une bombe (poussée ou non) qui se trouve dans une explosion encore active saute aussitôt
@@ -6052,8 +6052,11 @@ function makeBoss(c) {
     active: 0, range: 3, path: [], pathT: 0, castT: 3, cast: 0, hitT: 0, stuck: 0, rage: false, phase: 0, face: 1, dir: 'down', moving: false, pose: '' };
 }
 const bossAt = (x, y) => !!(G.boss && G.boss.alive && Math.abs(G.boss.x - x) < 0.95 && Math.abs(G.boss.y - y) < 0.95);
-function bossDamage(n) {
+function bossDamage(n, by) {
   const B = G.boss; if (!B || !B.alive) return;
+  // alliés ordis : leurs coups ne comptent qu'en partie (sinon ils battent Grondor sans toi)
+  const f = by && by.ai && G.camp && G.camp.allyDmg;
+  if (f) { B.chip = (B.chip || 0) + n * f; n = Math.floor(B.chip + 1e-6); B.chip -= n; if (n <= 0) { B.hitT = 0.12; return; } }
   B.hp = Math.max(0, B.hp - n); bossHitFx(B, n);
   if (!B.rage && B.hp <= B.max / 2) { B.rage = true; bossRageFx(B); fx('snd', 'sudden'); }
   if (B.hp <= 0) { B.alive = false; B.deadT = 0; G.warn.length = 0; G.bossBlock = null; bossDeathFx(B); }
