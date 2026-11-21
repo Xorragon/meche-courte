@@ -1167,11 +1167,13 @@ const CAMP = [
   { name: 'Le tireur d\'élite', desc: 'Un stand de tir : derrière la corde, des cibles en bois. Pousse tes bombes pour les toucher, arrête-les au bon endroit pour que leur explosion les atteigne, et enchaîne-les pour un combo. Quatre vagues, avec des bombes comptées.',
     foe: TARGET_SKIN, wins: 1, time: 150, ammo: 20, fuse: 4.5, noCrates: true, fence: 9,
     // vagues : list = cibles [x, y] (et [x, y, y0, y1] pour celle qui bouge) ; stop : il faut arrêter la bombe au bon endroit ;
-    // combo : toutes les cibles de la vague doivent tomber en même temps ; crates : caisses posées au début de la vague
+    // combo : toutes les cibles de la vague doivent tomber en même temps ; crates / stones : caisses ou blocs de pierre posés au début de la vague ;
+    // spots : cases conseillées pour les bombes (cercles pointillés)
     targets: [
       { list: [[11, 3], [13, 9]] },
       { list: [[11, 4], [11, 8]], stop: true },
-      { list: [[13, 3], [13, 5]], combo: true, crates: [[12, 3], [12, 5]] },
+      // combo : un bloc de pierre arrête la 1re bombe en (11,3) ; la 2e s'arrête à la main en (11,5) ; elles explosent en chaîne
+      { list: [[11, 2], [11, 6]], combo: true, stones: [[12, 3]], spots: [[11, 3], [11, 5]] },
       { list: [[11, 1, 1, 11]] },
     ],
     spawns: { 0: [3, 5, 'right'] } },
@@ -5830,11 +5832,12 @@ function tgtWave(T4) {
   T4.def = w; T4.comboT = 0;
   T4.list = w.list.map(a => ({ x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: 1.15, dir: 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitAt: null }));
   for (const [x, y] of w.crates || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = CRATE; G.hidden[k] = -1; G.burn[k] = 0; } }
+  for (const [x, y] of w.stones || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = STONE; G.hidden[k] = -1; G.burn[k] = 0; fx('crate', x, y); } }
   T4.waveT = 0;
   if (T4.wave > 0) {
     const last = T4.wave === T4.waves.length - 1;
     G.rageMsg = [last ? 'Dernière vague !' : `Vague ${T4.wave + 1} sur ${T4.waves.length}`,
-      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible' : w.combo ? 'Les deux en même temps ! Enchaîne tes bombes pour un combo' : w.list.some(a => a.length >= 4) ? 'Celle-ci se déplace : vise au bon moment !' : 'Pousse tes bombes sur les cibles'];
+      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible' : w.combo ? 'Les deux en même temps ! Deux bombes l\'une au-dessus de l\'autre explosent en chaîne' : w.list.some(a => a.length >= 4) ? 'Celle-ci se déplace : vise au bon moment !' : 'Pousse tes bombes sur les cibles'];
     G.rageFlash = 2.4; fx('snd', 'go');
     if (w.stop) tipPulse();
   }
@@ -5969,6 +5972,12 @@ function drawRange(c, t) {
 function drawTgtBar(c, t) {
   const T4 = G.tg, n = T4.total, w = Math.min(380, W - 160), x = (W - w) / 2, y = 12;
   c.save(); c.translate(-G.cam.x, -G.cam.y);
+  if (T4.def.spots && T4.list.some(q => q.alive)) for (const [sx, sy] of T4.def.spots) {
+    if (G.bombAt[idx(sx, sy)]) continue;
+    const px = (sx + 0.5) * T, py = (sy + 0.5) * T, r = T * (0.3 + 0.04 * Math.sin(t * 4));
+    c.save(); c.setLineDash([5, 6]); c.lineDashOffset = t * 20; c.lineWidth = 2.5; c.strokeStyle = 'rgba(255,211,110,.75)'; c.beginPath(); c.arc(px, py, r, 0, TAU); c.stroke(); c.setLineDash([]);
+    c.globalAlpha = 0.35; c.fillStyle = '#1a1410'; c.beginPath(); c.arc(px, py + 2, T * 0.17, 0, TAU); c.fill(); c.restore();
+  }
   if (T4.def.combo) {
       const up = T4.list.filter(q => q.alive && q.spawn >= 1);
       if (up.length > 1) {
