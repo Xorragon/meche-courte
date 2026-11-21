@@ -3938,7 +3938,7 @@ function endRound() {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 function afterRound() {
-  if (G.camp && G.camp.boss) { G.phase = 'matchEnd'; showEnd(); return; }
+  if (G.camp && (G.camp.boss || G.camp.targets)) { G.phase = 'matchEnd'; showEnd(); return; }   // défis en une seule manche (boss, stand de tir)
   if (G.pointsMode) {
     if (G.round >= POINT_ROUNDS) {
       if (G.mode === 'match') { G.phase = 'matchEnd'; showEnd(); return; }
