@@ -5278,8 +5278,11 @@ function xpPanelHtml(i, gainLine) {
   return (gainLine ? `<p class="gain">${gainLine}</p>` : '') + `<span class="lv">${esc(ch.name)} <b>niv. ${L}</b>${P ? ` <b class="pres">${'★'.repeat(Math.min(P, 5))}${P > 5 ? ' ×' + P : ''}</b>` : ''}${settings.admin ? ' <small style="color:#ff9d8f">(admin)</small>' : ''}</span><span class="bar"><i style="width:${pct2.toFixed(1)}%"></i></span><span class="sub">${sub}</span>`;
 }
 // Niveau de compte : 1 + tous les niveaux gagnés sur tous les persos (chaque niveau de chaque perso compte)
-const accLevel = () => 1 + lvGained();
-const accLevelOfCh = ch => 1 + Object.values(ch || {}).reduce((a, v) => a + Math.max(0, ((Array.isArray(v) ? v[0] : 0) | 0) - 1), 0);
+// niveau d'artificier = somme des niveaux de tous les persos de la collection (débloqués), niveau 1 compris
+const accLevel = () => CHARS.reduce((a, _, i) => a + (charLockedReal(i) ? 0 : levelOfXp(realXpOf(i))), 0);
+// profil d'un autre joueur : sa valeur publiée (al), sinon estimation (persos publiés + persos de base au niveau 1)
+const accLevelOfCh = (ch, al) => { if (Number.isInteger(al) && al > 0) return al; ch = ch || {};
+  return CHARS.reduce((a, c) => a + (Array.isArray(ch[c.key]) ? Math.max(1, ch[c.key][0] | 0) : (!c.elo && !c.camp && !c.soon && !c.code) ? 1 : 0), 0); };
 function syncXpUi() {
   try { sortCharBtns(); } catch (e) {}
   { const e = document.getElementById('acc-lv'); if (e) e.textContent = accLevel(); }
@@ -8625,7 +8628,7 @@ function pubOf() {
   const ti = (Number(m.t) | 0) > 0 && cosOkReal(ACH, (Number(m.t) | 0) - 1) ? Number(m.t) | 0 : 0;
   const sk = charLockedReal(settings.skin) ? 0 : settings.skin, sel = settings.auraSel[CHARS[sk].key], amax = auraOfLevel(levelOfXp(realXpOf(sk)));
   return {
-    fav: CHARS[fav].key, sk: CHARS[sk].key, au: Number.isInteger(sel) ? Math.min(sel, amax) : amax, ch, st,
+    fav: CHARS[fav].key, sk: CHARS[sk].key, al: accLevel(), au: Number.isInteger(sel) ? Math.min(sel, amax) : amax, ch, st,
     cs: [ok(BOMB_SKINS, m.b), ok(FLAME_SKINS, m.f), ok(CARD_STYLES, m.c), ok(CARD_PHRASES, m.p), ti],
     em: (Array.isArray(m.e) ? m.e : []).map(v => Number(v) | 0).filter(v => cosOkReal(EMOTES, v)).slice(0, 4),
     ach: ACH.map((_, i) => i).filter(i => cosOkReal(ACH, i)),
@@ -8700,7 +8703,7 @@ function renderProfile(d) {
   $('#prof-name').textContent = d.name || '';
   const cs = Array.isArray(P.cs) ? P.cs : [];
   $('#prof-title').textContent = titleOf(cs);
-  { const al = mine ? accLevel() : accLevelOfCh(P.ch), e = $('#prof-acc'); e.innerHTML = ''; if (!d.loading && (mine || Object.keys(P).length)) { e.append('Niveau de compte '); const b = document.createElement('b'); b.textContent = al; e.append(b); } }
+  { const al = mine ? accLevel() : accLevelOfCh(P.ch, P.al), e = $('#prof-acc'); e.innerHTML = ''; if (!d.loading && (mine || Object.keys(P).length)) { e.append('Niveau de compte '); const b = document.createElement('b'); b.textContent = al; e.append(b); } }
   // portrait du perso porté (ombre si tu ne l'as pas encore débloqué), cadre du rang, étoiles
   const sk = charIdx(P.sk || P.fav || CHARS[0].key), ch = P.ch || {}, pres = ch[CHARS[sk].key] ? ch[CHARS[sk].key][1] | 0 : 0;
   const pc = $('#prof-portrait'), c = pc.getContext('2d');
