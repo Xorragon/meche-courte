@@ -1558,7 +1558,7 @@ const auraOfLevel = L => Math.min(10, Math.floor(L / 10));
 if (!settings.auraSel || typeof settings.auraSel !== 'object') settings.auraSel = {};
 const auraMaxOf = i => auraOfLevel(levelOf(i));
 const auraSelMap = () => settings.admin ? (settings.adminAuraSel || (settings.adminAuraSel = {})) : settings.auraSel;
-const auraOf = i => { const mx = auraMaxOf(i), sel = auraSelMap()[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : mx; };
+const auraOf = i => { const mx = auraMaxOf(i), sel = auraSelMap()[CHARS[i].key]; return Number.isInteger(sel) ? Math.min(Math.max(0, sel), mx) : settings.admin ? 0 : mx; };   // mode admin : aucune aura tant qu'on n'en choisit pas
 /* ---------- Cosmétiques : skins de bombe, flammes, emotes, cartes de victime ----------
    Débloqués par les stats du joueur : g = parties jouées, k = victimes, w = victoires, l = niveaux gagnés (tous persos). */
 const COS_STAT = { g: ['partie', 'parties'], k: ['victime', 'victimes'], w: ['victoire', 'victoires'], l: ['niveau gagné', 'niveaux gagnés'],
