@@ -1531,6 +1531,9 @@ const COS_DEF = () => ({ b: 0, f: 0, c: 0, p: 0, t: 0, m: 0, e: [0, 1, 2, 3] });
 if (!settings.st || typeof settings.st !== 'object' || Array.isArray(settings.st)) settings.st = {};
 // stats par mode (2026-11-20) : un battle royale gagné est un top 1 et un top 3, on reprend ceux déjà gagnés
 if (settings.st.bt === undefined && Number(settings.st.bw) > 0) settings.st.bt = Math.floor(Number(settings.st.bw)) || 0;
+// les parties de battle royale ne sont comptées que depuis le 2026-11-20, les top 1 depuis bien avant :
+// chaque top 1 ou top 3 est au moins une partie (minimum sûr, débloque aussi les récompenses qui en dépendent)
+{ const s = settings.st, n = Math.max(Number(s.bt) || 0, Number(s.bw) || 0); if (n > (Number(s.bg) || 0)) s.bg = Math.floor(n); }
 if (!settings.cos || typeof settings.cos !== 'object' || Array.isArray(settings.cos)) settings.cos = COS_DEF();
 if (!Array.isArray(settings.cos.e)) settings.cos.e = [0, 1, 2, 3];
 const lvGained = () => CHARS.reduce((a, _, i) => a + levelOfXp(realXpOf(i)) - 1, 0);
@@ -8480,10 +8483,18 @@ function renderProfile(d) {
     tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.m === m)));
     for (const [k, l] of PROF_STATS[m]) {
       const div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
-      const v = k === '%' ? (Number(st.ng) > 0 ? Math.round((Number(st.nw) || 0) / Number(st.ng) * 100) + ' %' : '—') : st[k] === undefined ? '—' : (Number(st[k]) | 0).toLocaleString('fr-FR');
+      // battle royale : au moins autant de parties que de top 3, et de top 3 que de top 1 (anciennes parties non comptées)
+      const raw = k === 'bg' ? Math.max(Number(st.bg) || 0, Number(st.bt) || 0, Number(st.bw) || 0) : k === 'bt' ? Math.max(Number(st.bt) || 0, Number(st.bw) || 0) : Number(st[k]);
+      const v = k === '%' ? (Number(st.ng) > 0 ? Math.round((Number(st.nw) || 0) / Number(st.ng) * 100) + ' %' : '—') : st[k] === undefined && !(raw > 0) ? '—' : (raw | 0).toLocaleString('fr-FR');
       b.textContent = v; sp.textContent = l; div.append(b, sp); sv.appendChild(div);
     }
     if (!mine && m !== 'all' && st.ng === undefined && st.bg === undefined) { const n = document.createElement('p'); n.className = 'prof-note'; n.textContent = "Ce joueur n'a pas encore les stats par mode (elles arrivent à sa prochaine partie)."; sv.appendChild(n); }
+    else if (m !== 'all' && ['bw', 'ct', 'ch', 'o', 'nw', 'ng', 'bg'].some(x => Number(st[x]) > 0)) {
+      const n = document.createElement('p'); n.className = 'prof-note';
+      n.textContent = m === 'br' ? 'Parties et victimes comptées depuis le 20 novembre 2026 (le jeu ne les enregistrait pas avant) ; top 1, contrats, coffres et orbes depuis le début. Toutes ' + (mine ? 'tes' : 'ses') + ' parties sont dans « Générales ».'
+        : 'Comptés depuis le 20 novembre 2026 (le jeu ne séparait pas les modes avant). Toutes les parties sont dans « Générales ».';
+      sv.appendChild(n);
+    }
   };
   for (const [m, l] of [['all', 'Générales'], ['norm', 'Matchs normaux'], ['br', 'Battle royale']]) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = l; b.setAttribute('role', 'tab');
