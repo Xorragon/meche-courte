@@ -430,6 +430,9 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .prof-id{flex:1;min-width:200px;display:flex;flex-direction:column;gap:4px}
 .prof-id h2{margin:0;overflow-wrap:anywhere}
 .prof-title{margin:0;color:var(--gold);font:800 16px/1.2 var(--font-body)}
+.prof-acc{margin:4px 0 0;font:700 14px/1.2 var(--font-body);color:var(--parchment)}.prof-acc b{color:var(--gold)}
+.acc-lv{margin-left:10px;padding:3px 9px;border-radius:999px;background:rgba(232,178,58,.16);border:1px solid rgba(232,178,58,.45);color:var(--gold);letter-spacing:.06em;font-size:11px;vertical-align:1px}
+.acc-lv:empty{display:none}
 .prof-title:empty{display:none}
 .prof-rank{margin:0;display:flex;align-items:center;gap:8px;font:800 15px/1.25 var(--font-body);color:var(--parchment)}
 .prof-rank canvas{width:32px;height:32px;flex:none}
@@ -753,7 +756,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     </section>
     <section class="home-me" aria-labelledby="home-me-h">
-    <p class="home-h" id="home-me-h">Ton artificier</p>
+    <p class="home-h" id="home-me-h">Ton artificier<span class="acc-lv" id="acc-lv" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos"></span></p>
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
@@ -915,6 +918,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <p class="kicker" id="prof-kicker">Profil</p>
         <h2 id="prof-name"></h2>
         <p class="prof-title" id="prof-title"></p>
+        <p class="prof-acc" id="prof-acc"></p>
         <p class="prof-rank" id="prof-rank"><canvas width="64" height="64" aria-hidden="true"></canvas><span></span></p>
       </div>
     </div>
@@ -5173,7 +5177,11 @@ function xpPanelHtml(i, gainLine) {
   const pct2 = L >= LV_MAX && P < PRES_MAX ? Math.max(0, Math.min(100, pIn / PRES_XP * 100)) : pct;
   return (gainLine ? `<p class="gain">${gainLine}</p>` : '') + `<span class="lv">${esc(ch.name)} <b>niv. ${L}</b>${P ? ` <b class="pres">${'★'.repeat(Math.min(P, 5))}${P > 5 ? ' ×' + P : ''}</b>` : ''}${settings.admin ? ' <small style="color:#ff9d8f">(admin)</small>' : ''}</span><span class="bar"><i style="width:${pct2.toFixed(1)}%"></i></span><span class="sub">${sub}</span>`;
 }
+// Niveau de compte : 1 + tous les niveaux gagnés sur tous les persos (chaque niveau de chaque perso compte)
+const accLevel = () => 1 + lvGained();
+const accLevelOfCh = ch => 1 + Object.values(ch || {}).reduce((a, v) => a + Math.max(0, ((Array.isArray(v) ? v[0] : 0) | 0) - 1), 0);
 function syncXpUi() {
+  { const e = document.getElementById('acc-lv'); if (e) e.textContent = 'Compte niv. ' + accLevel(); }
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
   syncAuraPick(); try { syncScrollBtns(); } catch (e) {}   // (pas encore prêt au tout début du chargement)
@@ -8479,6 +8487,7 @@ function renderProfile(d) {
   $('#prof-name').textContent = d.name || '';
   const cs = Array.isArray(P.cs) ? P.cs : [];
   $('#prof-title').textContent = titleOf(cs);
+  { const al = mine ? accLevel() : accLevelOfCh(P.ch), e = $('#prof-acc'); e.innerHTML = ''; if (!d.loading && (mine || Object.keys(P).length)) { e.append('Niveau de compte '); const b = document.createElement('b'); b.textContent = al; e.append(b); } }
   // portrait du perso porté (ombre si tu ne l'as pas encore débloqué), cadre du rang, étoiles
   const sk = charIdx(P.sk || P.fav || CHARS[0].key), ch = P.ch || {}, pres = ch[CHARS[sk].key] ? ch[CHARS[sk].key][1] | 0 : 0;
   const pc = $('#prof-portrait'), c = pc.getContext('2d');
