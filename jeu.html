@@ -5212,6 +5212,14 @@ function syncAuraPick() {
   }
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
+// Rattrapage : un perso en dessous du niveau de ton perso le plus monté gagne l'XP de partie en double
+// (pas les parchemins). Affiché « XP ×2 » en bas à droite de sa case dans le choix des persos.
+const xpTopLevel = () => CHARS.reduce((m, _, i) => Math.max(m, levelOfXp(realXpOf(i))), 1);
+const xpBoosted = i => !!CHARS[i] && levelOfXp(realXpOf(i)) < xpTopLevel();
+function gameXp(skin, amount, note = '') {
+  if (xpBoosted(skin)) { amount *= 2; note += ' · XP ×2'; }
+  addXp(skin, amount, note);
+}
 function addXp(skin, amount, note = '') {
   if (!(amount > 0) || !CHARS[skin] || REPLAY.on) return;
   if (settings.admin) { xpToast(`+${amount} XP (mode admin : non compté)`); return; }
@@ -5307,16 +5315,16 @@ function xpTick(dt) {
       const pts = G.pointsMode ? (G.gains[i] | 0) : (G.lastWinner === i ? PTS[0] : 0);
       const { c, m } = xpRoundMul(i), f = c * m;
       const gain = XP_PER_PT + Math.round(XP_PER_PT * pts * f);
-      addXp(me.skin, gain, pts && Math.abs(f - 1) > 0.01 ? ` (×${String(Math.round(f * 100) / 100).replace('.', ',')})` : '');
+      gameXp(me.skin, gain, pts && Math.abs(f - 1) > 0.01 ? ` (×${String(Math.round(f * 100) / 100).replace('.', ',')})` : '');
     }
   } else if (G.mode === 'br') {
     const k = me.kills | 0;
-    if (k > xpPrevKills) addXp(me.skin, XP_PER_PT * XP_BR_KILL * (k - xpPrevKills));
+    if (k > xpPrevKills) gameXp(me.skin, XP_PER_PT * XP_BR_KILL * (k - xpPrevKills));
     xpPrevKills = k;
     // fin de partie : XP selon la place (classement au meilleur score, comme l'écran de fin)
     if (G.phase === 'brEnd' && xpPrevPhase && xpPrevPhase !== 'brEnd') {
       const rk = G.players.slice().sort((a, b) => (b.peak | 0) - (a.peak | 0) || (b.kills | 0) - (a.kills | 0) || a.id - b.id), r = rk.indexOf(me) + 1;
-      if (r > 0) addXp(me.skin, brPlaceXp(r, G.players.length), ` · ${r === 1 ? '1re' : r + 'e'} place sur ${G.players.length}`);
+      if (r > 0) gameXp(me.skin, brPlaceXp(r, G.players.length), ` · ${r === 1 ? '1re' : r + 'e'} place sur ${G.players.length}`);
     }
   }
   xpPrevPhase = G.phase;
@@ -6665,6 +6673,11 @@ function drawCharPicker(t) {
     if (L > 1) {   // le niveau reste affiché, même avec une aura (niveau 10 et plus)
       c.font = '800 9px system-ui, sans-serif'; c.textBaseline = 'top'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(20,12,4,.85)'; c.fillStyle = L >= LV_MAX ? '#ffe08a' : '#f3e5c0';
       c.strokeText(String(L), 3, 2); c.fillText(String(L), 3, 2);
+    }
+    if (xpBoosted(i)) {   // rattrapage d'XP, en tout petit en bas à droite
+      const h = cv.height / k;
+      c.font = '800 7px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
+      c.strokeText('XP ×2', 50, h - 1); c.fillText('XP ×2', 50, h - 1); c.textAlign = 'start';
     }
   });
 }
