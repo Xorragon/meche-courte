@@ -487,6 +487,38 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .coll-btn small{font:800 11px/1 var(--font-body);color:var(--parchment);opacity:.75}
 .charpick.mini .coll-btn i{grid-template-columns:repeat(2,9px);gap:2px}.charpick.mini .coll-btn i b{width:9px;height:9px}
 #collection{background:rgba(6,10,7,.9);backdrop-filter:blur(6px)}
+#shop{background:rgba(6,9,12,.92);backdrop-filter:blur(6px);z-index:11}
+#unlock{z-index:12}
+.coin{display:inline-block;width:15px;height:15px;border-radius:50%;vertical-align:-2px;background:radial-gradient(circle at 34% 30%,#fff6c4 0 18%,#f7cd4e 40%,#c98b1c 100%);box-shadow:inset 0 0 0 1.5px #8d5d0e,0 1px 0 rgba(0,0,0,.35)}
+.home-hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 12px}
+.home-hrow .home-h{margin:0}
+.shop-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px 6px 9px;border-radius:999px;border:1px solid rgba(255,207,90,.5);background:rgba(255,207,90,.1);color:var(--parchment);font:800 13px/1 var(--font-body);cursor:pointer;white-space:nowrap}
+.shop-pill span{color:#ffe08a;font-variant-numeric:tabular-nums}
+.shop-pill b{padding-left:8px;border-left:1px solid rgba(255,207,90,.35);color:var(--gold);letter-spacing:.04em}
+.shop-pill:hover,.shop-pill:focus-visible{background:rgba(255,207,90,.2);border-color:var(--gold)}
+.box.shopbox{max-width:900px;width:100%}
+.box.shopbox h2{font-size:clamp(34px,5vw,48px)}
+.shop-sub{margin:2px 0 12px;color:var(--muted);font-size:14px}
+.shop-balance b{color:#ffe08a;font-size:17px;margin:0 3px}
+.shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+.shop-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 10px 12px;border-radius:18px;background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 16%,transparent),rgba(10,14,12,.55) 70%);border:1.5px solid color-mix(in srgb,var(--tc) 55%,transparent);text-align:center}
+.shop-card .tier{font:900 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--tc)}
+.shop-card canvas{width:140px;height:140px}
+.shop-card h3{margin:0;font:400 22px/1 var(--font-display);color:var(--parchment)}
+.shop-card .buy{min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:12px;border:0;background:var(--gold);color:#2a1a04;font:900 15px/1 var(--font-body);cursor:pointer}
+.shop-card .buy.poor{background:rgba(255,255,255,.08);color:var(--muted);cursor:not-allowed}
+.shop-card .buy.sure{background:#ff8a3c;color:#fff}
+.shop-card .buy.own{background:rgba(120,220,140,.16);color:#9ff0b0;cursor:default}
+.shop-card.owned canvas{opacity:.8}
+.shop-msg{min-height:1.3em;margin:10px 0 0}
+.shopbox>.row{position:sticky;bottom:-28px;padding:10px 0 14px;z-index:2}
+.shop-earn{margin:4px 0 0;max-width:620px;color:var(--muted);font-size:13px;text-align:left}
+.shop-earn summary{cursor:pointer;color:var(--parchment);font-weight:700;text-align:center}
+.coin-gain{color:#ffe08a;font-weight:800;white-space:nowrap}
+.coin-gain .coin{margin-right:3px}
+.collbox>.row #coll-shop{display:inline-flex;align-items:center;gap:6px}
+@media (max-width:760px){.shop-grid{grid-template-columns:repeat(2,1fr)}.shop-card canvas{width:104px;height:104px}.shop-card .buy{min-width:0;width:100%}}
+@media (max-width:420px){.home-hrow{flex-wrap:wrap}.shop-pill{padding:5px 10px 5px 8px}}
 .box.collbox{max-width:980px;width:100%}
 .box.collbox h2{font-size:clamp(34px,5vw,48px)}
 .collbox>.row{position:sticky;bottom:-28px;padding:10px 0 14px;z-index:2}
@@ -778,7 +810,8 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     </section>
     <section class="home-me" aria-labelledby="home-me-h">
-    <p class="home-h" id="home-me-h" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos">Artificier <b class="acc-lv">niveau <span id="acc-lv">1</span></b></p>
+    <div class="home-hrow"><p class="home-h" id="home-me-h" title="Niveau d'artificier : la somme des niveaux de tous les persos de ta collection">Artificier <b class="acc-lv">niveau <span id="acc-lv">1</span></b></p>
+    <button type="button" class="shop-pill" id="btn-shop" title="Boutique : persos en vente cette semaine"><i class="coin" aria-hidden="true"></i><span id="coin-n">0</span><b>Boutique</b></button></div>
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
@@ -1120,7 +1153,21 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <div class="char-xp coll-xp" id="coll-xp"></div>
       </aside>
     </div>
-    <div class="row"><button class="cta" id="coll-close" type="button">Retour <kbd>Échap</kbd></button></div>
+    <div class="row"><button class="ghost" id="coll-shop" type="button"><i class="coin" aria-hidden="true"></i> Boutique de la semaine</button><button class="cta" id="coll-close" type="button">Retour <kbd>Échap</kbd></button></div>
+  </div>
+</div>
+
+<div id="shop" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="shop-title">
+  <div class="box shopbox">
+    <p class="kicker">Rotation de la semaine</p>
+    <h2 id="shop-title">Boutique</h2>
+    <p class="shop-sub"><span class="shop-balance"><i class="coin" aria-hidden="true"></i><b id="shop-bal">0</b> pièces</span> · <span id="shop-time"></span></p>
+    <div class="shop-grid" id="shop-grid"></div>
+    <p class="rule shop-msg" id="shop-msg" role="status"></p>
+    <details class="shop-earn"><summary>Comment gagner des pièces ?</summary>
+      <p>Partie jouée +10 · victoire +15 · victime +2 · top 3 en battle royale +10 · top 1 +20 · contrat ou coffre +5 · défi de campagne +30 · niveau de perso +10 · succès +100.</p>
+      <p>Certains persos ne passent jamais en boutique : ils se débloquent en campagne, avec les succès, l'Elo ou un code secret.</p></details>
+    <div class="row"><button class="cta" id="shop-close" type="button">Retour <kbd>Échap</kbd></button></div>
   </div>
 </div>
 
@@ -1302,61 +1349,69 @@ const CHARS = [
   { key: 'clown', name: 'Clown', sheet: 97, camp: 3 },   // sheet : CLOWN_SKIN
   { key: 'mime', name: 'Mime', sheet: 96, camp: 3 },     // sheet : MIME_SKIN
   // nouveaux persos (planches du joueur, 2026-11-23) : verrouillés (soon) en attendant leur façon de se débloquer
-  { key: 'capuche', name: 'Capuche', soon: true },
-  { key: 'amazone', name: 'Amazone', soon: true },
+  { key: 'capuche', name: 'Capuche', shop: 1 },
+  { key: 'amazone', name: 'Amazone', shop: 3 },
   { key: 'ange', name: 'Angelot', soon: true },
   { key: 'faucheur', name: 'Faucheur', soon: true },
-  { key: 'matou', name: 'Matou', soon: true },
+  { key: 'matou', name: 'Matou', shop: 3 },
   { key: 'petardier', name: 'Pétardier', soon: true },
   { key: 'salpetre', name: 'Salpêtre', soon: true },
-  { key: 'barde', name: 'Barde', soon: true },
-  { key: 'azteque', name: 'Aztèque', soon: true },
-  { key: 'chatbotte', name: 'Chat botté', soon: true },
-  { key: 'gobelin', name: 'Gobelin', soon: true },
+  { key: 'barde', name: 'Barde', shop: 2 },
+  { key: 'azteque', name: 'Aztèque', shop: 2 },
+  { key: 'chatbotte', name: 'Chat botté', shop: 3 },
+  { key: 'gobelin', name: 'Gobelin', shop: 2 },
   { key: 'cramoisi', name: 'Cramoisi', soon: true },
-  { key: 'karateka', name: 'Karatéka', soon: true },
+  { key: 'karateka', name: 'Karatéka', shop: 1 },
   { key: 'bombot', name: 'Bombot', soon: true },
-  { key: 'pilote', name: 'Pilote', soon: true },
-  { key: 'commando', name: 'Commando', soon: true },
-  { key: 'cowboy', name: 'Cow-boy', soon: true },
-  { key: 'mineur', name: 'Mineur', soon: true },
+  { key: 'pilote', name: 'Pilote', shop: 1 },
+  { key: 'commando', name: 'Commando', shop: 2 },
+  { key: 'cowboy', name: 'Cow-boy', shop: 1 },
+  { key: 'mineur', name: 'Mineur', shop: 2 },
   { key: 'dryade', name: 'Dryade', soon: true },
   // 2e lot (2026-11-23). Attention : les indices 94 à 99 sont pris par les planches spéciales (DEMON_SKIN…), rester en dessous
-  { key: 'sac', name: 'Sac', soon: true },
-  { key: 'marechal', name: 'Maréchal', soon: true },
-  { key: 'lutin', name: 'Lutin', soon: true },
-  { key: 'golem', name: 'Golem', soon: true },
+  { key: 'sac', name: 'Sac', shop: 1 },
+  { key: 'marechal', name: 'Maréchal', shop: 3 },
+  { key: 'lutin', name: 'Lutin', shop: 2 },
+  { key: 'golem', name: 'Golem', shop: 4 },
   { key: 'magma', name: 'Magma', soon: true },
   { key: 'paladin', name: 'Paladin', soon: true },
-  { key: 'mecha', name: 'Mécha', soon: true },
-  { key: 'rockeuse', name: 'Rockeuse', soon: true },
-  { key: 'robotte', name: 'Robotte', soon: true },
-  { key: 'hacker', name: 'Hacker', soon: true },
-  { key: 'arcaniste', name: 'Arcaniste', soon: true },
-  { key: 'olympien', name: 'Olympien', soon: true },
-  { key: 'koala', name: 'Koala', soon: true },
-  { key: 'legionnaire', name: 'Légionnaire', soon: true },
-  { key: 'parrain', name: 'Parrain', soon: true },
+  { key: 'mecha', name: 'Mécha', shop: 4 },
+  { key: 'rockeuse', name: 'Rockeuse', shop: 2 },
+  { key: 'robotte', name: 'Robotte', shop: 3 },
+  { key: 'hacker', name: 'Hacker', shop: 3 },
+  { key: 'arcaniste', name: 'Arcaniste', shop: 4 },
+  { key: 'olympien', name: 'Olympien', shop: 3 },
+  { key: 'koala', name: 'Koala', shop: 3 },
+  { key: 'legionnaire', name: 'Légionnaire', shop: 2 },
+  { key: 'parrain', name: 'Parrain', shop: 2 },
   { key: 'sable', name: 'Sable', soon: true },
-  { key: 'elfe', name: 'Elfe', soon: true },
-  { key: 'mandarin', name: 'Mandarin', soon: true },
-  { key: 'marie', name: 'Marié', soon: true },
-  { key: 'mariee', name: 'Mariée', soon: true },
+  { key: 'elfe', name: 'Elfe', shop: 3 },
+  { key: 'mandarin', name: 'Mandarin', shop: 2 },
+  { key: 'marie', name: 'Marié', shop: 1 },
+  { key: 'mariee', name: 'Mariée', shop: 1 },
   // 3e lot (2026-11-23)
-  { key: 'bricolo', name: 'Bricolo', soon: true },
-  { key: 'momie', name: 'Momie', soon: true },
-  { key: 'fee', name: 'Fée', soon: true },
-  { key: 'orc', name: 'Orc', soon: true },
+  { key: 'bricolo', name: 'Bricolo', shop: 2 },
+  { key: 'momie', name: 'Momie', shop: 2 },
+  { key: 'fee', name: 'Fée', shop: 3 },
+  { key: 'orc', name: 'Orc', shop: 2 },
   { key: 'ondine', name: 'Ondine', soon: true },
-  { key: 'papy', name: 'Papy', soon: true },
-  { key: 'cocorico', name: 'Cocorico', soon: true },
-  { key: 'peintre', name: 'Peintre', soon: true },
+  { key: 'papy', name: 'Papy', shop: 1 },
+  { key: 'cocorico', name: 'Cocorico', shop: 4 },
+  { key: 'peintre', name: 'Peintre', shop: 1 },
   { key: 'phenix', name: 'Phénix', soon: true },
-  { key: 'pompiere', name: 'Pompière', soon: true },
+  { key: 'pompiere', name: 'Pompière', shop: 1 },
   // persos à code secret (code: true) : débloqués par un code de la fenêtre « Code secret » (empreinte dans SECRET_CODES)
   { key: 'sylve', name: 'Sylve', code: true, art: '' },
   { key: 'prospecteur', name: 'Prospecteur', code: true },
 ];
+// Boutique : paliers de prix (CHARS[].shop = palier). Les persos « soon » se débloqueront autrement (campagne, succès…)
+const SHOP_TIERS = [null,
+  { name: 'Classique', price: 300, c: '#b4c4d6' },
+  { name: 'Rare', price: 600, c: '#5fb0ff' },
+  { name: 'Épique', price: 1200, c: '#c58cff' },
+  { name: 'Légendaire', price: 2000, c: '#ffc94a' }];
+const shopPrice = ch => ch && ch.shop ? SHOP_TIERS[ch.shop].price : 0;
+const CHAR_ART = {'mariee': 'la ', 'fee': 'la ', 'pompiere': 'la ', 'rockeuse': 'la ', 'robotte': 'la ', 'momie': 'la ', 'dryade': 'la ', 'ondine': 'la ', 'amazone': "l'", 'elfe': "l'", 'olympien': "l'", 'orc': "l'", 'ange': "l'", 'arcaniste': "l'", 'azteque': "l'"};
 const sheetOfSkin = k => SHEET_SKINS[k] || (CHARS[k] && CHARS[k].sheet != null ? SHEET_SKINS[CHARS[k].sheet] : null);
 const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]},"astral":{"down":[[0,0,72,150,36.0,150],[74,0,62,151,30.0,151],[0,0,72,150,36.0,150]],"up":[[138,0,68,147,35.0,147],[208,0,66,154,32.0,154],[138,0,68,147,35.0,147]],"right":[[276,0,70,150,34.0,150],[348,0,71,146,34.0,146],[421,0,75,145,35.0,145]],"bomb":[[498,0,58,72,33.0,72]],"big":[[558,0,115,220,58.0,220]]},"capuche":{"down":[[0,0,61,129,30.0,129],[63,0,62,129,31.0,129],[0,0,61,129,30.0,129]],"up":[[127,0,58,129,30.0,129],[187,0,59,129,29.0,129],[127,0,58,129,30.0,129]],"right":[[248,0,68,127,29.0,127],[318,0,64,126,28.0,126],[384,0,66,127,28.0,127]],"bomb":[[452,0,52,72,24.0,72]],"big":[[506,0,107,220,53.0,220]]},"amazone":{"down":[[0,0,74,132,37.0,132],[76,0,67,132,33.0,132],[0,0,74,132,37.0,132]],"up":[[145,0,66,126,33.0,126],[213,0,67,126,32.0,126],[145,0,66,126,33.0,126]],"right":[[282,0,75,130,35.0,130],[359,0,72,127,34.0,127],[433,0,72,127,34.0,127]],"bomb":[[507,0,49,72,24.0,72]],"big":[[558,0,130,220,64.0,220]]},"ange":{"down":[[0,0,73,126,37.0,126],[75,0,70,130,34.0,130],[0,0,73,126,37.0,126]],"up":[[147,0,70,125,35.0,125],[219,0,69,129,34.0,129],[147,0,70,125,35.0,125]],"right":[[290,0,74,128,35.0,128],[366,0,70,127,33.0,127],[438,0,72,129,34.0,129]],"bomb":[[512,0,53,72,24.0,72]],"big":[[567,0,145,220,72.0,220]]},"faucheur":{"down":[[0,0,76,131,39.0,131],[78,0,75,129,38.0,129],[0,0,76,131,39.0,131]],"up":[[155,0,72,126,35.0,126],[229,0,68,129,34.0,129],[155,0,72,126,35.0,126]],"right":[[299,0,78,129,39.0,129],[379,0,77,127,39.0,127],[458,0,78,124,39.0,124]],"bomb":[[538,0,57,72,24.0,72]],"big":[[597,0,150,220,76.0,220]]},"matou":{"down":[[0,0,77,129,39.0,129],[79,0,76,129,38.0,129],[0,0,77,129,39.0,129]],"up":[[157,0,76,127,37.0,127],[235,0,74,132,37.0,132],[157,0,76,127,37.0,127]],"right":[[311,0,82,130,39.0,130],[395,0,81,130,38.0,130],[478,0,82,125,39.0,125]],"bomb":[[562,0,52,72,24.0,72]],"big":[[616,0,144,220,74.0,220]]},"petardier":{"down":[[0,0,68,130,34.0,130],[70,0,68,130,35.0,130],[0,0,68,130,34.0,130]],"up":[[140,0,67,128,33.0,128],[209,0,67,128,33.0,128],[140,0,67,128,33.0,128]],"right":[[278,0,75,129,33.0,129],[355,0,75,124,34.0,124],[432,0,72,123,33.0,123]],"bomb":[[506,0,54,72,25.0,72]],"big":[[562,0,128,220,63.0,220]]},"salpetre":{"down":[[0,0,69,128,34.0,128],[71,0,68,128,33.0,128],[0,0,69,128,34.0,128]],"up":[[141,0,72,128,36.0,128],[215,0,73,128,37.0,128],[141,0,72,128,36.0,128]],"right":[[290,0,75,132,35.0,132],[367,0,75,127,34.0,127],[444,0,73,129,35.0,129]],"bomb":[[519,0,53,72,24.0,72]],"big":[[574,0,134,220,67.0,220]]},"barde":{"down":[[0,0,74,129,37.0,129],[76,0,71,133,35.0,133],[0,0,74,129,37.0,129]],"up":[[149,0,75,131,37.0,131],[226,0,70,124,35.0,124],[149,0,75,131,37.0,131]],"right":[[298,0,70,126,34.0,126],[370,0,72,122,37.0,122],[444,0,74,127,38.0,127]],"bomb":[[520,0,56,72,25.0,72]],"big":[[578,0,141,220,71.0,220]]},"azteque":{"down":[[0,0,70,131,36.0,131],[72,0,68,130,35.0,130],[0,0,70,131,36.0,131]],"up":[[142,0,74,127,38.0,127],[218,0,74,128,37.0,128],[142,0,74,127,38.0,127]],"right":[[294,0,69,128,34.0,128],[365,0,69,127,35.0,127],[436,0,70,128,36.0,128]],"bomb":[[508,0,60,72,25.0,72]],"big":[[570,0,135,220,69.0,220]]},"chatbotte":{"down":[[0,0,75,129,37.0,129],[77,0,74,130,37.0,130],[0,0,75,129,37.0,129]],"up":[[153,0,74,129,37.0,129],[229,0,74,129,37.0,129],[153,0,74,129,37.0,129]],"right":[[305,0,81,128,38.0,128],[388,0,76,127,36.0,127],[466,0,78,128,37.0,128]],"bomb":[[546,0,48,72,25.0,72]],"big":[[596,0,143,220,70.0,220]]},"gobelin":{"down":[[0,0,75,129,37.0,129],[77,0,74,131,36.0,131],[0,0,75,129,37.0,129]],"up":[[153,0,73,124,36.0,124],[228,0,74,126,36.0,126],[153,0,73,124,36.0,124]],"right":[[304,0,76,130,37.0,130],[382,0,74,128,34.0,128],[458,0,74,128,36.0,128]],"bomb":[[534,0,69,72,37.0,72]],"big":[[605,0,157,220,78.0,220]]},"cramoisi":{"down":[[0,0,76,128,37.0,128],[78,0,73,129,36.0,129],[0,0,76,128,37.0,128]],"up":[[153,0,77,128,40.0,128],[232,0,73,127,37.0,127],[153,0,77,128,40.0,128]],"right":[[307,0,79,128,36.0,128],[388,0,74,125,34.0,125],[464,0,77,128,34.0,128]],"bomb":[[543,0,50,72,24.0,72]],"big":[[595,0,161,220,77.0,220]]},"karateka":{"down":[[0,0,79,128,44.0,128],[81,0,70,130,37.0,130],[0,0,79,128,44.0,128]],"up":[[153,0,69,126,33.0,126],[224,0,68,123,33.0,123],[153,0,69,126,33.0,126]],"right":[[294,0,80,130,42.0,130],[376,0,77,123,39.0,123],[455,0,73,129,37.0,129]],"bomb":[[530,0,53,72,26.0,72]],"big":[[585,0,142,220,79.0,220]]},"bombot":{"down":[[0,0,79,130,40.0,130],[81,0,75,132,38.0,132],[0,0,79,130,40.0,130]],"up":[[158,0,76,125,38.0,125],[236,0,73,127,36.0,127],[158,0,76,125,38.0,125]],"right":[[311,0,72,129,36.0,129],[385,0,71,123,34.0,123],[458,0,73,133,36.0,133]],"bomb":[[533,0,53,72,25.0,72]],"big":[[588,0,177,220,88.0,220]]},"pilote":{"down":[[0,0,69,129,35.0,129],[71,0,68,130,34.0,130],[0,0,69,129,35.0,129]],"up":[[141,0,67,128,32.0,128],[210,0,66,127,32.0,127],[141,0,67,128,32.0,128]],"right":[[278,0,74,128,36.0,128],[354,0,74,126,34.0,126],[430,0,75,128,38.0,128]],"bomb":[[507,0,49,72,24.0,72]],"big":[[558,0,119,220,60.0,220]]},"commando":{"down":[[0,0,70,127,34.0,127],[72,0,66,129,33.0,129],[0,0,70,127,34.0,127]],"up":[[140,0,67,129,34.0,129],[209,0,68,128,34.0,128],[140,0,67,129,34.0,129]],"right":[[279,0,74,128,32.0,128],[355,0,69,127,29.0,127],[426,0,69,128,30.0,128]],"bomb":[[497,0,53,72,24.0,72]],"big":[[552,0,132,220,67.0,220]]},"cowboy":{"down":[[0,0,73,129,36.0,129],[75,0,71,126,36.0,126],[0,0,73,129,36.0,129]],"up":[[148,0,71,131,35.0,131],[221,0,71,130,34.0,130],[148,0,71,131,35.0,131]],"right":[[294,0,76,126,35.0,126],[372,0,78,130,38.0,130],[452,0,80,129,39.0,129]],"bomb":[[534,0,56,72,25.0,72]],"big":[[592,0,135,220,65.0,220]]},"mineur":{"down":[[0,0,71,130,34.0,130],[73,0,70,129,34.0,129],[0,0,71,130,34.0,130]],"up":[[145,0,70,130,35.0,130],[217,0,66,127,32.0,127],[145,0,70,130,35.0,130]],"right":[[285,0,77,129,36.0,129],[364,0,73,124,32.0,124],[439,0,74,126,35.0,126]],"bomb":[[515,0,57,72,35.0,72]],"big":[[574,0,139,220,66.0,220]]},"dryade":{"down":[[0,0,74,129,38.0,129],[76,0,74,129,37.0,129],[0,0,74,129,38.0,129]],"up":[[152,0,75,134,37.0,134],[229,0,70,127,34.0,127],[152,0,75,134,37.0,134]],"right":[[301,0,75,131,36.0,131],[378,0,74,119,34.0,119],[454,0,73,127,34.0,127]],"bomb":[[529,0,59,72,25.0,72]],"big":[[590,0,145,220,73.0,220]]},"sac":{"down":[[0,0,62,130,31.0,130],[64,0,60,130,29.0,130],[0,0,62,130,31.0,130]],"up":[[126,0,64,127,32.0,127],[192,0,61,130,31.0,130],[126,0,64,127,32.0,127]],"right":[[255,0,65,127,28.0,127],[322,0,66,125,28.0,125],[390,0,62,126,27.0,126]],"bomb":[[454,0,54,72,24.0,72]],"big":[[510,0,116,220,59.0,220]]},"marechal":{"down":[[0,0,75,125,37.0,125],[77,0,74,130,36.0,130],[0,0,75,125,37.0,125]],"up":[[153,0,75,131,38.0,131],[230,0,70,129,34.0,129],[153,0,75,131,38.0,131]],"right":[[302,0,73,130,34.0,130],[377,0,70,125,33.0,125],[449,0,69,129,34.0,129]],"bomb":[[520,0,56,72,24.0,72]],"big":[[578,0,152,220,76.0,220]]},"lutin":{"down":[[0,0,81,126,42.0,126],[83,0,77,130,37.0,130],[0,0,81,126,42.0,126]],"up":[[162,0,82,127,43.0,127],[246,0,77,126,39.0,126],[162,0,82,127,43.0,127]],"right":[[325,0,78,129,35.0,129],[405,0,76,128,34.0,128],[483,0,74,128,35.0,128]],"bomb":[[559,0,55,72,25.0,72]],"big":[[616,0,166,220,81.0,220]]},"golem":{"down":[[0,0,79,128,39.0,128],[81,0,72,126,36.0,126],[0,0,79,128,39.0,128]],"up":[[155,0,79,130,39.0,130],[236,0,74,130,36.0,130],[155,0,79,130,39.0,130]],"right":[[312,0,74,128,35.0,128],[388,0,73,124,33.0,124],[463,0,75,129,35.0,129]],"bomb":[[540,0,66,72,36.0,72]],"big":[[608,0,167,220,83.0,220]]},"magma":{"down":[[0,0,69,129,34.0,129],[71,0,67,130,33.0,130],[0,0,69,129,34.0,129]],"up":[[140,0,70,130,35.0,130],[212,0,65,127,32.0,127],[140,0,70,130,35.0,130]],"right":[[279,0,71,130,34.0,130],[352,0,69,124,33.0,124],[423,0,70,129,35.0,129]],"bomb":[[495,0,60,72,25.0,72]],"big":[[557,0,153,220,76.0,220]]},"paladin":{"down":[[0,0,66,130,35.0,130],[68,0,67,133,35.0,133],[0,0,66,130,35.0,130]],"up":[[137,0,69,127,35.0,127],[208,0,66,129,33.0,129],[137,0,69,127,35.0,127]],"right":[[276,0,75,127,37.0,127],[353,0,75,128,38.0,128],[430,0,75,126,40.0,126]],"bomb":[[507,0,51,72,24.0,72]],"big":[[560,0,135,220,74.0,220]]},"mecha":{"down":[[0,0,73,129,38.0,129],[75,0,70,130,37.0,130],[0,0,73,129,38.0,129]],"up":[[147,0,67,128,32.0,128],[216,0,66,128,32.0,128],[147,0,67,128,32.0,128]],"right":[[284,0,80,128,39.0,128],[366,0,76,127,35.0,127],[444,0,74,130,36.0,130]],"bomb":[[520,0,48,72,24.0,72]],"big":[[570,0,136,220,68.0,220]]},"rockeuse":{"down":[[0,0,72,130,38.0,130],[74,0,72,132,39.0,132],[0,0,72,130,38.0,130]],"up":[[148,0,68,128,33.0,128],[218,0,67,127,32.0,127],[148,0,68,128,33.0,128]],"right":[[287,0,80,130,40.0,130],[369,0,75,129,34.0,129],[446,0,74,127,34.0,127]],"bomb":[[522,0,56,72,25.0,72]],"big":[[580,0,137,220,74.0,220]]},"robotte":{"down":[[0,0,72,131,38.0,131],[74,0,71,132,37.0,132],[0,0,72,131,38.0,131]],"up":[[147,0,62,128,30.0,128],[211,0,62,128,31.0,128],[147,0,62,128,30.0,128]],"right":[[275,0,77,127,41.0,127],[354,0,75,123,38.0,123],[431,0,75,127,39.0,127]],"bomb":[[508,0,60,72,36.0,72]],"big":[[570,0,137,220,72.0,220]]},"hacker":{"down":[[0,0,72,129,35.0,129],[74,0,72,130,35.0,130],[0,0,72,129,35.0,129]],"up":[[148,0,70,128,35.0,128],[220,0,70,127,35.0,127],[148,0,70,128,35.0,128]],"right":[[292,0,80,130,36.0,130],[374,0,79,125,35.0,125],[455,0,80,128,36.0,128]],"bomb":[[537,0,49,72,25.0,72]],"big":[[588,0,142,220,69.0,220]]},"arcaniste":{"down":[[0,0,75,131,38.0,131],[77,0,73,131,38.0,131],[0,0,75,131,38.0,131]],"up":[[152,0,75,130,38.0,130],[229,0,72,127,36.0,127],[152,0,75,130,38.0,130]],"right":[[303,0,79,127,37.0,127],[384,0,76,126,37.0,126],[462,0,77,125,37.0,125]],"bomb":[[541,0,57,72,25.0,72]],"big":[[600,0,146,220,71.0,220]]},"olympien":{"down":[[0,0,69,129,34.0,129],[71,0,69,129,34.0,129],[0,0,69,129,34.0,129]],"up":[[142,0,70,127,35.0,127],[214,0,66,126,33.0,126],[142,0,70,127,35.0,127]],"right":[[282,0,70,130,33.0,130],[354,0,67,125,30.0,125],[423,0,67,130,30.0,130]],"bomb":[[492,0,50,72,24.0,72]],"big":[[544,0,131,220,65.0,220]]},"koala":{"down":[[0,0,82,128,39.0,128],[84,0,76,126,35.0,126],[0,0,82,128,39.0,128]],"up":[[162,0,80,129,41.0,129],[244,0,76,127,38.0,127],[162,0,80,129,41.0,129]],"right":[[322,0,76,133,35.0,133],[400,0,76,127,36.0,127],[478,0,77,130,37.0,130]],"bomb":[[557,0,54,72,24.0,72]],"big":[[613,0,171,220,79.0,220]]},"legionnaire":{"down":[[0,0,63,129,32.0,129],[65,0,62,129,31.0,129],[0,0,63,129,32.0,129]],"up":[[129,0,61,127,31.0,127],[192,0,61,126,31.0,126],[129,0,61,127,31.0,127]],"right":[[255,0,66,129,33.0,129],[323,0,62,125,31.0,125],[387,0,64,128,33.0,128]],"bomb":[[453,0,49,72,24.0,72]],"big":[[504,0,116,220,57.0,220]]},"parrain":{"down":[[0,0,73,129,37.0,129],[75,0,72,130,35.0,130],[0,0,73,129,37.0,129]],"up":[[149,0,72,126,36.0,126],[223,0,72,126,36.0,126],[149,0,72,126,36.0,126]],"right":[[297,0,77,131,38.0,131],[376,0,75,129,36.0,129],[453,0,77,131,38.0,131]],"bomb":[[532,0,47,72,24.0,72]],"big":[[581,0,138,220,67.0,220]]},"sable":{"down":[[0,0,76,133,40.0,133],[78,0,75,129,40.0,129],[0,0,76,133,40.0,133]],"up":[[155,0,76,126,35.0,126],[233,0,77,126,36.0,126],[155,0,76,126,35.0,126]],"right":[[312,0,81,133,42.0,133],[395,0,76,126,38.0,126],[473,0,78,128,39.0,128]],"bomb":[[553,0,54,72,24.0,72]],"big":[[609,0,139,220,72.0,220]]},"elfe":{"down":[[0,0,79,131,38.0,131],[81,0,77,130,37.0,130],[0,0,79,131,38.0,131]],"up":[[160,0,73,125,36.0,125],[235,0,70,127,35.0,127],[160,0,73,125,36.0,125]],"right":[[307,0,83,129,39.0,129],[392,0,75,120,33.0,120],[469,0,78,129,35.0,129]],"bomb":[[549,0,57,72,25.0,72]],"big":[[608,0,148,220,73.0,220]]},"mandarin":{"down":[[0,0,69,130,35.0,130],[71,0,69,130,35.0,130],[0,0,69,130,35.0,130]],"up":[[142,0,67,128,32.0,128],[211,0,68,128,32.0,128],[142,0,67,128,32.0,128]],"right":[[281,0,65,131,30.0,131],[348,0,67,127,32.0,127],[417,0,67,130,33.0,130]],"bomb":[[486,0,56,72,25.0,72]],"big":[[544,0,128,220,63.0,220]]},"marie":{"down":[[0,0,69,129,34.0,129],[71,0,69,128,34.0,128],[0,0,69,129,34.0,129]],"up":[[142,0,66,128,33.0,128],[210,0,66,129,32.0,129],[142,0,66,128,33.0,128]],"right":[[278,0,70,129,34.0,129],[350,0,70,129,34.0,129],[422,0,69,127,33.0,127]],"bomb":[[493,0,68,72,36.0,72]],"big":[[563,0,121,220,60.0,220]]},"mariee":{"down":[[0,0,77,126,39.0,126],[79,0,75,132,37.0,132],[0,0,77,126,39.0,126]],"up":[[156,0,67,132,33.0,132],[225,0,65,130,33.0,130],[156,0,67,132,33.0,132]],"right":[[292,0,79,130,40.0,130],[373,0,76,124,38.0,124],[451,0,75,127,39.0,127]],"bomb":[[528,0,55,72,25.0,72]],"big":[[585,0,149,220,72.0,220]]},"bricolo":{"down":[[0,0,70,127,35.0,127],[72,0,69,129,36.0,129],[0,0,70,127,35.0,127]],"up":[[143,0,63,129,32.0,129],[208,0,67,128,32.0,128],[143,0,63,129,32.0,129]],"right":[[277,0,80,127,34.0,127],[359,0,85,127,36.0,127],[446,0,82,128,35.0,128]],"bomb":[[530,0,57,72,24.0,72]],"big":[[589,0,145,220,77.0,220]]},"momie":{"down":[[0,0,78,129,41.0,129],[80,0,76,132,39.0,132],[0,0,78,129,41.0,129]],"up":[[158,0,82,128,41.0,128],[242,0,74,128,34.0,128],[158,0,82,128,41.0,128]],"right":[[318,0,85,128,44.0,128],[405,0,78,124,38.0,124],[485,0,78,127,38.0,127]],"bomb":[[565,0,54,72,24.0,72]],"big":[[621,0,158,220,82.0,220]]},"fee":{"down":[[0,0,74,129,39.0,129],[76,0,70,129,35.0,129],[0,0,74,129,39.0,129]],"up":[[148,0,69,129,34.0,129],[219,0,67,129,33.0,129],[148,0,69,129,34.0,129]],"right":[[288,0,78,128,38.0,128],[368,0,69,127,33.0,127],[439,0,73,127,34.0,127]],"bomb":[[514,0,49,72,24.0,72]],"big":[[565,0,149,220,74.0,220]]},"orc":{"down":[[0,0,77,130,39.0,130],[79,0,71,131,35.0,131],[0,0,77,130,39.0,130]],"up":[[152,0,80,126,40.0,126],[234,0,70,125,35.0,125],[152,0,80,126,40.0,126]],"right":[[306,0,71,129,32.0,129],[379,0,74,122,34.0,122],[455,0,74,129,34.0,129]],"bomb":[[531,0,53,72,24.0,72]],"big":[[586,0,173,220,87.0,220]]},"ondine":{"down":[[0,0,74,130,37.0,130],[76,0,76,133,38.0,133],[0,0,74,130,37.0,130]],"up":[[154,0,74,130,37.0,130],[230,0,70,129,34.0,129],[154,0,74,130,37.0,130]],"right":[[302,0,82,127,40.0,127],[386,0,72,129,33.0,129],[460,0,72,127,35.0,127]],"bomb":[[534,0,59,72,25.0,72]],"big":[[595,0,153,220,76.0,220]]},"papy":{"down":[[0,0,69,128,34.0,128],[71,0,67,128,33.0,128],[0,0,69,128,34.0,128]],"up":[[140,0,70,131,35.0,131],[212,0,66,127,33.0,127],[140,0,70,131,35.0,131]],"right":[[280,0,78,128,36.0,128],[360,0,77,124,35.0,124],[439,0,75,128,34.0,128]],"bomb":[[516,0,50,72,25.0,72]],"big":[[568,0,144,220,73.0,220]]},"cocorico":{"down":[[0,0,81,129,39.0,129],[83,0,76,127,37.0,127],[0,0,81,129,39.0,129]],"up":[[161,0,82,129,43.0,129],[245,0,75,130,39.0,130],[161,0,82,129,43.0,129]],"right":[[322,0,84,126,39.0,126],[408,0,81,123,40.0,123],[491,0,82,125,40.0,125]],"bomb":[[575,0,56,72,25.0,72]],"big":[[633,0,172,220,85.0,220]]},"peintre":{"down":[[0,0,72,129,35.0,129],[74,0,73,129,36.0,129],[0,0,72,129,35.0,129]],"up":[[149,0,67,127,31.0,127],[218,0,68,127,32.0,127],[149,0,67,127,31.0,127]],"right":[[288,0,64,128,33.0,128],[354,0,63,128,30.0,128],[419,0,62,130,32.0,130]],"bomb":[[483,0,68,72,37.0,72]],"big":[[553,0,144,220,69.0,220]]},"phenix":{"down":[[0,0,73,131,37.0,131],[75,0,69,130,34.0,130],[0,0,73,131,37.0,131]],"up":[[146,0,71,127,35.0,127],[219,0,70,128,34.0,128],[146,0,71,127,35.0,127]],"right":[[291,0,78,129,36.0,129],[371,0,77,123,35.0,123],[450,0,75,128,35.0,128]],"bomb":[[527,0,53,72,24.0,72]],"big":[[582,0,144,220,72.0,220]]},"pompiere":{"down":[[0,0,67,126,33.0,126],[69,0,68,130,34.0,130],[0,0,67,126,33.0,126]],"up":[[139,0,64,129,32.0,129],[205,0,65,128,32.0,128],[139,0,64,129,32.0,129]],"right":[[272,0,74,130,35.0,130],[348,0,73,127,34.0,127],[423,0,74,125,34.0,125]],"bomb":[[499,0,58,72,24.0,72]],"big":[[559,0,126,220,62.0,220]]},"sylve":{"down":[[0,0,80,130,41.0,130],[82,0,80,131,40.0,131],[0,0,80,130,41.0,130]],"up":[[164,0,76,129,38.0,129],[242,0,79,130,38.0,130],[164,0,76,129,38.0,129]],"right":[[323,0,81,127,37.0,127],[406,0,82,120,38.0,120],[490,0,83,126,38.0,126]],"bomb":[[575,0,53,72,25.0,72]],"big":[[630,0,165,220,87.0,220]]},"prospecteur":{"down":[[0,0,71,129,36.0,129],[73,0,74,130,38.0,130],[0,0,71,129,36.0,129]],"up":[[149,0,68,128,34.0,128],[219,0,68,127,34.0,127],[149,0,68,128,34.0,128]],"right":[[289,0,86,129,45.0,129],[377,0,80,128,38.0,128],[459,0,82,127,40.0,127]],"bomb":[[543,0,68,72,37.0,72]],"big":[[613,0,154,220,78.0,220]]}};
 const charImg = {};
@@ -1524,10 +1579,10 @@ settings.name2 = cleanNick(settings.name2, 'Joueur 2');
 if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CHARS.length) settings.skin = 0;
 // Persos à débloquer : une fois l'Elo requis atteint, le perso reste débloqué dans ce navigateur (settings.unl)
 if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
-const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && !settings.unl[ch.key] && ((ch.elo && !(ELO.me && ELO.me.elo >= ch.elo)) || ch.camp || ch.soon || ch.code)); };
-const lockText = ch => ch.code ? 'Code secret' : ch.soon ? 'Bientôt' : ch.camp ? `Défi ${ch.camp}` : `${ch.elo} Elo`;
+const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && !settings.unl[ch.key] && ((ch.elo && !(ELO.me && ELO.me.elo >= ch.elo)) || ch.camp || ch.soon || ch.code || ch.shop)); };
+const lockText = ch => ch.shop ? `🪙 ${shopPrice(ch)}` : ch.code ? 'Code secret' : ch.soon ? 'Bientôt' : ch.camp ? `Défi ${ch.camp}` : `${ch.elo} Elo`;
 const charLocked = i => !settings.admin && charLockedReal(i);
-if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp || CHARS[settings.skin].soon || CHARS[settings.skin].code) && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
+if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp || CHARS[settings.skin].soon || CHARS[settings.skin].code || CHARS[settings.skin].shop) && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
 
 // ---------- Expérience et niveaux, par perso (1 à 100), gardés dans le navigateur (settings.xp[clé] = XP total)
 // XP gagnée : 10 par point marqué + 10 par manche jouée (battle royale : 3 points par victime, 1 point par 45 s en vie).
@@ -1623,7 +1678,8 @@ const ACH = [
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
 // g, w, k… : stats générales (tous modes). Matchs normaux (classique, en ligne, campagne) : ng parties, nw victoires, nk victimes.
 // Battle royale : bg parties, bw victoires (= top 1), bt top 3, bk victimes, ct contrats, ch coffres, o orbes. pa/po : anciens top 1/top 3 (tous modes), plus comptés.
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu', 'pn', 'pg', 'rk'];   // rk : victimes en partie classée (depuis le 2026-11-23)   // cp : défis de campagne réussis · pu : anciens parchemins (500 XP) utilisés · pn / pg : parchemins normaux / dorés utilisés
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu', 'pn', 'pg', 'rk', 'pe'];   // pe : pièces gagnées au total (jamais diminuée ; dépenses = codes « b-clé-prix »)
+   // rk : victimes en partie classée (depuis le 2026-11-23)   // cp : défis de campagne réussis · pu : anciens parchemins (500 XP) utilisés · pn / pg : parchemins normaux / dorés utilisés
 function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('bt', 1); }   // top 3 : seulement en battle royale
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
@@ -1759,13 +1815,29 @@ function cosCheckNew(quiet) {
   settings.cosKnown.push(...fresh); settings.cosNew = [...new Set([...(Array.isArray(settings.cosNew) ? settings.cosNew : []), ...fresh])];
   saveSettings(); syncCosBadge();
   if (quiet) return;
+  { const nA = fresh.filter(x => x[0] === 't').length; if (nA) coinAdd(nA * COIN_ACH); }
   const names = fresh.map(x => x[0] === 't' ? `succès « ${ACH[+x.slice(1)].name} » (nouveau titre)` : `${COS_LABEL[x[0]]} « ${COS_KINDS[x[0]][+x.slice(1)].name} »`);
   setTimeout(() => { xpToast(`Débloqué : ${names.join(', ')} ! (à choisir dans Personnaliser)`, true); Sfx.play('pickup'); }, 1900);
 }
 function statAdd(k, n) {
   if (settings.admin || !(n > 0) || REPLAY.on) return;
   settings.st[k] = statOf(k) + n; saveSettings(); cosCheckNew();
+  if (COIN_GAIN[k]) coinAdd(COIN_GAIN[k] * n);
 }
+// ---------- Pièces (boutique) : gagnées en jouant, gardées comme une stat (pe = total gagné, fusionné au maximum entre appareils).
+// Chaque achat est un code « b-clé-prix » (fusionné par union) : solde = gagné - somme des achats, sans double dépense possible.
+const COIN_GAIN = { g: 10, w: 15, k: 2, bt: 10, bw: 20, ct: 5, ch: 5, cp: 30 };
+const COIN_LEVEL = 10, COIN_ACH = 100;
+const coinSpent = () => (Array.isArray(settings.codes) ? settings.codes : []).reduce((a, c) => { const m = /^b-[a-z]+-(\d+)$/.exec(c); return a + (m ? +m[1] : 0); }, 0);
+const coins = () => Math.max(0, statOf('pe') - coinSpent());
+const fmtN = n => n.toLocaleString('fr-FR');
+function coinAdd(n) {
+  if (settings.admin || !(n > 0) || REPLAY.on) return;
+  settings.st.pe = statOf('pe') + n; G.coinSess = (G.coinSess | 0) + n; saveSettings(); syncCoins();
+}
+function syncCoins() { const e = document.getElementById('coin-n'); if (e) e.textContent = fmtN(coins()); const f = document.getElementById('shop-bal'); if (f) f.textContent = fmtN(coins()); }
+// cadeau de départ (une fois) : 300 pièces + 5 par partie déjà jouée
+if (!settings.coinInit) { settings.coinInit = 1; if (!(statOf('pe') > 0)) settings.st.pe = 300 + 5 * statOf('g'); }
 function statMax(k, v) { if (settings.admin || !(v > statOf(k)) || REPLAY.on) return; settings.st[k] = v; saveSettings(); cosCheckNew(); }
 cosCheckNew(true);
 saveSettings();
@@ -1875,7 +1947,7 @@ const PTS = [5, 3, 1, 0], POINT_ROUNDS = 3;
 function assignChars(list) {
   const used = new Set(list.filter(p => Number.isInteger(p.skin)).map(p => p.skin));
   // les ordis ne prennent jamais un perso à débloquer
-  const free = CHARS.map((_, i) => i).filter(i => !CHARS[i].elo && !CHARS[i].camp && !CHARS[i].soon && !CHARS[i].code), pool = shuffled(free.filter(i => !used.has(i)));
+  const free = CHARS.map((_, i) => i).filter(i => !CHARS[i].elo && !CHARS[i].camp && !CHARS[i].soon && !CHARS[i].code && !CHARS[i].shop), pool = shuffled(free.filter(i => !used.has(i)));
   for (const p of list) if (!Number.isInteger(p.skin)) p.skin = pool.length ? pool.shift() : free[(Math.random() * free.length) | 0];
 }
 function setPlayers(list) {
@@ -5282,9 +5354,10 @@ function xpPanelHtml(i, gainLine) {
 const accLevel = () => CHARS.reduce((a, _, i) => a + (charLockedReal(i) ? 0 : levelOfXp(realXpOf(i))), 0);
 // profil d'un autre joueur : sa valeur publiée (al), sinon estimation (persos publiés + persos de base au niveau 1)
 const accLevelOfCh = (ch, al) => { if (Number.isInteger(al) && al > 0) return al; ch = ch || {};
-  return CHARS.reduce((a, c) => a + (Array.isArray(ch[c.key]) ? Math.max(1, ch[c.key][0] | 0) : (!c.elo && !c.camp && !c.soon && !c.code) ? 1 : 0), 0); };
+  return CHARS.reduce((a, c) => a + (Array.isArray(ch[c.key]) ? Math.max(1, ch[c.key][0] | 0) : (!c.elo && !c.camp && !c.soon && !c.code && !c.shop) ? 1 : 0), 0); };
 function syncXpUi() {
   try { sortCharBtns(); } catch (e) {}
+  try { syncCoins(); } catch (e) {}
   { const e = document.getElementById('acc-lv'); if (e) e.textContent = accLevel(); }
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
@@ -5340,6 +5413,7 @@ function addXp(skin, amount, note = '') {
   else if (a1 > a0) { xpToast(`${CHARS[skin].name} passe niveau ${L1} : aura « ${AURAS[a1]} » débloquée !`, true); Sfx.play('pickup'); }
   else if (L1 > L0) xpToast(`+${amount} XP${note} · ${CHARS[skin].name} passe niveau ${L1} !`, true);
   else xpToast(`+${amount} XP${note}`);
+  if (L1 > L0) coinAdd(COIN_LEVEL * (L1 - L0));
   syncXpUi(); if (L1 > L0) cosCheckNew();
 }
 function renderEndXp() {
@@ -5350,6 +5424,7 @@ function renderEndXp() {
   let line = `+${S.gain} XP`;
   if (L1 > S.L0) line += ` · niveau ${S.L0} → ${L1}`;
   if (a1 > a0) line += ` · aura « ${AURAS[a1]} » débloquée !`;
+  if (G.coinSess > 0) { line += ` · <span class="coin-gain"><i class="coin"></i>+${G.coinSess}</span>`; G.coinSess = 0; }
   el.innerHTML = xpPanelHtml(S.skin, line); el.hidden = false;
   G.xpSess = null;
 }
@@ -6696,7 +6771,7 @@ function buildCharPicker() {
       if (root === collEl) { if (charLocked(i)) { collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
-        if (hint) { hint.textContent = ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
+        if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
         return;
       }
       if (hint) hint.textContent = '';
@@ -6714,7 +6789,7 @@ function buildCharPicker() {
 }
 // ordre d'affichage : du plus haut niveau au plus bas (puis l'XP), les persos verrouillés à la fin
 function sortCharBtns() {
-  const ord = CHARS.map((_, i) => i).sort((a, b) => (charLocked(a) - charLocked(b)) || (charLocked(a) ? (!!CHARS[a].soon - !!CHARS[b].soon) || a - b : (realXpOf(b) - realXpOf(a)) || (a - b)));
+  const ord = CHARS.map((_, i) => i).sort((a, b) => (charLocked(a) - charLocked(b)) || (charLocked(a) ? (!!CHARS[a].soon - !!CHARS[b].soon) || ((CHARS[a].shop | 0) - (CHARS[b].shop | 0)) || a - b : (realXpOf(b) - realXpOf(a)) || (a - b)));
   const pos = []; ord.forEach((i, n) => { pos[i] = n; });
   const N = matchMedia('(max-width:520px)').matches ? 4 : 7, shown = ord.slice(0, N);
   if (!shown.includes(settings.skin)) shown[N - 1] = settings.skin;
@@ -6746,7 +6821,7 @@ function collShow(i) {
   $('#coll-name').textContent = lk ? '???' : ch.name;
   const info = $('#coll-info'), xp = $('#coll-xp');
   if (lk) {
-    info.innerHTML = ch.code ? 'À débloquer : <b>code secret</b>' : ch.soon ? 'À débloquer : <b>bientôt</b>' : ch.camp ? `À débloquer : <b>défi ${ch.camp}</b> de la campagne` : `À débloquer : <b>${ch.elo} Elo</b> au classement`;
+    info.innerHTML = ch.shop ? `À débloquer : <b>boutique</b>, ${shopPrice(ch)} pièces` + (shopWeek().includes(i) ? '<br><b>En vente cette semaine</b>' : '') : ch.code ? 'À débloquer : <b>code secret</b>' : ch.soon ? 'À débloquer : <b>bientôt</b>' : ch.camp ? `À débloquer : <b>défi ${ch.camp}</b> de la campagne` : `À débloquer : <b>${ch.elo} Elo</b> au classement`;
     xp.innerHTML = '';
   } else {
     const m = xpBoostOf(i).m;
@@ -6755,6 +6830,65 @@ function collShow(i) {
   }
 }
 const collEl = $('#collection');
+// ---------- Boutique : rotation de la semaine (change le lundi à 0 h UTC, la même pour tous les joueurs)
+const SHOP_PICK = [0, 2, 2, 1, 1];   // par palier : 2 classiques, 2 rares, 1 épique, 1 légendaire
+const shopWeekNo = (t = Date.now()) => Math.floor((t / 864e5 + 3) / 7);
+function shopWeek(w = shopWeekNo()) {
+  let a = (w * 2654435761 + 97) >>> 0;
+  const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const out = [];
+  for (let tier = 1; tier < SHOP_TIERS.length; tier++) {
+    const pool = CHARS.map((c, i) => i).filter(i => CHARS[i].shop === tier);
+    for (let n = 0; n < SHOP_PICK[tier] && pool.length; n++) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+  }
+  return out;
+}
+const shopEl = $('#shop'); let shopFrom = null, shopSure = -1, shopSureT = 0, shopCards = [];
+function shopTimeTxt() {
+  const ms = ((shopWeekNo() + 1) * 7 - 3) * 864e5 - Date.now(), h = Math.max(0, Math.floor(ms / 36e5)), d = Math.floor(h / 24);
+  return d ? `nouvelle rotation dans ${d} j ${h % 24} h` : `nouvelle rotation dans ${h} h ${Math.max(0, Math.floor(ms / 6e4) % 60)} min`;
+}
+function openShop(from) {
+  shopFrom = from || null; shopSure = -1; shopEl.hidden = false; $('#shop-msg').textContent = ''; renderShop();
+  try { (shopEl.querySelector('.buy:not(.own):not(.poor)') || $('#shop-close')).focus({ preventScroll: true }); } catch (e) {}
+}
+function closeShop() {
+  shopEl.hidden = true; syncCharPicker(); syncCoins();
+  try { (shopFrom || $('#btn-shop')).focus({ preventScroll: true }); } catch (e) {}
+}
+function renderShop() {
+  const box = $('#shop-grid'); box.innerHTML = ''; shopCards = [];
+  $('#shop-time').textContent = shopTimeTxt(); syncCoins();
+  const bal = coins();
+  for (const i of shopWeek()) {
+    const ch = CHARS[i], T = SHOP_TIERS[ch.shop], own = !charLockedReal(i), price = T.price;
+    const card = document.createElement('div'); card.className = 'shop-card' + (own ? ' owned' : ''); card.style.setProperty('--tc', T.c);
+    const cv = document.createElement('canvas'); cv.width = 280; cv.height = 280; cv.setAttribute('aria-hidden', 'true');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'buy'; b.id = 'buy-' + ch.key;
+    if (own) { b.classList.add('own'); b.textContent = 'Déjà à toi'; b.setAttribute('aria-disabled', 'true'); }
+    else if (shopSure === i) { b.classList.add('sure'); b.textContent = `Confirmer : ${fmtN(price)} pièces`; }
+    else { if (bal < price) b.classList.add('poor'); b.innerHTML = `<i class="coin" aria-hidden="true"></i>${fmtN(price)}`; b.setAttribute('aria-label', `Acheter ${ch.name} pour ${price} pièces` + (bal < price ? ` (il te manque ${price - bal})` : '')); }
+    b.addEventListener('click', () => shopBuy(i));
+    card.innerHTML = `<span class="tier">${T.name}</span>`; card.append(cv);
+    const h = document.createElement('h3'); h.textContent = ch.name; card.append(h, b); box.appendChild(card);
+    shopCards.push({ cv, i });
+  }
+}
+function shopBuy(i) {
+  const ch = CHARS[i], price = shopPrice(ch), msg = $('#shop-msg');
+  if (!ch.shop || !charLockedReal(i) || !shopWeek().includes(i)) return;
+  if (coins() < price) { msg.textContent = `Il te manque ${fmtN(price - coins())} pièces pour ${artName(ch)}. Joue des parties pour en gagner !`; shopSure = -1; renderShop(); return; }
+  if (shopSure !== i || Date.now() - shopSureT > 4000) { shopSure = i; shopSureT = Date.now(); msg.textContent = `Clique encore pour acheter ${artName(ch)} (${fmtN(price)} pièces).`; renderShop(); try { $('#buy-' + ch.key).focus({ preventScroll: true }); } catch (e) {} return; }
+  shopSure = -1;
+  if (!Array.isArray(settings.codes)) settings.codes = [];
+  settings.codes.push(`b-${ch.key}-${price}`); settings.unl[ch.key] = true;
+  saveSettings(); syncCharPicker(); renderShop(); Sfx.play('pickup');
+  msg.textContent = `${artName(ch).replace(/^l/, 'L')} est à toi !`;
+  showUnlock([ch], 'Boutique');
+}
+$('#btn-shop').addEventListener('click', () => openShop($('#btn-shop')));
+$('#coll-shop').addEventListener('click', () => openShop($('#coll-shop')));
+$('#shop-close').addEventListener('click', closeShop);
 document.querySelectorAll('#collection .coll-tabs button').forEach(b => b.addEventListener('click', () => collSetFilter(b.dataset.f)));
 $('#coll-close').addEventListener('click', closeColl);
 function syncCharPicker() {
@@ -6763,7 +6897,7 @@ function syncCharPicker() {
   charBtns.forEach(({ b, i }) => {
     const lk = charLocked(i);
     b.setAttribute('aria-checked', String(i === settings.skin)); b.classList.toggle('locked', lk);
-    b.setAttribute('aria-label', lk ? `${CHARS[i].name}, à débloquer : ${CHARS[i].code ? 'code secret' : CHARS[i].soon ? 'bientôt' : CHARS[i].camp ? 'défi ' + CHARS[i].camp + ' de la campagne' : CHARS[i].elo + ' Elo'}` : CHARS[i].name);
+    b.setAttribute('aria-label', lk ? `${CHARS[i].name}, à débloquer : ${CHARS[i].shop ? 'boutique, ' + shopPrice(CHARS[i]) + ' pièces' : CHARS[i].code ? 'code secret' : CHARS[i].soon ? 'bientôt' : CHARS[i].camp ? 'défi ' + CHARS[i].camp + ' de la campagne' : CHARS[i].elo + ' Elo'}` : CHARS[i].name);
     const pr = lk ? 0 : presOf(i);
     b.querySelector('span').textContent = lk ? lockText(CHARS[i]) : CHARS[i].name + (pr ? ` ★${pr}` : '');
   });
@@ -6804,6 +6938,10 @@ function drawLock(c, x, y) {
   c.restore();
 }
 function drawCharPicker(t) {
+  if (!shopEl.hidden) for (const { cv, i } of shopCards) {
+    const c = cv.getContext('2d'), k = cv.width / 100; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(k, 0, 0, k, 0, 0);
+    drawChar(c, 50, 72, i, PALS[0], ['down', 'right', 'up', 'left'][Math.floor(t / 2.2 + i) & 3], t * 9, true, t, { scale: 1.55 });
+  }
   if (menuEl.hidden && endEl.hidden && collEl.hidden) return;
   if (!collEl.hidden && collHover >= 0) {
     const cv = $('#coll-cv'), c = cv.getContext('2d'), i = collHover, k = cv.width / 100;
@@ -8623,7 +8761,7 @@ var pubT = 0;   // var : saveSettings peut l'appeler très tôt
 function pubOf() {
   const ch = {}; let fav = charLockedReal(settings.skin) ? 0 : settings.skin, fxp = 0;
   CHARS.forEach((c, i) => { if (charLockedReal(i)) return; const x = realXpOf(i), L = levelOfXp(x); if (x > fxp) { fxp = x; fav = i; } if (L > 1) ch[c.key] = [L, presOfXp(x)]; });
-  const st = {}; for (const k of STAT_KEYS) st[k] = statOf(k);
+  const st = {}; for (const k of STAT_KEYS) if (k !== 'pe') st[k] = statOf(k);
   const m = settings.cos || COS_DEF(), ok = (L, v) => { v = cosIdx(L, v); return cosOkReal(L, v) ? v : 0; };
   const ti = (Number(m.t) | 0) > 0 && cosOkReal(ACH, (Number(m.t) | 0) - 1) ? Number(m.t) | 0 : 0;
   const sk = charLockedReal(settings.skin) ? 0 : settings.skin, sel = settings.auraSel[CHARS[sk].key], amax = auraOfLevel(levelOfXp(realXpOf(sk)));
@@ -9031,7 +9169,7 @@ const SECRET_CODES = {
   a49d29536fa8cc704f0f3800d64e44ad991686fd641c6fa87d42c1fed0beee79: { id: 'c-sylve', once: false, apply: () => codeUnlock('sylve') },
   '0421ac277aa224d073284dca5f5aa8d536c7a02e6ecf195708cb3d7eca7f33bf': { id: 'c-prospecteur', once: false, apply: () => codeUnlock('prospecteur') },
 };
-const artName = ch => (ch.art ?? 'le ') + ch.name;
+const artName = ch => (ch.art ?? CHAR_ART[ch.key] ?? 'le ') + ch.name;
 function codeUnlock(key) {
   const ch = CHARS.find(c => c.key === key), nm = artName(ch);
   if (settings.unl[key]) return `Tu as déjà débloqué ${nm}.`;
@@ -9264,6 +9402,7 @@ window.addEventListener('keydown', e => {
     else if ((code === 'Enter' || code === 'NumpadEnter') && document.activeElement === document.body) { e.preventDefault(); closeReward(); openScrolls(); }
     return;
   }
+  if (!shopEl.hidden) { if (code === 'Escape') { e.preventDefault(); closeShop(); } return; }
   if (!collEl.hidden && code === 'Escape') { e.preventDefault(); closeColl(); return; }
   if (!scrollEl.hidden) {
     if (code === 'Escape') { e.preventDefault(); closeScrolls(); }
@@ -10461,7 +10600,7 @@ function releasePad(code, st) {
 }
 // Fenêtre au premier plan (menus) : la manette y navigue comme un curseur
 function activeRoot() {
-  for (const el of [keysEl, collEl, scrollEl, rewardEl, unlockEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
+  for (const el of [keysEl, scrollEl, rewardEl, unlockEl, shopEl, collEl, tipEl, vsEl, onlineEl, profEl, customEl, secretEl, accEl(), ranksEl, helpEl, soloEl, campEl, friendsEl, endEl, pauseEl, menuEl]) if (!el.hidden) return el;
   return null;
 }
 function focusables(root) {
@@ -10505,6 +10644,7 @@ function navBack(root) {
   else if (root === unlockEl) closeUnlock();
   else if (root === scrollEl) closeScrolls();
   else if (root === collEl) closeColl();
+  else if (root === shopEl) closeShop();
   else if (root === rewardEl) closeReward();
   else if (root === tipEl) closeTip();
   else if (root === vsEl) vsSkip();
