@@ -1519,7 +1519,7 @@ const ACH = [
 // pa = parties finies 1er, po = parties finies dans le top 3 (à plus de 3 joueurs)
 // g, w, k… : stats générales (tous modes). Matchs normaux (classique, en ligne, campagne) : ng parties, nw victoires, nk victimes.
 // Battle royale : bg parties, bw victoires (= top 1), bt top 3, bk victimes, ct contrats, ch coffres, o orbes. pa/po : anciens top 1/top 3 (tous modes), plus comptés.
-const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu', 'pn', 'pg'];   // cp : défis de campagne réussis · pu : anciens parchemins (500 XP) utilisés · pn / pg : parchemins normaux / dorés utilisés
+const STAT_KEYS = ['g', 'k', 'w', 's', 't', 'kc', 'b', 'mk', 'fl', 'ct', 'ch', 'o', 'bw', 'pa', 'po', 'cp', 'ng', 'nw', 'nk', 'bg', 'bk', 'bt', 'pu', 'pn', 'pg', 'rk'];   // rk : victimes en partie classée (depuis le 2026-11-23)   // cp : défis de campagne réussis · pu : anciens parchemins (500 XP) utilisés · pn / pg : parchemins normaux / dorés utilisés
 function statPlace(place, n) { if (place >= 1 && place <= 3 && n > 3) statAdd('bt', 1); }   // top 3 : seulement en battle royale
 // Prestige : une étoile tous les 5000 XP au-delà du niveau 100 (10 au plus)
 const PRES_XP = 5000, PRES_MAX = 10;
@@ -5243,6 +5243,7 @@ function statTick(dt, me, i) {
   const k = me.kills | 0;
   if (stPrevKills >= 0 && k > stPrevKills) {
     statAdd('k', k - stPrevKills); statAdd(G.mode === 'br' ? 'bk' : 'nk', k - stPrevKills);
+    if (G.mode === 'match' && NET.pub && (NET.role === 'host' || NET.role === 'guest') && !NET.spec) statAdd('rk', k - stPrevKills);
     for (let j = stPrevKills; j < k; j++) stKillTimes.push(G.t);
     stKillTimes = stKillTimes.filter(x => G.t - x <= 5); statMax('mk', stKillTimes.length);
   }
@@ -8422,7 +8423,16 @@ function openProfile(id, from) {
   profId = id && id !== myAid() ? id : null;
   try { $('#profile-close').focus({ preventScroll: true }); } catch (e) {}
   const mine = !id || id === myAid();
-  if (mine) { renderProfile({ ...(ELO.me || {}), name: settings.name, pub: pubOf(), mine: true }); pushPub(); return; }
+  if (mine) {
+    const acc = myAid();
+    renderProfile({ ...(ELO.me || {}), name: settings.name, pub: pubOf(), mine: true, rsLoading: !!acc });
+    pushPub();
+    if (acc) rpc('mc_profile', { p_id: acc }).then(r => {
+      if (profEl.hidden || profId || !r || r.error) return;
+      renderProfile({ ...(ELO.me || {}), ...(r.games !== undefined ? { elo: r.elo, games: r.games, wins: r.wins, rank: r.rank } : {}), rs: r.rs || {}, name: settings.name, pub: pubOf(), mine: true });
+    }).catch(() => { if (!profEl.hidden && !profId) renderProfile({ ...(ELO.me || {}), name: settings.name, pub: pubOf(), mine: true }); });
+    return;
+  }
   renderProfile({ name: '…', pub: {}, loading: true });
   rpc('mc_profile', { p_id: id }).then(d => { if (!profEl.hidden) renderProfile(d); }).catch(() => { if (!profEl.hidden) renderProfile({ name: 'Profil', pub: {}, err: true }); });
 }
@@ -8444,10 +8454,25 @@ function profPortrait(cv, skin, locked, f) {
 // Statistiques du profil : générales (tous modes), matchs normaux (classique, en ligne, campagne), battle royale
 const PROF_STATS = {
   all: [['g', 'Parties'], ['w', 'Victoires'], ['k', 'Victimes'], ['mk', 'Meilleure série'], ['b', 'Bombes posées'], ['kc', 'Bombes poussées'], ['t', 'Bombes lancées'], ['cp', 'Défis de campagne']],
+  // @ : valeurs du serveur (Elo, parties et victoires classées, historique des parties)
+  rk: [['@elo', 'Elo'], ['@peak', 'Meilleur Elo'], ['@place', 'Place'], ['@g', 'Parties'], ['@w', 'Victoires'], ['@pct', 'Taux de victoire'], ['@streak', 'Série en cours'], ['@bstreak', 'Meilleure série'], ['@l10', 'Elo, 10 dernières'], ['rk', 'Victimes']],
   norm: [['ng', 'Parties'], ['nw', 'Victoires'], ['%', 'Taux de victoire'], ['nk', 'Victimes'], ['fl', 'Victoires sans mourir']],
   br: [['bg', 'Parties'], ['bw', 'Top 1'], ['bt', 'Top 3'], ['bk', 'Victimes'], ['ct', 'Contrats remplis'], ['ch', 'Coffres ouverts'], ['o', "Points d'orbes"]],
 };
 let profStatTab = 'all';
+// valeurs de l'onglet Classé (serveur : public_player + ranked_stats)
+function rankedVal(d, k) {
+  const rs = d.rs || {}, g = d.games | 0;
+  if (k === '@elo') return g > 0 && d.elo ? String(d.elo) : '—';
+  if (k === '@place') return d.rank ? ordinal(d.rank) : '—';
+  if (k === '@g') return g.toLocaleString('fr-FR');
+  if (k === '@w') return g > 0 ? (d.wins | 0).toLocaleString('fr-FR') : '—';
+  if (k === '@pct') return g > 0 ? Math.round((d.wins | 0) / g * 100) + ' %' : '—';
+  if (!g || rs[k.slice(1)] === undefined) return '—';
+  const v = Number(rs[k.slice(1)]) | 0;
+  if (k === '@l10') return (v > 0 ? '+' : '') + v;
+  return String(v);
+}
 function renderProfile(d) {
   const P = d.pub || {}, st = P.st || {}, mine = !!d.mine;
   $('#prof-kicker').textContent = mine ? 'Mon profil' : 'Profil';
@@ -8483,10 +8508,17 @@ function renderProfile(d) {
     tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.m === m)));
     for (const [k, l] of PROF_STATS[m]) {
       const div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+      if (k[0] === '@') { b.textContent = rankedVal(d, k); sp.textContent = l; div.append(b, sp); sv.appendChild(div); continue; }
       // battle royale : au moins autant de parties que de top 3, et de top 3 que de top 1 (anciennes parties non comptées)
       const raw = k === 'bg' ? Math.max(Number(st.bg) || 0, Number(st.bt) || 0, Number(st.bw) || 0) : k === 'bt' ? Math.max(Number(st.bt) || 0, Number(st.bw) || 0) : Number(st[k]);
       const v = k === '%' ? (Number(st.ng) > 0 ? Math.round((Number(st.nw) || 0) / Number(st.ng) * 100) + ' %' : '—') : st[k] === undefined && !(raw > 0) ? '—' : (raw | 0).toLocaleString('fr-FR');
       b.textContent = v; sp.textContent = l; div.append(b, sp); sv.appendChild(div);
+    }
+    if (m === 'rk') {
+      const n = document.createElement('p'); n.className = 'prof-note';
+      n.textContent = d.rsLoading ? 'Chargement des parties classées…' : !(d.games > 0) ? (mine ? "Tu n'as pas encore joué de partie classée." : "Pas encore de partie classée.")
+        : 'Une victoire : finir devant tous les autres vrais joueurs. Séries : victoires d\'affilée. Victimes comptées depuis le 23 novembre 2026.';
+      sv.appendChild(n); return;
     }
     if (!mine && m !== 'all' && st.ng === undefined && st.bg === undefined) { const n = document.createElement('p'); n.className = 'prof-note'; n.textContent = "Ce joueur n'a pas encore les stats par mode (elles arrivent à sa prochaine partie)."; sv.appendChild(n); }
     else if (m !== 'all' && ['bw', 'ct', 'ch', 'o', 'nw', 'ng', 'bg'].some(x => Number(st[x]) > 0)) {
@@ -8496,7 +8528,7 @@ function renderProfile(d) {
       sv.appendChild(n);
     }
   };
-  for (const [m, l] of [['all', 'Générales'], ['norm', 'Matchs normaux'], ['br', 'Battle royale']]) {
+  for (const [m, l] of [['all', 'Générales'], ['rk', 'Classé'], ['norm', 'Matchs normaux'], ['br', 'Battle royale']]) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = l; b.setAttribute('role', 'tab');
     b.addEventListener('click', () => showStats(m)); tabs.appendChild(b);
   }
