@@ -1,13 +1,10 @@
 # Réglages des couleurs de perso pour recolor3.py (voir son en-tête)
 # Teintes cibles
 ROUGE, ORANGE, JAUNE, VERT, CYAN, BLEU, VIOLET, ROSE = 0.995, 0.07, 0.14, 0.36, 0.5, 0.61, 0.77, 0.92
-
 def T(name0, h0, h1, center, variants, **kw):
     return dict(mode='teinte', name0=name0, h0=h0, h1=h1, center=center, variants=variants, **kw)
-
 def G(name0, variants, **kw):
     return dict(mode='gris', name0=name0, variants=variants, **kw)
-
 CFG = {
  # ---- lot 1
  'robot': T('Bleu', 0.50, 0.70, 0.59, [('Rouge', ROUGE, 1, 1), ('Vert', VERT, 0.95, 0.95), ('Violet', VIOLET, 1, 1), ('Orange', ORANGE, 1, 1.05), ('Rose', ROSE, 0.8, 1.1), ('Noir', 0.62, 0.2, 0.45)], vmin=0.3, skip=[(0.28, 0.28, 0.72, 0.62, ('big', 'down')), (0.45, 0.15, 1.0, 0.5, ('right',))]),
@@ -32,4 +29,15 @@ CFG = {
  'commando': G('Noir', [('Kaki', 0.2, 0.45, 1.0, 0.06), ('Sable', 0.1, 0.4, 1.2, 0.12), ('Marine', 0.6, 0.5, 1.0, 0.04), ('Rouge', ROUGE, 0.55, 1.0, 0.04), ('Blanc', 0.6, 0.05, 1.3, 0.3), ('Rose', ROSE, 0.4, 1.1, 0.1)], smax=0.2, vmin=0.04, vmax=0.8, min_area=200),
  'mineur': T('Rouge', 0.93, 0.03, 0.99, [('Bleu', BLEU, 1, 1.1), ('Vert', VERT, 0.95, 1), ('Violet', VIOLET, 1, 1.05), ('Noir', 0, 0.12, 0.5), ('Blanc', 0, 0.08, 1.5), ('Rose', ROSE, 0.8, 1.15)], smin=0.5, vmin=0.1),
  'cowboy': T('Rouge', 0.93, 0.03, 0.99, [('Bleu', BLEU, 1, 1.1), ('Vert', VERT, 0.95, 1), ('Violet', VIOLET, 1, 1.05), ('Noir', 0, 0.12, 0.5), ('Jaune', JAUNE, 1, 1.2), ('Rose', ROSE, 0.8, 1.15)], smin=0.6, vmin=0.25, skip=[(0, 0, 1, 0.34)]),
+ # ---- lot 3
+ 'dryade': T('Vert', 0.16, 0.38, 0.26, [('Orange', 0.07, 1, 1.05), ('Rouge', 0.0, 0.95, 0.95), ('Bleu', 0.56, 0.9, 1), ('Violet', 0.78, 0.8, 1), ('Rose', 0.92, 0.6, 1.1), ('Doré', 0.12, 1, 1.1)], smin=0.3, vmin=0.12, squeeze=0.5),
+ 'sac': T('Bleu', 0.5, 0.67, 0.56, [('Rouge', ROUGE, 1, 1), ('Vert', VERT, 0.95, 0.95), ('Violet', VIOLET, 1, 1), ('Jaune', JAUNE, 1, 1.1), ('Noir', 0.6, 0.12, 0.45), ('Rose', ROSE, 0.7, 1.1)], smin=0.25),
+ 'lutin': T('Vert', 0.15, 0.47, 0.27, [('Bleu', 0.6, 0.9, 1), ('Rouge', 0.0, 0.9, 0.95), ('Violet', 0.78, 0.8, 0.95), ('Orange', 0.07, 1, 1.05), ('Turquoise', 0.47, 0.9, 1), ('Rose', 0.9, 0.6, 1.1)], smin=0.3, vmin=0.12, squeeze=0.5),
+ 'golem': T('Bleu', 0.46, 0.66, 0.54, [('Rouge', ROUGE, 1, 1), ('Vert', VERT, 1, 1), ('Violet', VIOLET, 1, 1), ('Jaune', 0.13, 1, 1.05), ('Rose', ROSE, 0.8, 1.05), ('Orange', ORANGE, 1, 1.05)], smin=0.25, vmin=0.2, squeeze=0.6),
+ 'mecha': G('Blanc', [('Rouge', ROUGE, 0.5, 0.95), ('Bleu', BLEU, 0.5, 0.95), ('Noir', 0.6, 0.12, 0.38), ('Jaune', 0.13, 0.5, 1), ('Vert', VERT, 0.45, 0.9), ('Rose', ROSE, 0.35, 1)], smax=0.2, vmin=0.4, min_area=120, skip=[(0, 0, 1, 0.38), (0.2, 0.3, 0.8, 0.5, ('down',)), (0.3, 0.38, 0.7, 0.5, ('big',)), (0.4, 0.3, 0.95, 0.5, ('right',))]),
+ 'rockeuse': T('Auburn', 0.94, 0.05, 0.0, [('Blond', 0.11, 0.8, 1.35), ('Noir', 0.0, 0.3, 0.45), ('Bleu', BLEU, 0.9, 1.2), ('Rose', 0.92, 0.7, 1.35), ('Violet', VIOLET, 0.8, 1.2), ('Vert', VERT, 0.8, 1.15)], smin=0.42, vmin=0.12, skip=[(0.25, 0.3, 0.75, 0.68, ('big', 'down')), (0.4, 0.3, 0.95, 0.65, ('right',))]),
+ 'robotte': T('Rose', 0.8, 0.98, 0.9, [('Bleu', BLEU, 1, 1), ('Vert', VERT, 0.95, 0.95), ('Violet', VIOLET, 1, 1), ('Rouge', ROUGE, 1, 0.95), ('Orange', ORANGE, 1, 1.05), ('Cyan', CYAN, 1, 1)], smin=0.25, vmin=0.2, squeeze=0.5),
+ 'hacker': T('Cyan', 0.44, 0.72, 0.56, [('Rouge', ROUGE, 1, 1), ('Vert', 0.33, 1, 1), ('Violet', VIOLET, 1, 1), ('Orange', ORANGE, 1, 1), ('Rose', ROSE, 0.85, 1), ('Jaune', 0.14, 1, 1)], smin=0.25, vmin=0.06, squeeze=0.5),
+ 'arcaniste': T('Violet', 0.62, 0.85, 0.71, [('Rouge', ROUGE, 1, 1), ('Bleu', 0.6, 1, 1), ('Vert', VERT, 0.95, 0.95), ('Noir', 0.71, 0.12, 0.5), ('Orange', ORANGE, 1, 1.1), ('Cyan', CYAN, 1, 1)], smin=0.25, vmin=0.08, squeeze=0.5),
+ 'olympien': G('Blanc', [('Rouge', ROUGE, 0.55, 0.9), ('Bleu', BLEU, 0.55, 0.9), ('Vert', VERT, 0.45, 0.85), ('Violet', VIOLET, 0.45, 0.9), ('Noir', 0.6, 0.1, 0.35), ('Doré', 0.12, 0.6, 1)], smax=0.2, vmin=0.55, min_area=150, skip=[(0, 0, 1, 0.4)]),
 }
