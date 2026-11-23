@@ -5181,6 +5181,7 @@ function xpPanelHtml(i, gainLine) {
 const accLevel = () => 1 + lvGained();
 const accLevelOfCh = ch => 1 + Object.values(ch || {}).reduce((a, v) => a + Math.max(0, ((Array.isArray(v) ? v[0] : 0) | 0) - 1), 0);
 function syncXpUi() {
+  try { sortCharBtns(); } catch (e) {}
   { const e = document.getElementById('acc-lv'); if (e) e.textContent = accLevel(); }
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
@@ -6597,8 +6598,15 @@ function buildCharPicker() {
   }
   syncCharPicker();
 }
+// ordre d'affichage : du plus haut niveau au plus bas (puis l'XP), les persos verrouillés à la fin
+function sortCharBtns() {
+  const ord = CHARS.map((_, i) => i).sort((a, b) => (charLocked(a) - charLocked(b)) || (charLocked(a) ? a - b : (realXpOf(b) - realXpOf(a)) || (a - b)));
+  const pos = []; ord.forEach((i, n) => { pos[i] = n; });
+  charBtns.forEach(({ b, i }) => { b.style.order = pos[i]; });
+}
 function syncCharPicker() {
   syncXpUi();
+  sortCharBtns();
   charBtns.forEach(({ b, i }) => {
     const lk = charLocked(i);
     b.setAttribute('aria-checked', String(i === settings.skin)); b.classList.toggle('locked', lk);
