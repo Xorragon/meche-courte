@@ -1,3 +1,5 @@
 node_modules/
 .netlify/
 outils/couleurs/apercu-*
+outils/persos/v*/
+__pycache__/
