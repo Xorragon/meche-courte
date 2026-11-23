@@ -1481,6 +1481,9 @@ const CHAR_VARS = {
   sylve: [['Vert', '#7ca247'], ['Orange', '#aa724a'], ['Rouge', '#9a484e'], ['Bleu', '#508da2'], ['Violet', '#8459a2'], ['Rose', '#b27699'], ['Doré', '#b2884e']],
   prospecteur: [['Bleu', '#3f6fb1'], ['Rouge', '#b13f49'], ['Vert', '#42a84a'], ['Violet', '#823fb1'], ['Jaune', '#c3a346'], ['Noir', '#474a4c'], ['Rose', '#c36b9e']],
 };
+// Choix des couleurs coupé pour l'instant (demande du joueur) : tout le monde garde la couleur d'origine. Remettre true pour le rallumer.
+const VARS_ON = false;
+const hasVars = key => VARS_ON && !!CHAR_VARS[key];
 const charVarImg = {};
 function varImg(key, v) {
   const id = key + '-' + v; let im = charVarImg[id];
@@ -1656,7 +1659,7 @@ if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CH
 if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
 const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && !settings.unl[ch.key] && ((ch.elo && !(ELO.me && ELO.me.elo >= ch.elo)) || ch.camp || ch.soon || ch.code || ch.shop)); };
 if (!settings.cvar || typeof settings.cvar !== 'object') settings.cvar = {};
-const varOf = i => { const ch = CHARS[i], L = ch && CHAR_VARS[ch.key]; if (!L) return 0; const v = settings.cvar[ch.key] | 0; return v > 0 && v < L.length ? v : 0; };
+const varOf = i => { const ch = CHARS[i], L = ch && hasVars(ch.key) && CHAR_VARS[ch.key]; if (!L) return 0; const v = settings.cvar[ch.key] | 0; return v > 0 && v < L.length ? v : 0; };
 const lockText = ch => ch.shop ? `🪙 ${shopPrice(ch)}` : ch.code ? 'Code secret' : ch.soon ? 'Bientôt' : ch.camp ? `Défi ${ch.camp}` : `${ch.elo} Elo`;
 const charLocked = i => !settings.admin && charLockedReal(i);
 if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp || CHARS[settings.skin].soon || CHARS[settings.skin].code || CHARS[settings.skin].shop) && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
@@ -6224,7 +6227,7 @@ function drawAura(c, x, y, tier, t, front, seed) {
 }
 function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
   { const SS = sheetOfSkin(skin); if (SS) { drawSheetChar(c, x, y, SS, pal, face, phase, moving, t, o || {}); return; } }
-  const ch = CHARS[skin], im = ch && ((o && o.cv > 0 && CHAR_VARS[ch.key] && varImg(ch.key, o.cv)) || charImg[ch.key]);
+  const ch = CHARS[skin], im = ch && ((o && o.cv > 0 && hasVars(ch.key) && varImg(ch.key, o.cv)) || charImg[ch.key]);
   if (!skin || !im) { drawHero(c, x, y, pal, face, phase, moving, t, o); return; }
   o = o || {};
   const R = CHAR_RECTS[ch.key], fr = R[face === 'left' ? 'right' : face] || R.down;
@@ -6661,7 +6664,7 @@ function drawPortrait(cv, pal, skin, v = 0) {
   { const SS = sheetOfSkin(skin); if (SS) { const im = SS.happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; } }
   if (skin === DEMON_SKIN) { if (sheetReady(DK_IMG)) c.drawImage(DK_IMG, 22, 2, 184, 184, -3, 2, 58, 58); c.restore(); return; }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
-  const ch = CHARS[skin], im = skin && ch && ((v > 0 && CHAR_VARS[ch.key] && varImg(ch.key, v)) || charImg[ch.key]);
+  const ch = CHARS[skin], im = skin && ch && ((v > 0 && hasVars(ch.key) && varImg(ch.key, v)) || charImg[ch.key]);
   if (im) {
     // grand portrait de face, cadré sur la tête
     // même hauteur pour tous (la largeur varie : hache, bouclier, bâton…), centré sur l'axe du corps
@@ -6846,7 +6849,7 @@ function buildCharPicker() {
     b.append(cv, lb); box.appendChild(b); charBtns.push({ b, cv, i, root });
     if (root === collEl) { b.addEventListener('mouseenter', () => collShow(i)); b.addEventListener('focus', () => { collPin = i; collShow(i); }); }
     b.addEventListener('click', () => {
-      if (root === collEl) { collPin = i; if (charLocked(i)) { collShow(i); return; } if (CHAR_VARS[CHARS[i].key] && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
+      if (root === collEl) { collPin = i; if (charLocked(i)) { collShow(i); return; } if (hasVars(CHARS[i].key) && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
         if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
@@ -6856,7 +6859,7 @@ function buildCharPicker() {
       settings.skin = i; saveSettings(); syncCharPicker();
       if (NET.role === 'host' && !NET.started) refreshHostLobby();
       // perso à plusieurs couleurs : la rangée « Couleur » s'allume juste en dessous (sur l'accueil)
-      const vp = root === menuEl && CHAR_VARS[ch.key] && $('#varpick');
+      const vp = root === menuEl && hasVars(ch.key) && $('#varpick');
       if (vp) { vp.classList.remove('flash'); void vp.offsetWidth; vp.classList.add('flash'); }
     });
   });
@@ -6902,7 +6905,7 @@ function collShow(i) {
   collHover = i; const ch = CHARS[i], lk = charLocked(i);
   $('#coll-name').textContent = lk ? '???' : ch.name;
   const info = $('#coll-info'), xp = $('#coll-xp');
-  const cvb = $('#coll-var'), hasV = !lk && !!CHAR_VARS[ch.key]; cvb.hidden = !hasV; if (hasV) varButtons(cvb, i, false); else cvb.innerHTML = '';
+  const cvb = $('#coll-var'), hasV = !lk && hasVars(ch.key); cvb.hidden = !hasV; if (hasV) varButtons(cvb, i, false); else cvb.innerHTML = '';
   if (lk) {
     info.innerHTML = ch.shop ? `À débloquer : <b>boutique</b>, ${shopPrice(ch)} pièces` + (shopWeek().includes(i) ? '<br><b>En vente cette semaine</b>' : '') : ch.code ? 'À débloquer : <b>code secret</b>' : ch.soon ? 'À débloquer : <b>bientôt</b>' : ch.camp ? `À débloquer : <b>défi ${ch.camp}</b> de la campagne` : `À débloquer : <b>${ch.elo} Elo</b> au classement`;
     xp.innerHTML = '';
@@ -6991,7 +6994,7 @@ function setVar(i, n) {
   try { document.querySelector(`#varpick [aria-checked="true"], #coll-var [aria-checked="true"]`).focus({ preventScroll: true }); } catch (e) {}
 }
 function syncVarPick() {
-  const box = $('#varpick'), i = settings.skin, ok = !!CHAR_VARS[CHARS[i].key] && !charLocked(i);
+  const box = $('#varpick'), i = settings.skin, ok = hasVars(CHARS[i].key) && !charLocked(i);
   box.hidden = !ok; if (ok) varButtons(box, i, true); else box.innerHTML = '';
 }
 function syncCharPicker() {
