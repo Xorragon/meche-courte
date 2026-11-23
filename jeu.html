@@ -6687,10 +6687,10 @@ function drawCharPicker(t) {
       c.strokeText(String(L), 3, 2); c.fillText(String(L), 3, 2);
     }
     const bm = b.matches(':hover') ? xpBoostOf(i).m : 1;
-    if (bm > 1) {   // rattrapage d'XP : seulement au survol, en petit et discret, en bas à droite
-      const h = cv.height / k;
-      c.globalAlpha = 0.55; c.font = '800 8px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
-      c.strokeText('×' + bm, 50, h - 1); c.fillText('×' + bm, 50, h - 1); c.textAlign = 'start'; c.globalAlpha = 1;
+    if (bm > 1) {   // rattrapage d'XP : seulement au survol, en grand au milieu de la case, à demi transparent
+      const h = cv.height / k, txt = 'XP ×' + bm;
+      c.globalAlpha = 0.6; c.font = '900 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3.5; c.lineJoin = 'round'; c.strokeStyle = 'rgba(20,12,4,.95)'; c.fillStyle = '#ffd66e';
+      c.strokeText(txt, 26, h / 2); c.fillText(txt, 26, h / 2); c.textAlign = 'start'; c.globalAlpha = 1;
     }
   });
 }
