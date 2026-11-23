@@ -284,6 +284,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 @keyframes rkshine{0%{background-position:0 0,0% 50%}100%{background-position:0 0,200% 50%}}
 .rk-diamant,.rk-maitre,.rk-legende{background:linear-gradient(180deg,rgba(28,22,14,.92),rgba(12,10,8,.92)) padding-box,linear-gradient(110deg,var(--r0),var(--r1) 25%,var(--r2) 50%,var(--r1) 75%,var(--r0)) border-box;background-size:100% 100%,200% 100%}
 .rk-name{font-weight:800}
+.rk-who{display:inline-flex;align-items:center;gap:10px;vertical-align:middle}.rk-ico{width:40px;height:40px;flex:none;margin:-8px 0}
 .rk-name.rk-bronze{color:#f0b07a}.rk-name.rk-argent{color:#e2e8ee}.rk-name.rk-or{color:#ffd66e}.rk-name.rk-platine{color:#7fe8da}.rk-name.rk-diamant{color:#9cc9ff}.rk-name.rk-maitre{color:#d0a2ff}.rk-name.rk-legende{color:#ff8a5c}
 .nick-note{flex-basis:100%;font-size:13px;color:var(--muted);min-height:0}
 .nick-note:empty{display:none}
@@ -756,7 +757,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     </section>
     <section class="home-me" aria-labelledby="home-me-h">
-    <p class="home-h" id="home-me-h">Ton artificier<span class="acc-lv" id="acc-lv" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos"></span></p>
+    <p class="home-h" id="home-me-h" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos">Artificier niveau <span id="acc-lv">1</span></p>
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
@@ -5181,7 +5182,7 @@ function xpPanelHtml(i, gainLine) {
 const accLevel = () => 1 + lvGained();
 const accLevelOfCh = ch => 1 + Object.values(ch || {}).reduce((a, v) => a + Math.max(0, ((Array.isArray(v) ? v[0] : 0) | 0) - 1), 0);
 function syncXpUi() {
-  { const e = document.getElementById('acc-lv'); if (e) e.textContent = 'Compte niv. ' + accLevel(); }
+  { const e = document.getElementById('acc-lv'); if (e) e.textContent = accLevel(); }
   const el = document.getElementById('char-xp');
   if (el) { if (charLocked(settings.skin)) el.innerHTML = ''; else el.innerHTML = xpPanelHtml(settings.skin); }
   syncAuraPick(); try { syncScrollBtns(); } catch (e) {}   // (pas encore prêt au tout début du chargement)
@@ -8384,6 +8385,12 @@ async function openRanks() {
       const tr = document.createElement('tr'); if (me) tr.className = 'me';
       for (const v of [p.rank ? ordinal(p.rank) : '–', p.name, p.elo, p.games, p.wins]) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
       const rk = rankOf(p.elo), sp = document.createElement('span'); sp.className = 'rk-name rk-' + RANK_TIERS[rk.tier].key; sp.textContent = ' · ' + rk.label; tr.children[2].appendChild(sp);
+      // icône : son perso le plus monté (« ? » si tu ne l'as pas encore débloqué), dans le cadre de son rang
+      { const cv = document.createElement('canvas'); cv.width = cv.height = 88; cv.className = 'rk-ico'; cv.setAttribute('aria-hidden', 'true');
+        const sk = p.fav ? charIdx(p.fav) : 0; profPortrait(cv, sk, charLocked(sk), 0.62);
+        const c2 = cv.getContext('2d'), k = 44 * 0.62 / 26; c2.save(); c2.translate(44, 44); c2.scale(k, k); drawRankFrame(c2, 26, rk, 0); c2.restore();
+        const nm = tr.children[1]; nm.textContent = ''; const w = document.createElement('span'), t = document.createElement('span'); w.className = 'rk-who'; t.textContent = p.name; w.append(cv, t); nm.appendChild(w);
+        tr.children[2].style.whiteSpace = 'nowrap'; }
       tr.tabIndex = 0; tr.setAttribute('role', 'button'); tr.title = `Voir le profil de ${p.name}`;
       const go = () => openProfile(p.id === myAid() ? null : p.id, 'ranks');
       const tf = document.createElement('td'); tf.className = 'fr'; if (p.id !== myAid()) tf.appendChild(friendBtn(p.id, true)); tr.appendChild(tf);
