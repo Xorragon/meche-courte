@@ -489,6 +489,18 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 #collection{background:rgba(6,10,7,.9);backdrop-filter:blur(6px)}
 #shop{background:rgba(6,9,12,.92);backdrop-filter:blur(6px);z-index:11}
 #unlock{z-index:12}
+.varpick{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;margin:-10px 0 14px}
+.varpick[hidden]{display:none}
+.varpick .vp-l{font:800 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.varpick button{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 5px;border-radius:999px;border:2px solid rgba(243,229,192,.14);background:rgba(10,16,10,.45);color:var(--parchment);font:700 12px/1 var(--font-body);cursor:pointer}
+.varpick button i{width:16px;height:16px;border-radius:50%;background:var(--sw);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.18)}
+.varpick button[aria-checked="true"]{border-color:var(--gold);background:rgba(255,214,110,.14)}
+.varpick button:hover,.varpick button:focus-visible{border-color:rgba(255,214,110,.7)}
+.varpick.flash button[aria-checked="true"]{animation:vpflash .5s 2}
+@keyframes vpflash{50%{box-shadow:0 0 0 4px rgba(255,214,110,.45)}}
+.coll-var{justify-content:center;margin:2px 0 4px}
+.coll-var button{padding:4px}.coll-var button span{display:none}
+@media (max-width:520px){.varpick button{padding:4px}.varpick button span{display:none}}
 .coin{display:inline-block;width:15px;height:15px;border-radius:50%;vertical-align:-2px;background:radial-gradient(circle at 34% 30%,#fff6c4 0 18%,#f7cd4e 40%,#c98b1c 100%);box-shadow:inset 0 0 0 1.5px #8d5d0e,0 1px 0 rgba(0,0,0,.35)}
 .home-hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 12px}
 .home-hrow .home-h{margin:0}
@@ -821,6 +833,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
       <span class="nick-note" id="nick-note" role="status"></span>
     </form>
     <div class="charpick" id="charpick" role="radiogroup" aria-label="Ton perso"></div>
+    <div class="varpick" id="varpick" role="radiogroup" aria-label="Couleur du perso" hidden></div>
     <p class="pick-hint" role="status"></p>
     <div class="char-xp" id="char-xp"></div>
     <button class="ghost tiny scroll-btn" type="button" id="btn-scrolls" hidden>📜 <b id="scroll-n">0</b> parchemins d'XP à utiliser</button>
@@ -1150,6 +1163,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
         <canvas id="coll-cv" width="300" height="300" aria-hidden="true"></canvas>
         <h3 id="coll-name"></h3>
         <p class="coll-info" id="coll-info"></p>
+        <div class="varpick coll-var" id="coll-var" role="radiogroup" aria-label="Couleur du perso" hidden></div>
         <div class="char-xp coll-xp" id="coll-xp"></div>
       </aside>
     </div>
@@ -1412,6 +1426,16 @@ const SHOP_TIERS = [null,
   { name: 'Légendaire', price: 2000, c: '#ffc94a' }];
 const shopPrice = ch => ch && ch.shop ? SHOP_TIERS[ch.shop].price : 0;
 const CHAR_ART = {'mariee': 'la ', 'fee': 'la ', 'pompiere': 'la ', 'rockeuse': 'la ', 'robotte': 'la ', 'momie': 'la ', 'dryade': 'la ', 'ondine': 'la ', 'amazone': "l'", 'elfe': "l'", 'olympien': "l'", 'orc': "l'", 'ange': "l'", 'arcaniste': "l'", 'azteque': "l'"};
+// Couleurs de perso (essai sur Capuche) : variante n = planche assets/perso-<clé>-<n>.png, mêmes cadres que l'originale (n = 0)
+const CHAR_VARS = {
+  capuche: [['Gris', '#9b9ba3'], ['Rouge', '#b8322f'], ['Bleu', '#2f62b8'], ['Vert', '#2f9a46'], ['Violet', '#7a4ab8'], ['Moutarde', '#c49a22'], ['Rose', '#d47aa8'], ['Noir', '#2a2a30']],
+};
+const charVarImg = {};
+function varImg(key, v) {
+  const id = key + '-' + v; let im = charVarImg[id];
+  if (!im) { im = charVarImg[id] = new Image(); im.onload = () => warmImg(im); im.src = `assets/perso-${id}.png?v=${SPR_V}`; }
+  return im.complete && im.naturalWidth ? im : null;
+}
 const sheetOfSkin = k => SHEET_SKINS[k] || (CHARS[k] && CHARS[k].sheet != null ? SHEET_SKINS[CHARS[k].sheet] : null);
 const CHAR_RECTS = {"robot":{"down":[[0,0,62,126,30.0,126],[64,0,63,132,32.0,132],[129,0,63,127,32.0,127]],"up":[[194,0,64,128,32.0,128],[260,0,62,128,30.0,128],[324,0,61,129,30.0,129]],"right":[[387,0,70,131,35.0,131],[459,0,64,125,31.0,125],[525,0,67,129,33.0,129]],"bomb":[[594,0,58,72,31.0,72]],"big":[[654,0,126,220,64.0,220]]},"renard":{"down":[[0,0,70,128,35.0,128],[72,0,70,129,34.0,129],[144,0,73,123,33.0,123]],"up":[[219,0,69,128,36.0,128],[290,0,70,123,35.0,123],[362,0,74,129,36.0,129]],"right":[[438,0,72,129,34.0,129],[512,0,70,125,34.0,125],[584,0,74,128,36.0,128]],"bomb":[[660,0,60,72,31.0,72]],"big":[[722,0,174,220,83.0,220]]},"mage":{"down":[[0,0,77,130,40.0,130],[79,0,65,129,32.0,129],[146,0,76,130,35.0,130]],"up":[[224,0,75,126,40.0,126],[301,0,74,131,37.0,131],[377,0,81,129,37.0,129]],"right":[[460,0,74,128,35.0,128],[536,0,67,125,32.0,125],[605,0,81,128,37.0,128]],"bomb":[[688,0,63,72,30.0,72]],"big":[[753,0,177,220,90.0,220]]},"gamin":{"down":[[0,0,73,128,39.0,128],[75,0,67,133,32.0,133],[144,0,69,128,31.0,128]],"up":[[215,0,70,128,35.0,128],[287,0,65,125,31.0,125],[354,0,70,132,34.0,132]],"right":[[426,0,76,125,35.0,125],[504,0,74,122,32.0,122],[580,0,74,128,28.0,128]],"bomb":[[656,0,61,72,33.0,72]],"big":[[719,0,146,220,71.0,220]]},"ours":{"down":[[0,0,80,126,43.0,126],[82,0,75,127,38.0,127],[159,0,92,124,38.0,124]],"up":[[253,0,77,121,39.0,121],[332,0,71,129,35.0,129],[405,0,82,127,37.0,127]],"right":[[489,0,81,128,37.0,128],[572,0,72,130,34.0,130],[646,0,81,133,40.0,133]],"bomb":[[729,0,59,72,34.0,72]],"big":[[790,0,241,220,132.0,220]]},"chevalier":{"down":[[0,0,63,128,33.0,128],[65,0,60,129,30.0,129],[127,0,63,129,31.0,129]],"up":[[192,0,59,127,30.0,127],[253,0,61,128,30.0,128],[316,0,62,129,30.0,129]],"right":[[380,0,75,129,39.0,129],[457,0,63,127,31.0,127],[522,0,62,128,30.0,128]],"bomb":[[586,0,59,72,31.0,72]],"big":[[647,0,141,220,70.0,220]]},"sorciere":{"down":[[0,0,79,130,42.0,130],[81,0,69,133,34.0,133],[152,0,83,128,38.0,128]],"up":[[237,0,72,127,38.0,127],[311,0,73,129,37.0,129],[386,0,79,129,37.0,129]],"right":[[467,0,74,128,38.0,128],[543,0,70,118,35.0,118],[615,0,78,126,38.0,126]],"bomb":[[695,0,70,72,42.0,72]],"big":[[767,0,197,220,94.0,220]]},"slime":{"down":[[0,0,89,123,47.0,123],[91,0,80,126,40.0,126],[173,0,85,129,42.0,129]],"up":[[260,0,82,126,42.0,126],[344,0,83,130,41.0,130],[429,0,92,127,46.0,127]],"right":[[523,0,80,129,41.0,129],[605,0,75,129,37.0,129],[682,0,82,129,43.0,129]],"bomb":[[766,0,61,72,33.0,72]],"big":[[829,0,181,220,91.0,220]]},"aigle":{"down":[[0,0,62,128,32.0,128],[64,0,59,128,29.0,128],[125,0,60,128,31.0,128]],"up":[[187,0,59,131,29.0,131],[248,0,60,137,30.0,137],[310,0,59,134,29.0,134]],"right":[[371,0,72,128,36.0,128],[445,0,64,125,29.0,125],[511,0,68,126,34.0,126]],"bomb":[[581,0,59,72,33.0,72]],"big":[[642,0,137,220,68.0,220]]},"ninja":{"down":[[0,0,80,130,43.0,130],[82,0,67,128,34.0,128],[151,0,74,128,39.0,128]],"up":[[227,0,82,128,47.0,128],[311,0,71,129,37.0,129],[384,0,79,130,35.0,130]],"right":[[465,0,83,126,45.0,126],[550,0,72,128,37.0,128],[624,0,72,127,37.0,127]],"bomb":[[698,0,64,72,32.0,72]],"big":[[764,0,175,220,102.0,220]]},"rodeur":{"down":[[0,0,76,129,39.0,129],[78,0,77,128,36.0,128],[157,0,78,128,34.0,128]],"up":[[237,0,73,129,40.0,129],[312,0,72,128,38.0,128],[386,0,89,124,41.0,124]],"right":[[477,0,80,129,41.0,129],[559,0,75,126,36.0,126],[636,0,83,122,40.0,122]],"bomb":[[721,0,54,72,24.0,72]],"big":[[777,0,189,220,87.0,220]]},"astral":{"down":[[0,0,72,150,36.0,150],[74,0,62,151,30.0,151],[0,0,72,150,36.0,150]],"up":[[138,0,68,147,35.0,147],[208,0,66,154,32.0,154],[138,0,68,147,35.0,147]],"right":[[276,0,70,150,34.0,150],[348,0,71,146,34.0,146],[421,0,75,145,35.0,145]],"bomb":[[498,0,58,72,33.0,72]],"big":[[558,0,115,220,58.0,220]]},"capuche":{"down":[[0,0,61,129,30.0,129],[63,0,62,129,31.0,129],[0,0,61,129,30.0,129]],"up":[[127,0,58,129,30.0,129],[187,0,59,129,29.0,129],[127,0,58,129,30.0,129]],"right":[[248,0,68,127,29.0,127],[318,0,64,126,28.0,126],[384,0,66,127,28.0,127]],"bomb":[[452,0,52,72,24.0,72]],"big":[[506,0,107,220,53.0,220]]},"amazone":{"down":[[0,0,74,132,37.0,132],[76,0,67,132,33.0,132],[0,0,74,132,37.0,132]],"up":[[145,0,66,126,33.0,126],[213,0,67,126,32.0,126],[145,0,66,126,33.0,126]],"right":[[282,0,75,130,35.0,130],[359,0,72,127,34.0,127],[433,0,72,127,34.0,127]],"bomb":[[507,0,49,72,24.0,72]],"big":[[558,0,130,220,64.0,220]]},"ange":{"down":[[0,0,73,126,37.0,126],[75,0,70,130,34.0,130],[0,0,73,126,37.0,126]],"up":[[147,0,70,125,35.0,125],[219,0,69,129,34.0,129],[147,0,70,125,35.0,125]],"right":[[290,0,74,128,35.0,128],[366,0,70,127,33.0,127],[438,0,72,129,34.0,129]],"bomb":[[512,0,53,72,24.0,72]],"big":[[567,0,145,220,72.0,220]]},"faucheur":{"down":[[0,0,76,131,39.0,131],[78,0,75,129,38.0,129],[0,0,76,131,39.0,131]],"up":[[155,0,72,126,35.0,126],[229,0,68,129,34.0,129],[155,0,72,126,35.0,126]],"right":[[299,0,78,129,39.0,129],[379,0,77,127,39.0,127],[458,0,78,124,39.0,124]],"bomb":[[538,0,57,72,24.0,72]],"big":[[597,0,150,220,76.0,220]]},"matou":{"down":[[0,0,77,129,39.0,129],[79,0,76,129,38.0,129],[0,0,77,129,39.0,129]],"up":[[157,0,76,127,37.0,127],[235,0,74,132,37.0,132],[157,0,76,127,37.0,127]],"right":[[311,0,82,130,39.0,130],[395,0,81,130,38.0,130],[478,0,82,125,39.0,125]],"bomb":[[562,0,52,72,24.0,72]],"big":[[616,0,144,220,74.0,220]]},"petardier":{"down":[[0,0,68,130,34.0,130],[70,0,68,130,35.0,130],[0,0,68,130,34.0,130]],"up":[[140,0,67,128,33.0,128],[209,0,67,128,33.0,128],[140,0,67,128,33.0,128]],"right":[[278,0,75,129,33.0,129],[355,0,75,124,34.0,124],[432,0,72,123,33.0,123]],"bomb":[[506,0,54,72,25.0,72]],"big":[[562,0,128,220,63.0,220]]},"salpetre":{"down":[[0,0,69,128,34.0,128],[71,0,68,128,33.0,128],[0,0,69,128,34.0,128]],"up":[[141,0,72,128,36.0,128],[215,0,73,128,37.0,128],[141,0,72,128,36.0,128]],"right":[[290,0,75,132,35.0,132],[367,0,75,127,34.0,127],[444,0,73,129,35.0,129]],"bomb":[[519,0,53,72,24.0,72]],"big":[[574,0,134,220,67.0,220]]},"barde":{"down":[[0,0,74,129,37.0,129],[76,0,71,133,35.0,133],[0,0,74,129,37.0,129]],"up":[[149,0,75,131,37.0,131],[226,0,70,124,35.0,124],[149,0,75,131,37.0,131]],"right":[[298,0,70,126,34.0,126],[370,0,72,122,37.0,122],[444,0,74,127,38.0,127]],"bomb":[[520,0,56,72,25.0,72]],"big":[[578,0,141,220,71.0,220]]},"azteque":{"down":[[0,0,70,131,36.0,131],[72,0,68,130,35.0,130],[0,0,70,131,36.0,131]],"up":[[142,0,74,127,38.0,127],[218,0,74,128,37.0,128],[142,0,74,127,38.0,127]],"right":[[294,0,69,128,34.0,128],[365,0,69,127,35.0,127],[436,0,70,128,36.0,128]],"bomb":[[508,0,60,72,25.0,72]],"big":[[570,0,135,220,69.0,220]]},"chatbotte":{"down":[[0,0,75,129,37.0,129],[77,0,74,130,37.0,130],[0,0,75,129,37.0,129]],"up":[[153,0,74,129,37.0,129],[229,0,74,129,37.0,129],[153,0,74,129,37.0,129]],"right":[[305,0,81,128,38.0,128],[388,0,76,127,36.0,127],[466,0,78,128,37.0,128]],"bomb":[[546,0,48,72,25.0,72]],"big":[[596,0,143,220,70.0,220]]},"gobelin":{"down":[[0,0,75,129,37.0,129],[77,0,74,131,36.0,131],[0,0,75,129,37.0,129]],"up":[[153,0,73,124,36.0,124],[228,0,74,126,36.0,126],[153,0,73,124,36.0,124]],"right":[[304,0,76,130,37.0,130],[382,0,74,128,34.0,128],[458,0,74,128,36.0,128]],"bomb":[[534,0,69,72,37.0,72]],"big":[[605,0,157,220,78.0,220]]},"cramoisi":{"down":[[0,0,76,128,37.0,128],[78,0,73,129,36.0,129],[0,0,76,128,37.0,128]],"up":[[153,0,77,128,40.0,128],[232,0,73,127,37.0,127],[153,0,77,128,40.0,128]],"right":[[307,0,79,128,36.0,128],[388,0,74,125,34.0,125],[464,0,77,128,34.0,128]],"bomb":[[543,0,50,72,24.0,72]],"big":[[595,0,161,220,77.0,220]]},"karateka":{"down":[[0,0,79,128,44.0,128],[81,0,70,130,37.0,130],[0,0,79,128,44.0,128]],"up":[[153,0,69,126,33.0,126],[224,0,68,123,33.0,123],[153,0,69,126,33.0,126]],"right":[[294,0,80,130,42.0,130],[376,0,77,123,39.0,123],[455,0,73,129,37.0,129]],"bomb":[[530,0,53,72,26.0,72]],"big":[[585,0,142,220,79.0,220]]},"bombot":{"down":[[0,0,79,130,40.0,130],[81,0,75,132,38.0,132],[0,0,79,130,40.0,130]],"up":[[158,0,76,125,38.0,125],[236,0,73,127,36.0,127],[158,0,76,125,38.0,125]],"right":[[311,0,72,129,36.0,129],[385,0,71,123,34.0,123],[458,0,73,133,36.0,133]],"bomb":[[533,0,53,72,25.0,72]],"big":[[588,0,177,220,88.0,220]]},"pilote":{"down":[[0,0,69,129,35.0,129],[71,0,68,130,34.0,130],[0,0,69,129,35.0,129]],"up":[[141,0,67,128,32.0,128],[210,0,66,127,32.0,127],[141,0,67,128,32.0,128]],"right":[[278,0,74,128,36.0,128],[354,0,74,126,34.0,126],[430,0,75,128,38.0,128]],"bomb":[[507,0,49,72,24.0,72]],"big":[[558,0,119,220,60.0,220]]},"commando":{"down":[[0,0,70,127,34.0,127],[72,0,66,129,33.0,129],[0,0,70,127,34.0,127]],"up":[[140,0,67,129,34.0,129],[209,0,68,128,34.0,128],[140,0,67,129,34.0,129]],"right":[[279,0,74,128,32.0,128],[355,0,69,127,29.0,127],[426,0,69,128,30.0,128]],"bomb":[[497,0,53,72,24.0,72]],"big":[[552,0,132,220,67.0,220]]},"cowboy":{"down":[[0,0,73,129,36.0,129],[75,0,71,126,36.0,126],[0,0,73,129,36.0,129]],"up":[[148,0,71,131,35.0,131],[221,0,71,130,34.0,130],[148,0,71,131,35.0,131]],"right":[[294,0,76,126,35.0,126],[372,0,78,130,38.0,130],[452,0,80,129,39.0,129]],"bomb":[[534,0,56,72,25.0,72]],"big":[[592,0,135,220,65.0,220]]},"mineur":{"down":[[0,0,71,130,34.0,130],[73,0,70,129,34.0,129],[0,0,71,130,34.0,130]],"up":[[145,0,70,130,35.0,130],[217,0,66,127,32.0,127],[145,0,70,130,35.0,130]],"right":[[285,0,77,129,36.0,129],[364,0,73,124,32.0,124],[439,0,74,126,35.0,126]],"bomb":[[515,0,57,72,35.0,72]],"big":[[574,0,139,220,66.0,220]]},"dryade":{"down":[[0,0,74,129,38.0,129],[76,0,74,129,37.0,129],[0,0,74,129,38.0,129]],"up":[[152,0,75,134,37.0,134],[229,0,70,127,34.0,127],[152,0,75,134,37.0,134]],"right":[[301,0,75,131,36.0,131],[378,0,74,119,34.0,119],[454,0,73,127,34.0,127]],"bomb":[[529,0,59,72,25.0,72]],"big":[[590,0,145,220,73.0,220]]},"sac":{"down":[[0,0,62,130,31.0,130],[64,0,60,130,29.0,130],[0,0,62,130,31.0,130]],"up":[[126,0,64,127,32.0,127],[192,0,61,130,31.0,130],[126,0,64,127,32.0,127]],"right":[[255,0,65,127,28.0,127],[322,0,66,125,28.0,125],[390,0,62,126,27.0,126]],"bomb":[[454,0,54,72,24.0,72]],"big":[[510,0,116,220,59.0,220]]},"marechal":{"down":[[0,0,75,125,37.0,125],[77,0,74,130,36.0,130],[0,0,75,125,37.0,125]],"up":[[153,0,75,131,38.0,131],[230,0,70,129,34.0,129],[153,0,75,131,38.0,131]],"right":[[302,0,73,130,34.0,130],[377,0,70,125,33.0,125],[449,0,69,129,34.0,129]],"bomb":[[520,0,56,72,24.0,72]],"big":[[578,0,152,220,76.0,220]]},"lutin":{"down":[[0,0,81,126,42.0,126],[83,0,77,130,37.0,130],[0,0,81,126,42.0,126]],"up":[[162,0,82,127,43.0,127],[246,0,77,126,39.0,126],[162,0,82,127,43.0,127]],"right":[[325,0,78,129,35.0,129],[405,0,76,128,34.0,128],[483,0,74,128,35.0,128]],"bomb":[[559,0,55,72,25.0,72]],"big":[[616,0,166,220,81.0,220]]},"golem":{"down":[[0,0,79,128,39.0,128],[81,0,72,126,36.0,126],[0,0,79,128,39.0,128]],"up":[[155,0,79,130,39.0,130],[236,0,74,130,36.0,130],[155,0,79,130,39.0,130]],"right":[[312,0,74,128,35.0,128],[388,0,73,124,33.0,124],[463,0,75,129,35.0,129]],"bomb":[[540,0,66,72,36.0,72]],"big":[[608,0,167,220,83.0,220]]},"magma":{"down":[[0,0,69,129,34.0,129],[71,0,67,130,33.0,130],[0,0,69,129,34.0,129]],"up":[[140,0,70,130,35.0,130],[212,0,65,127,32.0,127],[140,0,70,130,35.0,130]],"right":[[279,0,71,130,34.0,130],[352,0,69,124,33.0,124],[423,0,70,129,35.0,129]],"bomb":[[495,0,60,72,25.0,72]],"big":[[557,0,153,220,76.0,220]]},"paladin":{"down":[[0,0,66,130,35.0,130],[68,0,67,133,35.0,133],[0,0,66,130,35.0,130]],"up":[[137,0,69,127,35.0,127],[208,0,66,129,33.0,129],[137,0,69,127,35.0,127]],"right":[[276,0,75,127,37.0,127],[353,0,75,128,38.0,128],[430,0,75,126,40.0,126]],"bomb":[[507,0,51,72,24.0,72]],"big":[[560,0,135,220,74.0,220]]},"mecha":{"down":[[0,0,73,129,38.0,129],[75,0,70,130,37.0,130],[0,0,73,129,38.0,129]],"up":[[147,0,67,128,32.0,128],[216,0,66,128,32.0,128],[147,0,67,128,32.0,128]],"right":[[284,0,80,128,39.0,128],[366,0,76,127,35.0,127],[444,0,74,130,36.0,130]],"bomb":[[520,0,48,72,24.0,72]],"big":[[570,0,136,220,68.0,220]]},"rockeuse":{"down":[[0,0,72,130,38.0,130],[74,0,72,132,39.0,132],[0,0,72,130,38.0,130]],"up":[[148,0,68,128,33.0,128],[218,0,67,127,32.0,127],[148,0,68,128,33.0,128]],"right":[[287,0,80,130,40.0,130],[369,0,75,129,34.0,129],[446,0,74,127,34.0,127]],"bomb":[[522,0,56,72,25.0,72]],"big":[[580,0,137,220,74.0,220]]},"robotte":{"down":[[0,0,72,131,38.0,131],[74,0,71,132,37.0,132],[0,0,72,131,38.0,131]],"up":[[147,0,62,128,30.0,128],[211,0,62,128,31.0,128],[147,0,62,128,30.0,128]],"right":[[275,0,77,127,41.0,127],[354,0,75,123,38.0,123],[431,0,75,127,39.0,127]],"bomb":[[508,0,60,72,36.0,72]],"big":[[570,0,137,220,72.0,220]]},"hacker":{"down":[[0,0,72,129,35.0,129],[74,0,72,130,35.0,130],[0,0,72,129,35.0,129]],"up":[[148,0,70,128,35.0,128],[220,0,70,127,35.0,127],[148,0,70,128,35.0,128]],"right":[[292,0,80,130,36.0,130],[374,0,79,125,35.0,125],[455,0,80,128,36.0,128]],"bomb":[[537,0,49,72,25.0,72]],"big":[[588,0,142,220,69.0,220]]},"arcaniste":{"down":[[0,0,75,131,38.0,131],[77,0,73,131,38.0,131],[0,0,75,131,38.0,131]],"up":[[152,0,75,130,38.0,130],[229,0,72,127,36.0,127],[152,0,75,130,38.0,130]],"right":[[303,0,79,127,37.0,127],[384,0,76,126,37.0,126],[462,0,77,125,37.0,125]],"bomb":[[541,0,57,72,25.0,72]],"big":[[600,0,146,220,71.0,220]]},"olympien":{"down":[[0,0,69,129,34.0,129],[71,0,69,129,34.0,129],[0,0,69,129,34.0,129]],"up":[[142,0,70,127,35.0,127],[214,0,66,126,33.0,126],[142,0,70,127,35.0,127]],"right":[[282,0,70,130,33.0,130],[354,0,67,125,30.0,125],[423,0,67,130,30.0,130]],"bomb":[[492,0,50,72,24.0,72]],"big":[[544,0,131,220,65.0,220]]},"koala":{"down":[[0,0,82,128,39.0,128],[84,0,76,126,35.0,126],[0,0,82,128,39.0,128]],"up":[[162,0,80,129,41.0,129],[244,0,76,127,38.0,127],[162,0,80,129,41.0,129]],"right":[[322,0,76,133,35.0,133],[400,0,76,127,36.0,127],[478,0,77,130,37.0,130]],"bomb":[[557,0,54,72,24.0,72]],"big":[[613,0,171,220,79.0,220]]},"legionnaire":{"down":[[0,0,63,129,32.0,129],[65,0,62,129,31.0,129],[0,0,63,129,32.0,129]],"up":[[129,0,61,127,31.0,127],[192,0,61,126,31.0,126],[129,0,61,127,31.0,127]],"right":[[255,0,66,129,33.0,129],[323,0,62,125,31.0,125],[387,0,64,128,33.0,128]],"bomb":[[453,0,49,72,24.0,72]],"big":[[504,0,116,220,57.0,220]]},"parrain":{"down":[[0,0,73,129,37.0,129],[75,0,72,130,35.0,130],[0,0,73,129,37.0,129]],"up":[[149,0,72,126,36.0,126],[223,0,72,126,36.0,126],[149,0,72,126,36.0,126]],"right":[[297,0,77,131,38.0,131],[376,0,75,129,36.0,129],[453,0,77,131,38.0,131]],"bomb":[[532,0,47,72,24.0,72]],"big":[[581,0,138,220,67.0,220]]},"sable":{"down":[[0,0,76,133,40.0,133],[78,0,75,129,40.0,129],[0,0,76,133,40.0,133]],"up":[[155,0,76,126,35.0,126],[233,0,77,126,36.0,126],[155,0,76,126,35.0,126]],"right":[[312,0,81,133,42.0,133],[395,0,76,126,38.0,126],[473,0,78,128,39.0,128]],"bomb":[[553,0,54,72,24.0,72]],"big":[[609,0,139,220,72.0,220]]},"elfe":{"down":[[0,0,79,131,38.0,131],[81,0,77,130,37.0,130],[0,0,79,131,38.0,131]],"up":[[160,0,73,125,36.0,125],[235,0,70,127,35.0,127],[160,0,73,125,36.0,125]],"right":[[307,0,83,129,39.0,129],[392,0,75,120,33.0,120],[469,0,78,129,35.0,129]],"bomb":[[549,0,57,72,25.0,72]],"big":[[608,0,148,220,73.0,220]]},"mandarin":{"down":[[0,0,69,130,35.0,130],[71,0,69,130,35.0,130],[0,0,69,130,35.0,130]],"up":[[142,0,67,128,32.0,128],[211,0,68,128,32.0,128],[142,0,67,128,32.0,128]],"right":[[281,0,65,131,30.0,131],[348,0,67,127,32.0,127],[417,0,67,130,33.0,130]],"bomb":[[486,0,56,72,25.0,72]],"big":[[544,0,128,220,63.0,220]]},"marie":{"down":[[0,0,69,129,34.0,129],[71,0,69,128,34.0,128],[0,0,69,129,34.0,129]],"up":[[142,0,66,128,33.0,128],[210,0,66,129,32.0,129],[142,0,66,128,33.0,128]],"right":[[278,0,70,129,34.0,129],[350,0,70,129,34.0,129],[422,0,69,127,33.0,127]],"bomb":[[493,0,68,72,36.0,72]],"big":[[563,0,121,220,60.0,220]]},"mariee":{"down":[[0,0,77,126,39.0,126],[79,0,75,132,37.0,132],[0,0,77,126,39.0,126]],"up":[[156,0,67,132,33.0,132],[225,0,65,130,33.0,130],[156,0,67,132,33.0,132]],"right":[[292,0,79,130,40.0,130],[373,0,76,124,38.0,124],[451,0,75,127,39.0,127]],"bomb":[[528,0,55,72,25.0,72]],"big":[[585,0,149,220,72.0,220]]},"bricolo":{"down":[[0,0,70,127,35.0,127],[72,0,69,129,36.0,129],[0,0,70,127,35.0,127]],"up":[[143,0,63,129,32.0,129],[208,0,67,128,32.0,128],[143,0,63,129,32.0,129]],"right":[[277,0,80,127,34.0,127],[359,0,85,127,36.0,127],[446,0,82,128,35.0,128]],"bomb":[[530,0,57,72,24.0,72]],"big":[[589,0,145,220,77.0,220]]},"momie":{"down":[[0,0,78,129,41.0,129],[80,0,76,132,39.0,132],[0,0,78,129,41.0,129]],"up":[[158,0,82,128,41.0,128],[242,0,74,128,34.0,128],[158,0,82,128,41.0,128]],"right":[[318,0,85,128,44.0,128],[405,0,78,124,38.0,124],[485,0,78,127,38.0,127]],"bomb":[[565,0,54,72,24.0,72]],"big":[[621,0,158,220,82.0,220]]},"fee":{"down":[[0,0,74,129,39.0,129],[76,0,70,129,35.0,129],[0,0,74,129,39.0,129]],"up":[[148,0,69,129,34.0,129],[219,0,67,129,33.0,129],[148,0,69,129,34.0,129]],"right":[[288,0,78,128,38.0,128],[368,0,69,127,33.0,127],[439,0,73,127,34.0,127]],"bomb":[[514,0,49,72,24.0,72]],"big":[[565,0,149,220,74.0,220]]},"orc":{"down":[[0,0,77,130,39.0,130],[79,0,71,131,35.0,131],[0,0,77,130,39.0,130]],"up":[[152,0,80,126,40.0,126],[234,0,70,125,35.0,125],[152,0,80,126,40.0,126]],"right":[[306,0,71,129,32.0,129],[379,0,74,122,34.0,122],[455,0,74,129,34.0,129]],"bomb":[[531,0,53,72,24.0,72]],"big":[[586,0,173,220,87.0,220]]},"ondine":{"down":[[0,0,74,130,37.0,130],[76,0,76,133,38.0,133],[0,0,74,130,37.0,130]],"up":[[154,0,74,130,37.0,130],[230,0,70,129,34.0,129],[154,0,74,130,37.0,130]],"right":[[302,0,82,127,40.0,127],[386,0,72,129,33.0,129],[460,0,72,127,35.0,127]],"bomb":[[534,0,59,72,25.0,72]],"big":[[595,0,153,220,76.0,220]]},"papy":{"down":[[0,0,69,128,34.0,128],[71,0,67,128,33.0,128],[0,0,69,128,34.0,128]],"up":[[140,0,70,131,35.0,131],[212,0,66,127,33.0,127],[140,0,70,131,35.0,131]],"right":[[280,0,78,128,36.0,128],[360,0,77,124,35.0,124],[439,0,75,128,34.0,128]],"bomb":[[516,0,50,72,25.0,72]],"big":[[568,0,144,220,73.0,220]]},"cocorico":{"down":[[0,0,81,129,39.0,129],[83,0,76,127,37.0,127],[0,0,81,129,39.0,129]],"up":[[161,0,82,129,43.0,129],[245,0,75,130,39.0,130],[161,0,82,129,43.0,129]],"right":[[322,0,84,126,39.0,126],[408,0,81,123,40.0,123],[491,0,82,125,40.0,125]],"bomb":[[575,0,56,72,25.0,72]],"big":[[633,0,172,220,85.0,220]]},"peintre":{"down":[[0,0,72,129,35.0,129],[74,0,73,129,36.0,129],[0,0,72,129,35.0,129]],"up":[[149,0,67,127,31.0,127],[218,0,68,127,32.0,127],[149,0,67,127,31.0,127]],"right":[[288,0,64,128,33.0,128],[354,0,63,128,30.0,128],[419,0,62,130,32.0,130]],"bomb":[[483,0,68,72,37.0,72]],"big":[[553,0,144,220,69.0,220]]},"phenix":{"down":[[0,0,73,131,37.0,131],[75,0,69,130,34.0,130],[0,0,73,131,37.0,131]],"up":[[146,0,71,127,35.0,127],[219,0,70,128,34.0,128],[146,0,71,127,35.0,127]],"right":[[291,0,78,129,36.0,129],[371,0,77,123,35.0,123],[450,0,75,128,35.0,128]],"bomb":[[527,0,53,72,24.0,72]],"big":[[582,0,144,220,72.0,220]]},"pompiere":{"down":[[0,0,67,126,33.0,126],[69,0,68,130,34.0,130],[0,0,67,126,33.0,126]],"up":[[139,0,64,129,32.0,129],[205,0,65,128,32.0,128],[139,0,64,129,32.0,129]],"right":[[272,0,74,130,35.0,130],[348,0,73,127,34.0,127],[423,0,74,125,34.0,125]],"bomb":[[499,0,58,72,24.0,72]],"big":[[559,0,126,220,62.0,220]]},"sylve":{"down":[[0,0,80,130,41.0,130],[82,0,80,131,40.0,131],[0,0,80,130,41.0,130]],"up":[[164,0,76,129,38.0,129],[242,0,79,130,38.0,130],[164,0,76,129,38.0,129]],"right":[[323,0,81,127,37.0,127],[406,0,82,120,38.0,120],[490,0,83,126,38.0,126]],"bomb":[[575,0,53,72,25.0,72]],"big":[[630,0,165,220,87.0,220]]},"prospecteur":{"down":[[0,0,71,129,36.0,129],[73,0,74,130,38.0,130],[0,0,71,129,36.0,129]],"up":[[149,0,68,128,34.0,128],[219,0,68,127,34.0,127],[149,0,68,128,34.0,128]],"right":[[289,0,86,129,45.0,129],[377,0,80,128,38.0,128],[459,0,82,127,40.0,127]],"bomb":[[543,0,68,72,37.0,72]],"big":[[613,0,154,220,78.0,220]]}};
 const charImg = {};
@@ -1580,6 +1604,8 @@ if (!Number.isInteger(settings.skin) || settings.skin < 0 || settings.skin >= CH
 // Persos à débloquer : une fois l'Elo requis atteint, le perso reste débloqué dans ce navigateur (settings.unl)
 if (!settings.unl || typeof settings.unl !== 'object') settings.unl = {};
 const charLockedReal = i => { const ch = CHARS[i]; return !!(ch && !settings.unl[ch.key] && ((ch.elo && !(ELO.me && ELO.me.elo >= ch.elo)) || ch.camp || ch.soon || ch.code || ch.shop)); };
+if (!settings.cvar || typeof settings.cvar !== 'object') settings.cvar = {};
+const varOf = i => { const ch = CHARS[i], L = ch && CHAR_VARS[ch.key]; if (!L) return 0; const v = settings.cvar[ch.key] | 0; return v > 0 && v < L.length ? v : 0; };
 const lockText = ch => ch.shop ? `🪙 ${shopPrice(ch)}` : ch.code ? 'Code secret' : ch.soon ? 'Bientôt' : ch.camp ? `Défi ${ch.camp}` : `${ch.elo} Elo`;
 const charLocked = i => !settings.admin && charLockedReal(i);
 if ((CHARS[settings.skin].elo || CHARS[settings.skin].camp || CHARS[settings.skin].soon || CHARS[settings.skin].code || CHARS[settings.skin].shop) && !settings.admin && !settings.unl[CHARS[settings.skin].key]) settings.skin = 0;
@@ -1705,11 +1731,11 @@ const needTxt = n => `${n[1]} ${COS_STAT[n[0]][n[1] > 1 ? 1 : 0]}`;
 const needLbl = it => it.desc || needTxt(it.need);
 const cosMap = () => settings.admin ? (settings.adminCos || (settings.adminCos = COS_DEF())) : settings.cos;
 const cosIdx = (L, v) => { v = Number(v) | 0; return v >= 0 && v < L.length ? v : 0; };
-const cosClean = a => Array.isArray(a) ? [cosIdx(BOMB_SKINS, a[0]), cosIdx(FLAME_SKINS, a[1]), cosIdx(CARD_STYLES, a[2]), cosIdx(CARD_PHRASES, a[3]), clamp(Number(a[4]) | 0, 0, ACH.length), clamp(Number(a[5]) | 0, 0, PRES_MAX), cosIdx(MEGA_FX, a[6])] : [0, 0, 0, 0, 0, 0, 0];
+const cosClean = a => Array.isArray(a) ? [cosIdx(BOMB_SKINS, a[0]), cosIdx(FLAME_SKINS, a[1]), cosIdx(CARD_STYLES, a[2]), cosIdx(CARD_PHRASES, a[3]), clamp(Number(a[4]) | 0, 0, ACH.length), clamp(Number(a[5]) | 0, 0, PRES_MAX), cosIdx(MEGA_FX, a[6]), clamp(Number(a[7]) | 0, 0, 15)] : [0, 0, 0, 0, 0, 0, 0, 0];
 // [bombe, flammes, style de carte, phrase, titre (succès + 1, 0 = aucun), étoiles de prestige du perso, finale de giga bombe] du joueur local
 function myCos() {
   const m = cosMap(), out = [['b', BOMB_SKINS], ['f', FLAME_SKINS], ['c', CARD_STYLES], ['p', CARD_PHRASES]].map(([k, L]) => { const v = cosIdx(L, m[k]); return cosOk(L, v) ? v : 0; });
-  const ti = Number(m.t) | 0, mf = cosIdx(MEGA_FX, m.m); out.push(ti > 0 && cosOk(ACH, ti - 1) ? ti : 0, presOf(settings.skin), cosOk(MEGA_FX, mf) ? mf : 0);
+  const ti = Number(m.t) | 0, mf = cosIdx(MEGA_FX, m.m); out.push(ti > 0 && cosOk(ACH, ti - 1) ? ti : 0, presOf(settings.skin), cosOk(MEGA_FX, mf) ? mf : 0, varOf(settings.skin));
   return out;
 }
 const titleOf = cs => cs && cs[4] > 0 && ACH[cs[4] - 1] ? ACH[cs[4] - 1].name : '';
@@ -5008,7 +5034,7 @@ const cardPortraits = {};
 function cardPortrait(p) {
   const key = p.skin + ':' + p.id; let cv = cardPortraits[key];
   if (!cv) {
-    cv = document.createElement('canvas'); cv.width = cv.height = 104; drawPortrait(cv, p.pal, p.skin);
+    cv = document.createElement('canvas'); cv.width = cv.height = 104; drawPortrait(cv, p.pal, p.skin, (p.cs && p.cs[7]) | 0);
     const ch = CHARS[p.skin], im = ch && charImg[ch.key];
     const SS = sheetOfSkin(p.skin);
     if (SS ? sheetReady(SS.happy) : (!p.skin || (im && im.complete && im.naturalWidth))) cardPortraits[key] = cv;
@@ -6147,7 +6173,7 @@ function drawAura(c, x, y, tier, t, front, seed) {
 }
 function drawChar(c, x, y, skin, pal, face, phase, moving, t, o) {
   { const SS = sheetOfSkin(skin); if (SS) { drawSheetChar(c, x, y, SS, pal, face, phase, moving, t, o || {}); return; } }
-  const ch = CHARS[skin], im = ch && charImg[ch.key];
+  const ch = CHARS[skin], im = ch && ((o && o.cv > 0 && CHAR_VARS[ch.key] && varImg(ch.key, o.cv)) || charImg[ch.key]);
   if (!skin || !im) { drawHero(c, x, y, pal, face, phase, moving, t, o); return; }
   o = o || {};
   const R = CHAR_RECTS[ch.key], fr = R[face === 'left' ? 'right' : face] || R.down;
@@ -6469,6 +6495,7 @@ function render() {
       if (au) drawAura(c, hx, hy - (o.hop || 0), au, t, false, p.id);
       const zs = p.size && p.size !== 1; if (zs) { c.save(); c.translate(hx, hy + T * 0.42); c.scale(p.size, p.size); c.translate(-hx, -(hy + T * 0.42)); }
       if (p.clone) { c.save(); c.globalAlpha = 0.5 + 0.08 * Math.sin(t * 9); }
+      o.cv = (p.cs && p.cs[7]) | 0;
       if (p.alive && p.shield > 0 && Math.sin(t * 22) > 0) { c.save(); c.globalAlpha = 0.45; drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o); c.restore(); }
       else drawChar(c, hx, hy, p.skin, p.pal, face, p.phase, p.moving, t, o);
       if (p.clone) c.restore();
@@ -6572,7 +6599,7 @@ const timeEl = $('#time'), roundEl = $('#round-label'), muteBtn = $('#btn-mute')
 let hudCache = {};
 const STAT_TITLES = ['Bombes', 'Portée', 'Vitesse', 'Coup de pied', 'Gant de lanceur'];
 
-function drawPortrait(cv, pal, skin) {
+function drawPortrait(cv, pal, skin, v = 0) {
   const c = cv.getContext('2d'); const s = cv.width / 52;
   c.setTransform(s, 0, 0, s, 0, 0); c.clearRect(0, 0, 52, 52);
   c.save(); c.beginPath(); c.arc(26, 26, 26, 0, TAU); c.clip();
@@ -6583,7 +6610,7 @@ function drawPortrait(cv, pal, skin) {
   { const SS = sheetOfSkin(skin); if (SS) { const im = SS.happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; } }
   if (skin === DEMON_SKIN) { if (sheetReady(DK_IMG)) c.drawImage(DK_IMG, 22, 2, 184, 184, -3, 2, 58, 58); c.restore(); return; }
   if (skin === BOSS_SKIN) { if (bossReady()) c.drawImage(BOSS_IMG, 14, 0, 196, 196, -2, 2, 56, 56); else drawGolem(c, 26, 36, 17, { t: 0.3, portrait: true }); c.restore(); return; }
-  const ch = CHARS[skin], im = skin && ch && charImg[ch.key];
+  const ch = CHARS[skin], im = skin && ch && ((v > 0 && CHAR_VARS[ch.key] && varImg(ch.key, v)) || charImg[ch.key]);
   if (im) {
     // grand portrait de face, cadré sur la tête
     // même hauteur pour tous (la largeur varie : hache, bouclier, bâton…), centré sur l'axe du corps
@@ -6632,7 +6659,7 @@ function setupHud() {
     card.hidden = !p; if (!p) continue;
     card.querySelector('.nm').textContent = nameOf(p.id); card.querySelector('.nm').title = nameOf(p.id);
     card.querySelector('.ptag').textContent = p.npc ? 'Boss' : G.camp && (G.camp.boss || (G.camp.team && p.team === 0)) && (p.ai || p.isBot) ? 'Allié' : G.camp && NET.role && !p.ai && !p.isBot && i !== localIdx() ? 'Ami' : G.mode === 'br' ? (NET.spec ? 'Suivi' : 'Toi') : NET.role ? (i === localIdx() ? 'Toi' : (p.ai || p.isBot) ? 'Ordi' : 'Pote') : G.mode === 'demo' ? 'Démo' : p.ai ? 'Ordi' : (i === 0 ? 'J1' : 'J2');
-    drawPortrait(card.querySelector('.portrait'), p.pal, p.skin);
+    drawPortrait(card.querySelector('.portrait'), p.pal, p.skin, (p.cs && p.cs[7]) | 0);
     const pips = card.querySelector('.pips'); pips.innerHTML = '';
     if (G.pointsMode || G.mode === 'br') { const s = document.createElement('span'); s.className = 'pts'; s.textContent = '0 pt'; pips.appendChild(s); continue; }
     for (let j = 0; j < G.winsNeeded; j++) { const s = document.createElement('span'); s.className = 'pip'; pips.appendChild(s); }
@@ -6768,7 +6795,7 @@ function buildCharPicker() {
     b.append(cv, lb); box.appendChild(b); charBtns.push({ b, cv, i, root });
     if (root === collEl) { b.addEventListener('mouseenter', () => collShow(i)); b.addEventListener('focus', () => collShow(i)); }
     b.addEventListener('click', () => {
-      if (root === collEl) { if (charLocked(i)) { collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
+      if (root === collEl) { if (charLocked(i)) { collShow(i); return; } if (CHAR_VARS[CHARS[i].key] && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
         if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
@@ -6777,6 +6804,9 @@ function buildCharPicker() {
       if (hint) hint.textContent = '';
       settings.skin = i; saveSettings(); syncCharPicker();
       if (NET.role === 'host' && !NET.started) refreshHostLobby();
+      // perso à plusieurs couleurs : la rangée « Couleur » s'allume juste en dessous (sur l'accueil)
+      const vp = root === menuEl && CHAR_VARS[ch.key] && $('#varpick');
+      if (vp) { vp.classList.remove('flash'); void vp.offsetWidth; vp.classList.add('flash'); }
     });
   });
   if (root !== collEl) {   // dernière case de la vitrine : ouvre la collection
@@ -6820,6 +6850,7 @@ function collShow(i) {
   collHover = i; const ch = CHARS[i], lk = charLocked(i);
   $('#coll-name').textContent = lk ? '???' : ch.name;
   const info = $('#coll-info'), xp = $('#coll-xp');
+  const cvb = $('#coll-var'), hasV = !lk && !!CHAR_VARS[ch.key]; cvb.hidden = !hasV; if (hasV) varButtons(cvb, i, false); else cvb.innerHTML = '';
   if (lk) {
     info.innerHTML = ch.shop ? `À débloquer : <b>boutique</b>, ${shopPrice(ch)} pièces` + (shopWeek().includes(i) ? '<br><b>En vente cette semaine</b>' : '') : ch.code ? 'À débloquer : <b>code secret</b>' : ch.soon ? 'À débloquer : <b>bientôt</b>' : ch.camp ? `À débloquer : <b>défi ${ch.camp}</b> de la campagne` : `À débloquer : <b>${ch.elo} Elo</b> au classement`;
     xp.innerHTML = '';
@@ -6891,8 +6922,28 @@ $('#coll-shop').addEventListener('click', () => openShop($('#coll-shop')));
 $('#shop-close').addEventListener('click', closeShop);
 document.querySelectorAll('#collection .coll-tabs button').forEach(b => b.addEventListener('click', () => collSetFilter(b.dataset.f)));
 $('#coll-close').addEventListener('click', closeColl);
+function varButtons(box, i, label) {
+  const ch = CHARS[i], L = CHAR_VARS[ch.key], cur = varOf(i);
+  box.innerHTML = label ? '<span class="vp-l">Couleur</span>' : '';
+  L.forEach(([name, col], n) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(n === cur));
+    b.title = name; b.setAttribute('aria-label', `${ch.name} ${name.toLowerCase()}`); b.style.setProperty('--sw', col);
+    b.innerHTML = `<i aria-hidden="true"></i><span>${name}</span>`;
+    b.addEventListener('click', () => setVar(i, n)); box.appendChild(b);
+  });
+}
+function setVar(i, n) {
+  settings.cvar[CHARS[i].key] = n; saveSettings(); syncVarPick();
+  if (!collEl.hidden && collHover === i) varButtons($('#coll-var'), i, false);
+  if (NET.role === 'host' && !NET.started) refreshHostLobby();
+  try { document.querySelector(`#varpick [aria-checked="true"], #coll-var [aria-checked="true"]`).focus({ preventScroll: true }); } catch (e) {}
+}
+function syncVarPick() {
+  const box = $('#varpick'), i = settings.skin, ok = !!CHAR_VARS[CHARS[i].key] && !charLocked(i);
+  box.hidden = !ok; if (ok) varButtons(box, i, true); else box.innerHTML = '';
+}
 function syncCharPicker() {
-  syncXpUi();
+  syncXpUi(); syncVarPick();
   sortCharBtns();
   charBtns.forEach(({ b, i }) => {
     const lk = charLocked(i);
@@ -6947,7 +6998,7 @@ function drawCharPicker(t) {
     const cv = $('#coll-cv'), c = cv.getContext('2d'), i = collHover, k = cv.width / 100;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(k, 0, 0, k, 0, 0);
     if (charLocked(i)) { drawSilhouette(c, cv, s => { s.setTransform(k, 0, 0, k, 0, 0); drawChar(s, 50, 66, i, PALS[0], 'down', 0, false, t, { noShadow: true, scale: 1.3 }); }); c.setTransform(k * 1.6, 0, 0, k * 1.6, 0, 0); drawLock(c, 31, 34); }
-    else { const au = auraOf(i); if (au) drawAura(c, 50, 66, au, t, false, i); drawChar(c, 50, 66, i, PALS[0], ['down', 'right', 'up', 'left'][Math.floor(t / 2.2) & 3], t * 9, true, t, { scale: 1.3 }); if (au) drawAura(c, 50, 66, au, t, true, i); }
+    else { const au = auraOf(i); if (au) drawAura(c, 50, 66, au, t, false, i); drawChar(c, 50, 66, i, PALS[0], ['down', 'right', 'up', 'left'][Math.floor(t / 2.2) & 3], t * 9, true, t, { scale: 1.3, cv: varOf(i) }); if (au) drawAura(c, 50, 66, au, t, true, i); }
   }
   if (!menuEl.hidden) for (const { cv, a } of auraBtns) {
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
@@ -6960,7 +7011,7 @@ function drawCharPicker(t) {
       continue;
     }
     if (a) drawAura(c, 26, 33, a, t, false, a);
-    drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false });
+    drawChar(c, 26, 33, settings.skin, PALS[0], 'down', 0, false, t, { noShadow: false, cv: varOf(settings.skin) });
     if (a) drawAura(c, 26, 33, a, t, true, a);
   }
   const emb = !menuEl.hidden && ELO.rk && document.querySelector('#elo-badge .rk-emb');
@@ -6973,7 +7024,7 @@ function drawCharPicker(t) {
     const lk = charLocked(i), L = levelOf(i), au = lk ? 0 : auraOf(i);
     if (lk) { drawSilhouette(c, cv, s => drawChar(s, 26, 32, i, PALS[0], 'down', 0, false, t, { noShadow: true })); drawLock(c, 26, 26); return; }
     if (au) drawAura(c, 26, 32, au, t, false, i);
-    drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false });
+    drawChar(c, 26, 32, i, PALS[0], 'down', t * 9, sel, t, { noShadow: false, cv: varOf(i) });
     if (au) drawAura(c, 26, 32, au, t, true, i);
     if (L > 1) {   // le niveau reste affiché, même avec une aura (niveau 10 et plus)
       c.font = '800 9px system-ui, sans-serif'; c.textBaseline = 'top'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(20,12,4,.85)'; c.fillStyle = L >= LV_MAX ? '#ffe08a' : '#f3e5c0';
