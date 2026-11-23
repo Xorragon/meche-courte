@@ -5213,12 +5213,16 @@ function syncAuraPick() {
   }
 }
 // Gain d'XP pour le perso joué ; G.xpSess cumule la partie en cours pour l'écran de fin
-// Rattrapage : un perso en dessous du niveau de ton perso le plus monté gagne l'XP de partie en double
-// (pas les parchemins). Affiché « XP ×2 » en bas à droite de sa case dans le choix des persos.
-const xpTopLevel = () => CHARS.reduce((m, _, i) => Math.max(m, levelOfXp(realXpOf(i))), 1);
-const xpBoosted = i => !!CHARS[i] && levelOfXp(realXpOf(i)) < xpTopLevel();
+// Rattrapage : XP de partie ×2 si un autre perso a un plus haut niveau, ×3 si au moins deux (pas les parchemins).
+// Pas de bonus sur un gain qui ferait atteindre le niveau du perso juste au-dessus. Affiché au survol d'un perso.
+function xpBoostOf(i) {
+  if (!CHARS[i]) return { m: 1, cap: 0 };
+  const L = levelOfXp(realXpOf(i)), above = CHARS.map((_, j) => levelOfXp(realXpOf(j))).filter((l, j) => j !== i && l > L);
+  return { m: Math.min(3, 1 + above.length), cap: above.length ? Math.min(...above) : 0 };
+}
 function gameXp(skin, amount, note = '') {
-  if (xpBoosted(skin)) { amount *= 2; note += ' · XP ×2'; }
+  const { m, cap } = xpBoostOf(skin);
+  if (m > 1 && levelOfXp(realXpOf(skin) + amount * m) < cap) { amount *= m; note += ` · XP ×${m}`; }
   addXp(skin, amount, note);
 }
 function addXp(skin, amount, note = '') {
@@ -6668,7 +6672,7 @@ function drawCharPicker(t) {
   }
   const emb = !menuEl.hidden && ELO.rk && document.querySelector('#elo-badge .rk-emb');
   if (emb) { const c = emb.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 76, 76); c.translate(38, 40); drawRankEmblem(c, 26, ELO.rk, t); }
-  charBtns.forEach(({ cv, i, root }) => {
+  charBtns.forEach(({ b, cv, i, root }) => {
     if (root.hidden) return;
     const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
     const sel = i === settings.skin, k = cv.width / 52;
@@ -6682,10 +6686,11 @@ function drawCharPicker(t) {
       c.font = '800 9px system-ui, sans-serif'; c.textBaseline = 'top'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(20,12,4,.85)'; c.fillStyle = L >= LV_MAX ? '#ffe08a' : '#f3e5c0';
       c.strokeText(String(L), 3, 2); c.fillText(String(L), 3, 2);
     }
-    if (xpBoosted(i)) {   // rattrapage d'XP, en tout petit en bas à droite
+    const bm = b.matches(':hover') ? xpBoostOf(i).m : 1;
+    if (bm > 1) {   // rattrapage d'XP : seulement au survol, en petit et discret, en bas à droite
       const h = cv.height / k;
-      c.font = '800 8px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
-      c.strokeText('×2', 50, h - 1); c.fillText('×2', 50, h - 1); c.textAlign = 'start';
+      c.globalAlpha = 0.55; c.font = '800 8px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
+      c.strokeText('×' + bm, 50, h - 1); c.fillText('×' + bm, 50, h - 1); c.textAlign = 'start'; c.globalAlpha = 1;
     }
   });
 }
@@ -10686,7 +10691,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
 boot({});
 })();
 </script>
