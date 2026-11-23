@@ -6844,9 +6844,9 @@ function buildCharPicker() {
     const cv = document.createElement('canvas'); cv.width = 144; cv.height = 152;
     const lb = document.createElement('span'); lb.textContent = ch.name;
     b.append(cv, lb); box.appendChild(b); charBtns.push({ b, cv, i, root });
-    if (root === collEl) { b.addEventListener('mouseenter', () => collShow(i)); b.addEventListener('focus', () => collShow(i)); }
+    if (root === collEl) { b.addEventListener('mouseenter', () => collShow(i)); b.addEventListener('focus', () => { collPin = i; collShow(i); }); }
     b.addEventListener('click', () => {
-      if (root === collEl) { if (charLocked(i)) { collShow(i); return; } if (CHAR_VARS[CHARS[i].key] && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
+      if (root === collEl) { collPin = i; if (charLocked(i)) { collShow(i); return; } if (CHAR_VARS[CHARS[i].key] && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
         if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
@@ -6883,9 +6883,9 @@ function sortCharBtns() {
   document.querySelectorAll('.coll-n').forEach(e => { e.textContent = `${nUnl} / ${CHARS.length}`; });
 }
 // ---------- Collection : tous les persos, filtres, aperçu du perso survolé ----------
-let collFilter = 'all', collFrom = null, collHover = -1;
+let collFilter = 'all', collFrom = null, collHover = -1, collPin = 0;
 function openColl(from) {
-  collFrom = from; collEl.hidden = false; collHover = settings.skin; collSetFilter(collFilter);
+  collFrom = from; collEl.hidden = false; collHover = collPin = settings.skin; collSetFilter(collFilter);
   collShow(settings.skin);
   try { $('#collch-' + CHARS[settings.skin].key).focus({ preventScroll: true }); } catch (e) {}
 }
@@ -6893,6 +6893,7 @@ function closeColl() {
   collEl.hidden = true; syncCharPicker();
   const r = collFrom || menuEl; try { r.querySelector('.coll-btn').focus({ preventScroll: true }); } catch (e) {}
 }
+$('#coll-grid').addEventListener('mouseleave', () => { if (!collEl.hidden && collHover !== collPin) collShow(collPin); });
 function collSetFilter(f) {
   collFilter = f; sortCharBtns();
   collEl.querySelectorAll('.coll-tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.f === f)));
