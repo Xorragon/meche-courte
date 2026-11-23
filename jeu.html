@@ -6676,8 +6676,8 @@ function drawCharPicker(t) {
     }
     if (xpBoosted(i)) {   // rattrapage d'XP, en tout petit en bas à droite
       const h = cv.height / k;
-      c.font = '800 7px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
-      c.strokeText('XP ×2', 50, h - 1); c.fillText('XP ×2', 50, h - 1); c.textAlign = 'start';
+      c.font = '800 8px system-ui, sans-serif'; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(20,12,4,.9)'; c.fillStyle = '#ffd66e';
+      c.strokeText('×2', 50, h - 1); c.fillText('×2', 50, h - 1); c.textAlign = 'start';
     }
   });
 }
@@ -8165,13 +8165,35 @@ playBtn.addEventListener('click', onPlay);
 $('#again').addEventListener('click', onAgain);
 $('#btn-solo').addEventListener('click', openSolo);
 $('#btn-br').addEventListener('click', () => openBr());
+// Pseudo : changeable une fois tous les 3 jours (le premier changement est libre ; le serveur vérifie aussi)
+const NICK_WAIT = 3 * 864e5;
+const nickLockMs = () => Math.max(0, (Number(settings.nameAt) || 0) + NICK_WAIT - Date.now());
+function nickWaitTxt(ms) {
+  const h = Math.ceil(ms / 36e5), d = Math.floor(h / 24), r = h % 24;
+  return d ? `${d} j${r ? ' ' + r + ' h' : ''}` : `${h} h`;
+}
+function syncNickLock() {
+  const inp = document.getElementById('nick-in'), note = document.getElementById('nick-note'); if (!inp) return;
+  const ms = nickLockMs(); inp.readOnly = ms > 0;
+  inp.title = ms > 0 ? `Pseudo modifiable à nouveau dans ${nickWaitTxt(ms)}` : 'Tu peux changer de pseudo une fois tous les 3 jours';
+  if (ms <= 0 && note.dataset.lock) { note.textContent = ''; delete note.dataset.lock; }
+}
 function bindNick(inp, key, def) {
+  const isName = key === 'name';
+  let before = settings[key];
+  inp.addEventListener('focus', () => {
+    before = settings[key];
+    if (isName && nickLockMs() > 0) { const note = $('#nick-note'); note.textContent = `Pseudo fixé : tu pourras le changer dans ${nickWaitTxt(nickLockMs())} (une fois tous les 3 jours).`; note.classList.remove('bad'); note.dataset.lock = '1'; }
+  });
   const commit = () => {
-    settings[key] = cleanNick(inp.value, def()); inp.value = settings[key]; saveSettings(); renderNetPlayersIfHost();
-    if (key === 'name' && settings.account && settings.name !== settings.srvName) pushName();
+    if (isName && nickLockMs() > 0) { inp.value = settings.name; return; }
+    settings[key] = cleanNick(inp.value, def()); inp.value = settings[key];
+    if (isName && settings.name !== before) { settings.nameAt = Date.now(); syncNickLock(); }
+    before = settings[key]; saveSettings(); renderNetPlayersIfHost();
+    if (isName && settings.account && settings.name !== settings.srvName) pushName();
   };
   inp.addEventListener('change', commit); inp.addEventListener('blur', commit);
-  inp.addEventListener('input', () => { const v = cleanNick(inp.value, ''); if (v) { settings[key] = v; saveSettings(); } });
+  inp.addEventListener('input', () => { if (isName && nickLockMs() > 0) return; const v = cleanNick(inp.value, ''); if (v) { settings[key] = v; saveSettings(); } });
 }
 /* ---------- Classement Elo (base Supabase, fonctions SQL mc_*) ---------- */
 // Adresse et clé publique du projet Supabase : la clé publique est faite pour être dans le navigateur,
@@ -8185,7 +8207,7 @@ async function rpc(fn, args) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { const e = new Error('http ' + r.status); e.status = r.status; throw e; }
     ELO.down = false;
-    if (j && j.error) { const e = new Error(j.error); e.code = j.error; e.status = j.error === 'unknown' ? 404 : 400; throw e; }
+    if (j && j.error) { const e = new Error(j.error); e.code = j.error; e.data = j; e.status = j.error === 'unknown' ? 404 : 400; throw e; }
     return j;
   } catch (e) { if (!e.status) ELO.down = true; throw e; } finally { clearTimeout(t); }
 }
@@ -8359,10 +8381,16 @@ async function pushName() {
   const note = $('#nick-note');
   try {
     const r = await api('POST', 'rename', { id: settings.account.id, secret: settings.account.secret, name: want });
-    settings.srvName = r.name; saveSettings(); note.textContent = ''; note.classList.remove('bad');
+    settings.srvName = r.name; if (r.at) settings.nameAt = Math.max(Number(settings.nameAt) || 0, Date.parse(r.at) || 0); saveSettings(); note.textContent = ''; note.classList.remove('bad'); syncNickLock();
     if (ELO.me) ELO.me.name = r.name;
   } catch (e) {
-    if (e.code === 'taken' && settings.srvName) {
+    if (e.code === 'wait' && e.data) {
+      // le serveur garde l'ancien pseudo jusqu'à la fin des 3 jours
+      const until = Date.parse(e.data.until) || 0, nm = e.data.name || settings.srvName;
+      settings.nameAt = until - NICK_WAIT; if (nm) { settings.name = nm; settings.srvName = nm; }
+      saveSettings(); syncMenu(); renderNetPlayersIfHost(); syncNickLock();
+      note.textContent = `Pseudo fixé : tu pourras le changer dans ${nickWaitTxt(until - Date.now())} (une fois tous les 3 jours).`; note.classList.remove('bad');
+    } else if (e.code === 'taken' && settings.srvName) {
       note.textContent = `« ${want} » est déjà pris au classement : tu restes « ${settings.srvName} ».`; note.classList.add('bad');
       if (settings.name === want) { settings.name = settings.srvName; saveSettings(); syncMenu(); renderNetPlayersIfHost(); }
     }
@@ -8812,6 +8840,7 @@ function reportMatch() {
 }
 function renderNetPlayersIfHost() { if (NET.role === 'host' && !NET.started) refreshHostLobby(); }
 bindNick($('#nick-in'), 'name', () => settings.name);
+syncNickLock(); setInterval(syncNickLock, 60000);
 bindNick($('#name2-in'), 'name2', () => 'Joueur 2');
 $('#nick-form').addEventListener('submit', e => { e.preventDefault(); $('#nick-in').blur(); });
 $('#solo-back').addEventListener('click', closeSolo);
