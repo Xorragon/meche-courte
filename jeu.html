@@ -432,8 +432,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .prof-id h2{margin:0;overflow-wrap:anywhere}
 .prof-title{margin:0;color:var(--gold);font:800 16px/1.2 var(--font-body)}
 .prof-acc{margin:4px 0 0;font:700 14px/1.2 var(--font-body);color:var(--parchment)}.prof-acc b{color:var(--gold)}
-.acc-lv{margin-left:10px;padding:3px 9px;border-radius:999px;background:rgba(232,178,58,.16);border:1px solid rgba(232,178,58,.45);color:var(--gold);letter-spacing:.06em;font-size:11px;vertical-align:1px}
-.acc-lv:empty{display:none}
+.home-h .acc-lv{font-weight:900;font-size:14px;color:#ffd66e;letter-spacing:.1em}
 .prof-title:empty{display:none}
 .prof-rank{margin:0;display:flex;align-items:center;gap:8px;font:800 15px/1.25 var(--font-body);color:var(--parchment)}
 .prof-rank canvas{width:32px;height:32px;flex:none}
@@ -757,7 +756,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     </div>
     </section>
     <section class="home-me" aria-labelledby="home-me-h">
-    <p class="home-h" id="home-me-h" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos">Artificier niveau <span id="acc-lv">1</span></p>
+    <p class="home-h" id="home-me-h" title="Niveau de compte : tous les niveaux gagnés sur tous tes persos">Artificier <b class="acc-lv">niveau <span id="acc-lv">1</span></b></p>
     <form class="nick" id="nick-form" autocomplete="off">
       <label for="nick-in">Ton pseudo</label>
       <input id="nick-in" class="txt" maxlength="16" spellcheck="false" autocapitalize="off">
