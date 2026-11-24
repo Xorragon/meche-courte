@@ -1568,7 +1568,7 @@ const CAMP = [
     foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
   { name: 'Le maître artificier', desc: 'Le grand stand de tir, version maître : jusqu\'à 4 bombes à la fois, et des cibles qu\'il faut faire tomber toutes ensemble, d\'une seule réaction en chaîne. Arrête tes bombes pile au bon endroit et enchaîne-les en une seule explosion géante.',
     foe: TARGET8_SKIN, stand: 'Le grand stand', intro: 'Jusqu\'à 4 bombes à la fois : fais tout sauter d\'un coup', winSub: 'Maître artificier !',
-    wins: 1, time: 300, ammo: 30, fuse: 7.5, noCrates: true, fence: 9, maxB: 4, speed: 1,   // mèche de 7,5 s : le temps d'arrêter 4 bombes une par une
+    wins: 1, time: 300, ammo: 30, fuse: 7.5, retryWave: true, noCrates: true, fence: 9, maxB: 4, speed: 1,   // mèche de 7,5 s : le temps d'arrêter 4 bombes une par une
     // toutes les vagues sont des combos : toutes les cibles doivent tomber ensemble (0,6 s) ; msg : consigne de la vague
     // (le moteur gère aussi blue : cibles à ne pas toucher, kegFuse : délai des barils, failMsg, et les éclairs par paires { t, s })
     targets: [
@@ -1584,9 +1584,10 @@ const CAMP = [
       { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
         spots: [[13, 3], [11, 3], [13, 7], [11, 7]], msg: 'Le grand bouquet : 8 cibles d\'un coup !' },
       // un ordi niveau 10 (Gavroche) dans le quart haut gauche (x 1-7, y 1-5), sans corde : il court dans tous les sens dans son coin
-      // (x 1-3, y 1-5 : la bande de gauche du quart) pour ne pas être soufflé ; il ne pose pas de bombe et ne les repousse pas. Piège : (1,1), (1,3), (3,5), (3,3) en chaîne
+      // (x 1-3, y 1-5 : la bande de gauche du quart) pour ne pas être soufflé ; il ne pose pas de bombe et ne les repousse pas. Le joueur n'entre pas dans sa zone :
+      // il y pousse ses bombes vers la gauche. Piège : (1,1), (1,3), (1,5) (bombes qui filent au mur) puis (3,3) (arrêtée), en chaîne
       { list: [], movers: [[1, 3]], moverSkin: 4, zone: [1, 1, 7, 5], nest: [1, 1, 3, 5], start: [5, 5], mvSpeed: 4,
-        spots: [[1, 1], [1, 3], [3, 5], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : coince-le avec tes bombes !' },
+        spots: [[1, 1], [1, 3], [1, 5], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : pousse-lui tes bombes pour le coincer !' },
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
@@ -2276,6 +2277,7 @@ function solidAt(x, y) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   if (G.tg && x >= G.tg.fence) return true;   // défi 4 : la corde du stand de tir (les bombes poussées passent dessous)
   if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // défi 8 : le joueur reste dans son quart de carte
+  if (G.tg && G.tg.nest && inRect(G.tg.nest, x, y)) return true;   // … sans entrer dans la zone de l'ordi (ses bombes poussées, elles, y entrent)
   return G.grid[y * COLS + x] !== EMPTY;
 }
 function blockedFor(p, x, y) {
@@ -2689,7 +2691,7 @@ function kill(p, by) {
   // 2 contre 2 : une petite tombe reste quelques secondes ; un coéquipier qui marche dessus le relève (il garde ses bonus)
   if (campFlag('split') && p.gen !== undefined && p.gen < 2 && G.phase === 'play') gloopSplit(p);
   if (campFlag('tomb') && G.phase === 'play') G.tombs.push({ p, x: Math.round(p.x), y: Math.round(p.y), t: G.camp.tomb, max: G.camp.tomb, kick: p.kick });   // bonus éjectés quand même ; seule la poussée est rendue à la résurrection
-  scatterLoot(p);
+  if (!(G.tg && campFlag('retryWave'))) scatterLoot(p);   // défi 8 : on recommence la vague avec ses pouvoirs, sans bonus éparpillés
 }
 // Défi 6 : un Gloop soufflé se divise en deux Gloop plus petits et plus rapides, sur des cases libres tout près
 function gloopSetGen(o, gen) { o.gen = gen; o.size = GLOOP_SIZE[gen]; o.spMul = GLOOP_SPEED[gen]; }
@@ -4332,7 +4334,8 @@ function update(dt) {
     // défi 4 : gagné quand la dernière cible tombe ; perdu si tu es soufflé, si le temps est écoulé, ou s'il n'y a plus de bombes
     const T4 = G.tg, me = G.players[0], left = T4.total - T4.hits;
     const dry = T4.ammo <= 0 && !G.bombs.some(b => b.owner === me || b.keg) && !G.thrown.length && !T4.kegs.some(k => k.alive && k.fuse >= 0);
-    if (!left) { T4.endT += dt; if (T4.endT > 0.9) tgtEnd(true); }
+    if (!me.alive && G.camp.retryWave && G.time > 0) { T4.deadT = (T4.deadT || 0) + dt; if (T4.deadT > 0.7) tgtRetry(); }   // défi 8 : soufflé = on recommence la vague, même si ses cibles sont tombées
+    else if (!left) { T4.endT += dt; if (T4.endT > 0.9) tgtEnd(true); }
     else if (!me.alive || G.time <= 0 || dry) { T4.why = !me.alive ? 'dead' : G.time <= 0 ? 'time' : 'ammo'; G.endTimer = G.endTimer || 1.2; G.endTimer -= dt; if (G.endTimer <= 0) tgtEnd(false); }
   } else if (G.phase === 'play' && G.dk) {
     // défi 10 : gagné quand Malakor a fini d'exploser ; perdu si tu es soufflé ou si le temps est écoulé
@@ -7730,7 +7733,7 @@ function tgtInit(c) {
 }
 function tgtWave(T4) {
   T4.wave++; const w = T4.waves[T4.wave]; if (!w) return;
-  T4.def = w; T4.comboT = 0; T4.flashI = 0; T4.flashHits = 0; T4.nextT = 0; T4.okT = 0; T4.coolT = 0; T4.fails = 0; T4.cur = null;
+  T4.def = w; T4.hits0 = T4.hits; T4.deadT = 0; T4.comboT = 0; T4.flashI = 0; T4.flashHits = 0; T4.nextT = 0; T4.okT = 0; T4.coolT = 0; T4.fails = 0; T4.cur = null;
   T4.flashNeed = w.flash ? w.need * tgtFlashSize(w) : 0;
   // ce que la vague d'avant avait posé (blocs, caisses) disparaît
   for (const k of T4.placed) if ((G.grid[k] === STONE || G.grid[k] === CRATE) && !G.bombAt[k]) { G.grid[k] = EMPTY; G.burn[k] = 0; fx('crate', k % COLS, (k / COLS) | 0); }
@@ -7891,6 +7894,14 @@ function tgtTick(dt) {
     const blocked = ny < o.y0 || ny > o.y1 || G.grid[idx(o.x, ahead)] !== EMPTY || (G.bombAt[idx(o.x, ahead)] && ahead !== Math.round(o.y));
     if (blocked) o.dir = -o.dir; else o.y = ny;
   }
+}
+// défi 8 : le joueur soufflé recommence aussitôt la vague (cibles relevées, touches de la vague annulées) ; les bombes utilisées restent perdues
+function tgtRetry() {
+  const T4 = G.tg, me = G.players[0], sp = spawnOf(0);
+  G.bombs.length = 0; me.active = 0; rebuildBombAt(); G.flameT.fill(0); G.flameBits.fill(0);
+  Object.assign(me, { x: sp[0], y: sp[1], face: sp[2], alive: true, deathT: 0, shield: 1, moving: false, bombQueued: false, maxBombs: G.camp.maxB || 2, range: 2, speedLv: G.camp.speed || 0, kick: true, throw: false });
+  T4.hits = T4.hits0; T4.wave--; tgtWave(T4);
+  G.rageMsg = ['Soufflé !', `Recommence la vague ${T4.wave + 1}`]; G.rageFlash = 2.2; fx('snd', 'go');
 }
 // cible qui esquive (défi 8) : elle fuit les explosions avec la même lecture du danger qu'un ordi niveau 10 (computeDanger, findEscape),
 // lentement et sans sortir de son coin ; une flamme où elle entre la touche aussi
@@ -8443,7 +8454,7 @@ function renderCampCard() {
       : c.demon ? `Seul contre ${c.dname}, immense et immobile en haut de l'arène · tous tes pouvoirs au maximum dès le départ, ni caisses ni bonus · quand son cœur s'ouvre, pousse une bombe dedans par la colonne du milieu : ${c.hp} coups · ses sorts couvrent toute l'arène · ${c.time / 60} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
-      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
+      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler${c.retryWave ? ' : tu recommences alors la vague' : ''}`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (rewardXp(rewardOf(campSel)) ? ` · récompense : ${rewardTxt(rewardOf(campSel))} d'XP (${rewardXp(rewardOf(campSel)).toLocaleString('fr-FR')} XP)` : '')
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
