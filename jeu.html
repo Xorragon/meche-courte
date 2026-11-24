@@ -1563,29 +1563,23 @@ const CAMP = [
     foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
   { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe, mais il est vif : il permute avec tes bombes, saute par-dessus les murs et lance des shurikens. Souffle-le avec tes explosions, ou pousse-lui une bombe dessus quand il prépare une technique. Trois coups pour le vaincre !',
     foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
-  { name: 'Le maître artificier', desc: 'Le grand stand de tir, version maître : jusqu\'à 4 bombes à la fois, et des cibles qu\'il faut faire tomber toutes ensemble, d\'une seule réaction en chaîne. Barils de poudre, mèche à allumer au bon endroit, duos éclair, et des cibles bleues à ne surtout pas toucher.',
+  { name: 'Le maître artificier', desc: 'Le grand stand de tir, version maître : jusqu\'à 4 bombes à la fois, et des cibles qu\'il faut faire tomber toutes ensemble, d\'une seule réaction en chaîne. Arrête tes bombes pile au bon endroit et enchaîne-les en une seule explosion géante.',
     foe: TARGET8_SKIN, stand: 'Le grand stand', intro: 'Jusqu\'à 4 bombes à la fois : fais tout sauter d\'un coup', winSub: 'Maître artificier !',
-    wins: 1, time: 360, ammo: 40, fuse: 6, noCrates: true, fence: 9, maxB: 4, speed: 1,   // mèche de 6 s : le temps de placer 4 bombes
-    // toutes les vagues sont des combos : toutes les cibles rouges doivent tomber ensemble (0,6 s) ; blue : cibles à ne pas toucher (combo raté) ;
-    // msg : consigne de la vague ; hint : les cercles dorés n'apparaissent qu'après un essai raté ; kegFuse : délai des barils ; failMsg : message d'un combo raté
+    wins: 1, time: 300, ammo: 30, fuse: 7.5, noCrates: true, fence: 9, maxB: 4, speed: 1,   // mèche de 7,5 s : le temps d'arrêter 4 bombes une par une
+    // toutes les vagues sont des combos : toutes les cibles doivent tomber ensemble (0,6 s) ; msg : consigne de la vague
+    // (le moteur gère aussi blue : cibles à ne pas toucher, kegFuse : délai des barils, failMsg, et les éclairs par paires { t, s })
     targets: [
       // la 1re bombe file au fond (13,5), la 2e s'arrête en (11,5)
       { list: [[11, 3], [11, 7], [13, 3], [13, 7]], combo: true, spots: [[13, 5], [11, 5]] },
-      // les barils arrêtent les bombes en (11,r) et relaient l'explosion vers les cibles du fond ; 4 bombes avant que la 1re saute
-      { list: [[13, 3], [13, 5], [13, 7], [13, 9], [11, 1], [11, 11]], combo: true, kegs: [[12, 3], [12, 5], [12, 7], [12, 9]], spots: [[11, 3], [11, 5], [11, 7], [11, 9]],
-        msg: 'Les barils arrêtent tes bombes : une par rangée, et vite !' },
-      // cibles bleues : une bombe qui file au fond de la rangée 5 les touche
-      { list: [[11, 1], [13, 3], [13, 7], [11, 9]], blue: [[13, 4], [13, 6]], combo: true, spots: [[11, 3], [11, 5], [11, 7]],
-        msg: 'Cibles bleues : ne les touche surtout pas, sinon le combo est raté' },
-      // duos éclair : deux cibles à la fois, à faire tomber ensemble avant qu'elles ne disparaissent
-      { flash: [{ t: [[11, 3], [13, 5]], s: [[11, 5]] }, { t: [[11, 11], [13, 7]], s: [[13, 9], [11, 9]] }, { t: [[9, 4], [11, 7]], s: [[11, 5], [9, 5]] }, { t: [[9, 2], [11, 4]], s: [[11, 3], [9, 3]] }],
-        need: 3, life: 9.5, combo: true, msg: 'Duos éclair : fais tomber chaque paire d\'un coup, il en faut 3' },
-      // la mèche de poudre : 6 barils en colonne ; allumée par un bout (rangée 1 ou 11), trop lente (0,8 s d'écart) ; par le milieu (rangée 5 ou 7), 0,48 s ; rangées 3 et 9 fermées par une cible
-      { list: [[13, 1], [13, 3], [13, 5], [13, 7], [13, 9], [13, 11], [9, 3], [9, 9]], combo: true, kegs: [[11, 1], [11, 3], [11, 5], [11, 7], [11, 9], [11, 11]], kegFuse: 0.16,
-        spots: [[10, 5], [10, 7]], hint: true, failMsg: 'Trop lent ! Allume plus près du milieu', msg: 'La mèche de poudre : une bombe suffit, mais allume-la au bon endroit' },
+      // 4 bombes arrêtées à la main en (11,3), (11,5), (11,7), (11,9), avant que la 1re saute
+      { list: [[13, 3], [13, 5], [13, 7], [13, 9], [11, 1], [11, 11]], combo: true, spots: [[11, 3], [11, 5], [11, 7], [11, 9]],
+        msg: 'Quatre bombes, une par rangée, avant que la première saute !' },
+      // la 1re bombe file au fond (13,5) avant celle arrêtée en (11,5) ; (11,3) et (11,7) arrêtées à la main
+      { list: [[11, 1], [13, 3], [13, 4], [13, 6], [13, 7], [11, 9]], combo: true, spots: [[11, 3], [13, 5], [11, 5], [11, 7]],
+        msg: 'Six d\'un coup : la bombe du fond d\'abord !' },
       // le grand bouquet : (13,3) puis (11,3), (13,7) puis (11,7), avec 3 barils relais
       { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
-        spots: [[13, 3], [11, 3], [13, 7], [11, 7]], hint: true, msg: 'Le grand bouquet : 8 cibles d\'un coup, sans aide cette fois' },
+        spots: [[13, 3], [11, 3], [13, 7], [11, 7]], msg: 'Le grand bouquet : 8 cibles d\'un coup !' },
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
@@ -7819,7 +7813,6 @@ function tgtComboFail(msg) {
   for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0];
   addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a',
     text: msg || T4.def.failMsg || (n > 3 ? 'Toutes ensemble !' : n > 2 ? 'Les trois ensemble !' : 'En même temps !') }); Sfx.play('thud');
-  if (T4.def.hint && T4.fails === 1 && T4.def.spots) { G.rageMsg = ['Un indice', 'Les cercles dorés montrent où placer tes bombes']; G.rageFlash = 2.4; }
 }
 // cible bleue touchée : elle ne tombe pas, et le combo en cours (ou celui de la même explosion) est raté
 function tgtBlue(o) {
@@ -7997,7 +7990,7 @@ function drawRange(c, t) {
 function drawTgtBar(c, t) {
   const T4 = G.tg, n = T4.total, w = Math.min(n > 20 ? 600 : n > 8 ? 470 : 380, W - 120), x = (W - w) / 2, y = 12, ir = n > 20 ? 5.5 : n > 8 ? 7 : 9;
   c.save(); c.translate(-G.cam.x, -G.cam.y);
-  const spots = T4.def.flash ? T4.cur && T4.cur.s : T4.def.hint && !T4.fails ? null : T4.def.spots;
+  const spots = !settings.admin ? null : T4.def.flash ? T4.cur && T4.cur.s : T4.def.spots;   // cercles dorés : seulement en mode admin (demande du joueur)
   if (spots && T4.list.some(q => q.alive && q.spawn >= 1)) for (const [sx, sy] of spots) {
     if (G.bombAt[idx(sx, sy)]) continue;
     const px = (sx + 0.5) * T, py = (sy + 0.5) * T, r = T * (0.3 + 0.04 * Math.sin(t * 4));
@@ -8349,7 +8342,7 @@ function renderCampCard() {
       : c.demon ? `Seul contre ${c.dname}, immense et immobile en haut de l'arène · tous tes pouvoirs au maximum dès le départ, ni caisses ni bonus · quand son cœur s'ouvre, pousse une bombe dedans par la colonne du milieu : ${c.hp} coups · ses sorts couvrent toute l'arène · ${c.time / 60} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
-      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ne touche pas les cibles bleues · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
+      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (rewardXp(rewardOf(campSel)) ? ` · récompense : ${rewardTxt(rewardOf(campSel))} d'XP (${rewardXp(rewardOf(campSel)).toLocaleString('fr-FR')} XP)` : '')
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
