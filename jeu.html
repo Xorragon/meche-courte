@@ -1363,8 +1363,8 @@ const CHARS = [
   { key: 'rodeur', name: 'Rôdeur', rev: true },
   { key: 'astral', name: 'Astral', elo: 1100, ph: 92, py: 12 },   // perso à débloquer : 1100 Elo au classement
   // persos à débloquer en battant le Clown et le Mime (défi 3 de la campagne) ; dessinés avec les planches du joueur (SHEET_SKINS)
-  { key: 'clown', name: 'Clown', sheet: 97, camp: 3 },   // sheet : CLOWN_SKIN
-  { key: 'mime', name: 'Mime', sheet: 96, camp: 3 },     // sheet : MIME_SKIN
+  { key: 'clown', name: 'Clown', sheet: 97, camp: 3, campBy: 'le Clown et le Mime' },   // sheet : CLOWN_SKIN
+  { key: 'mime', name: 'Mime', sheet: 96, camp: 3, campBy: 'le Clown et le Mime' },     // sheet : MIME_SKIN
   // nouveaux persos (planches du joueur, 2026-11-23) : verrouillés (soon) en attendant leur façon de se débloquer
   { key: 'capuche', name: 'Capuche', shop: 1 },
   { key: 'amazone', name: 'Amazone', shop: 3 },
@@ -1420,6 +1420,8 @@ const CHARS = [
   // persos à code secret (code: true) : débloqués par un code de la fenêtre « Code secret » (empreinte dans SECRET_CODES)
   { key: 'sylve', name: 'Sylve', code: true, art: '' },
   { key: 'prospecteur', name: 'Prospecteur', code: true },
+  // débloqué en battant Brasimir, le Chevalier des braises (défi 10) ; sa planche de boss (sheet : DEMON_SKIN = 94)
+  { key: 'brasimir', name: 'Brasimir', art: '', sheet: 94, camp: 10, campBy: 'Brasimir, le Chevalier des braises' },
 ];
 // Boutique : paliers de prix (CHARS[].shop = palier). Les persos « soon » se débloqueront autrement (campagne, succès…)
 const SHOP_TIERS = [null,
@@ -1529,7 +1531,7 @@ function allySafe(p, owner) {
   if (sideMode()) { const o = G.players[owner]; return !!o && o.team === p.team; }
   return false;
 }
-const DEMON_SKIN = 94, TARGET8_SKIN = 93;   // TARGET8_SKIN : icône du défi 8 (cible dorée ×4)   // défi 10 : Malakor, le Seigneur démon (planche du joueur)
+const DEMON_SKIN = 94, TARGET8_SKIN = 93;   // TARGET8_SKIN : icône du défi 8 (cible dorée ×4)   // défi 10 : Brasimir, le Chevalier des braises (planche du joueur)
 const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9, CLOWN_SKIN = 97, MIME_SKIN = 96, TARGET_SKIN = 95;   // TARGET_SKIN : icône du défi 4 (cible)
    // Clown et Mime (défi 3) : planches du joueur ; portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
@@ -1591,8 +1593,8 @@ const CAMP = [
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
-  { name: 'Le Seigneur démon', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Malakor, le Seigneur démon, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle infernal, météores, griffes, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Tes explosions le blessent à tout moment, et quand son cœur s\'ouvre, une bombe poussée dedans fait très mal. Le combat le plus dur de la campagne.',
-    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 50, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
+  { name: 'Le Chevalier des braises', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Brasimir, le Chevalier des braises, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle ardent, météores, griffes de braise, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Tes explosions le blessent à tout moment, et quand son cœur s\'ouvre, une bombe poussée dedans fait très mal. Le combat le plus dur de la campagne.',
+    foe: DEMON_SKIN, dname: 'Brasimir', demon: true, hp: 50, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
 const foeName = c => c.dname || (c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe)));
@@ -2722,12 +2724,12 @@ function gloopSplit(p) {
 }
 
 
-/* ---------- Défi 10 : Malakor, le Seigneur démon. Il arpente sa zone en haut de l'arène (rangées 1 à 3, 5 cases de large),
+/* ---------- Défi 10 : Brasimir, le Chevalier des braises. Il arpente sa zone en haut de l'arène (rangées 1 à 3, 5 cases de large),
    interdite au joueur ; seule une bombe poussée vers le haut dans son cœur (quand il s'ouvre, il s'arrête au-dessus d'une colonne impaire) le blesse.
    Avant l'arène : un tunnel (colonnes 6 à 8, rangées 13 à 23) où l'on ramasse tous les bonus ; la grille se referme derrière le joueur ---------- */
 const DK_Y1 = 3, DKR = 13;   // DKR : rangées de l'arène (le tunnel est en dessous)
 const DK_WARN = [1.15, 1.0, 0.9], DK_GAP = [1.5, 1.1, 0.75], DK_HEART = [2.8, 2.5, 2.2], DK_SPEED = [1.1, 1.4, 1.8];
-const DK_SPELLS = { souffle: 'Souffle infernal', meteores: 'Pluie de météores', griffes: 'Griffes de l\'abîme', bombes: 'Bombes démoniaques', cage: 'Cage de feu',
+const DK_SPELLS = { souffle: 'Souffle ardent', meteores: 'Pluie de météores', griffes: 'Griffes de braise', bombes: 'Bombes noires', cage: 'Cage de feu',
   foudre: 'Foudre céleste', soufre: 'Bombes de soufre', rideau: 'Rideau de feu' };
 const DK_GATE = [7, 12], DK_TUN = [6, 13, 8, 23];   // porte de l'arène ; tunnel x 6-8, y 13-23
 // bonus du tunnel, du bas vers le haut, tous dans la colonne du milieu : [bonus, ×N] ; 7 bombes, 6 portées, 5 vitesses, le gant (le coup de pied est déjà là)
@@ -2793,7 +2795,7 @@ function dkTick(dt) {
     if (!D.tunMsg) { D.tunMsg = true; G.rageMsg = ['Le tunnel', 'Ramasse tous les bonus, puis entre dans l\'arène']; G.rageFlash = 2.6; }
     dkTunnelTick(D, me); if (!D.started) return;
   }
-  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Tes explosions le blessent ; une bombe poussée dans son cœur ouvert fait très mal']; G.rageFlash = 2.8; }
+  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Chevalier des braises`, 'Tes explosions le blessent ; une bombe poussée dans son cœur ouvert fait très mal']; G.rageFlash = 2.8; }
   if (!D.alive) { dkDeathTick(D, dt); return; }
   dkMove(D, dt, me);
   // salves de foudre en attente
@@ -7097,7 +7099,7 @@ function buildCharPicker() {
       if (root === collEl) { collPin = i; if (charLocked(i)) { collShow(i); return; } if (hasVars(CHARS[i].key) && settings.skin !== i) { settings.skin = i; saveSettings(); syncCharPicker(); collShow(i); return; } settings.skin = i; saveSettings(); syncCharPicker(); closeColl(); if (NET.role === 'host' && !NET.started) refreshHostLobby(); return; }
       const hint = root.querySelector('.pick-hint');
       if (charLocked(i)) {
-        if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant le Clown et le Mime (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
+        if (hint) { hint.textContent = ch.shop ? `${ch.name} s'achète ${shopPrice(ch)} pièces dans la boutique` + (shopWeek().includes(i) ? ' : il y est cette semaine !' : ', quand il est dans la rotation de la semaine.') : ch.code ? `${ch.name} se débloque avec un code secret (bouton « Code secret » de l'accueil).` : ch.soon ? `${ch.name} arrive bientôt : sa façon de le débloquer n'est pas encore là.` : ch.camp ? `${ch.name} se débloque en battant ${ch.campBy || 'le défi ' + ch.camp} (défi ${ch.camp} de la campagne).` : `${ch.name} se débloque à ${ch.elo} Elo` + (ELO.me ? ` (tu es à ${ELO.me.elo}).` : ' : joue des parties classées en ligne.'); clearTimeout(hint._t); hint._t = setTimeout(() => { hint.textContent = ''; }, 4000); }
         return;
       }
       if (hint) hint.textContent = '';
@@ -7778,12 +7780,13 @@ function warmSprites() {
 }
 function loadSheet(src, fr) { const im = new Image(); if (fr) im.fr = fr; im.onload = () => { warmImg(im); if (!document.getElementById('camp').hidden) renderCamp(); }; im.src = src; return im; }
 const BOSS_IMG = loadSheet('assets/boss-grondor.png'), KAB_IMG = loadSheet('assets/npc-kaboum.png'), KAB_RAGE = loadSheet('assets/npc-kaboum-rage.png');   // Kaboum en colère : planche à part
-const DK_IMG = loadSheet('assets/boss-demon.png', SHEET_FR4), DK_BOMB = new Image(); DK_BOMB.onload = () => warmImg(DK_BOMB); DK_BOMB.src = 'assets/boss-demon-bombe.png';   // défi 10 : Malakor
+const DK_IMG = loadSheet('assets/boss-demon.png', SHEET_FR4), DK_BOMB = new Image(); DK_BOMB.onload = () => warmImg(DK_BOMB); DK_BOMB.src = 'assets/boss-demon-bombe.png';   // défi 10 : Brasimir (et le perso jouable)
 const sheetReady = im => im.complete && im.naturalWidth > 0, bossReady = () => sheetReady(BOSS_IMG);
 // persos joueurs dessinés avec une planche (version joyeuse, et version triste quand leur coéquipier est tombé)
 const SHEET_SKINS = {
   [CLOWN_SKIN]: { name: 'Clown', happy: loadSheet('assets/npc-clown.png', SHEET_FR4), sad: loadSheet('assets/npc-clown-triste.png', SHEET_FR4) },
   [MIME_SKIN]: { name: 'Mime', happy: loadSheet('assets/npc-mime.png', SHEET_FR4), sad: loadSheet('assets/npc-mime-triste.png', SHEET_FR4) },
+  [DEMON_SKIN]: { name: 'Brasimir', happy: DK_IMG, sad: DK_IMG },   // débloqué en battant le défi 10
 };
 const CAST_T = 0.13;   // durée de la pose « bombe posée » des persos à planche (Clown, Mime)
 function drawSheetChar(c, x, y, SS, pal, face, phase, moving, t, o) {
@@ -11504,7 +11507,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap(), CAMP, tgtCount, startCamp };
+window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap(), CAMP, tgtCount, startCamp, campUnlock, CHARS };
 boot({});
 })();
 </script>
