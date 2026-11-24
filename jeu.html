@@ -7254,6 +7254,8 @@ function syncCharPicker() {
     const pr = lk ? 0 : presOf(i);
     b.querySelector('span').textContent = lk ? lockText(CHARS[i]) : CHARS[i].name + (pr ? ` ★${pr}` : '');
   });
+  // collection ouverte : l'aperçu de droite suit (perso tout juste acheté ou débloqué, sans recharger la page)
+  if (!collEl.hidden && collHover >= 0) collShow(collHover);
 }
 // Perso pas encore débloqué : seulement son ombre (dessin rempli d'une couleur sombre unie)
 let silCv = null;
