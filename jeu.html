@@ -2745,7 +2745,7 @@ function dkInit(c) {
     DK_LOOT.forEach(([it, n], i) => { const k = idx(7, y1 - 1 - i); G.items[k] = it; if (n > 1) G.itemX.set(k, n); });
   }
   const owner = { id: BOSS_ID, npc: true, demon: true, name: c.dname, skin: DEMON_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#3a1d3f', ui: '#c04cff' }, active: 0, alive: true };
-  return { cells, owner, name: c.dname, hp: c.hp, max: c.hp, phase: 0, alive: true, deadT: 0, castT: 3.2, busy: 0, since: 0, last: '', heart: 0, heartMax: 0,
+  return { cells, owner, name: c.dname, hp: c.hp, max: c.hp, acc: 0, shieldT: 0, fl: new Map(), phase: 0, alive: true, deadT: 0, castT: 3.2, busy: 0, since: 0, last: '', heart: 0, heartMax: 0,
     pose: 'down0', poseT: 0, hitT: 0, spell: '', spellT: 0, intro: false, hint: false, started: !c.tunnel, hx: 7, tx: 7, dash: 0, burn: new Map(), bolts: [] };
 }
 const dkOpen = () => !!(G.dk && G.dk.alive && G.dk.heart > 0);
@@ -2783,7 +2783,11 @@ function dkTick(dt) {
   for (const [k, t] of D.burn) {
     if (t - dt <= 0) D.burn.delete(k); else D.burn.set(k, t - dt);
   }
-  if (me.alive && !(me.shield > 0) && D.burn.has(idx(Math.round(me.x), Math.round(me.y)))) kill(me, BOSS_ID);
+  D.shieldT = Math.max(0, D.shieldT - dt);
+  for (const [k, f] of D.fl) { f.t -= dt; if (f.t <= 0) D.fl.delete(k); }
+  const mk = idx(Math.round(me.x), Math.round(me.y));
+  if (me.alive && !(me.shield > 0) && (D.burn.has(mk) || (D.fl.has(mk) && D.fl.get(mk).warn <= 0))) kill(me, BOSS_ID);
+  for (const f of D.fl.values()) f.warn -= dt;
   for (let i = D.bolts.length - 1; i >= 0; i--) if ((D.bolts[i].t += dt) > 0.35) D.bolts.splice(i, 1);
   if (!D.started) {
     if (!D.tunMsg) { D.tunMsg = true; G.rageMsg = ['Le tunnel', 'Ramasse tous les bonus, puis entre dans l\'arène']; G.rageFlash = 2.6; }
@@ -2938,6 +2942,11 @@ function dkOpenHeart() {
 function dkHit(b, kind) {
   const D = G.dk; if (!D || !D.alive) return;
   const n = DK_DMG[kind] || 1, big = kind === 'heart';
+  if (D.shieldT > 0) {   // bouclier : rien ne passe
+    addP({ kind: 'text', x: (D.hx + 0.5) * T + (Math.random() - 0.5) * 30, y: (DK_Y1 + 0.4) * T, vx: 0, vy: -36, life: 0.9, max: 0.9, size: 18, color: '#9fdcff', text: 'Bouclier !' }); Sfx.play('tink');
+    if (big) { D.heart = 0; D.castT = Math.max(D.castT, 1); D.openNext = false; }
+    return;
+  }
   D.hp = Math.max(0, D.hp - n); D.hitT = big ? 0.35 : 0.15;
   const x = (D.hx + 0.5) * T, y = (DK_Y1 + 1) * T - DK_H() * 0.52;
   if (big) {
@@ -2947,6 +2956,9 @@ function dkHit(b, kind) {
   } else { Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, kind === 'kick' ? 4 : 2); }
   addP({ kind: 'text', x: x + (Math.random() - 0.5) * 40, y: y - 20, vx: 0, vy: -40, life: 1, max: 1, size: big ? 28 : kind === 'kick' ? 22 : 18, color: big ? '#ffd166' : '#ffb3e6', text: D.hp ? (big ? `Dans le cœur ! -${n}` : `-${n}`) : 'Coup fatal !' });
   if (D.hp <= 0) { dkDie(D); return; }
+  // tous les 3 dégâts : un bouclier 3 s, et une fois des petites flammes partout, qui restent 5 s
+  D.acc += n;
+  if (D.acc >= 3) { D.acc = 0; D.shieldT = 3; dkFlames(D); }
   const ph = D.hp <= D.max / 3 ? 2 : D.hp <= D.max * 2 / 3 ? 1 : 0;
   if (ph > D.phase) {
     D.phase = ph; fx('snd', 'sudden');
@@ -2954,8 +2966,21 @@ function dkHit(b, kind) {
     G.rageFlash = 1.8;
   }
 }
+function dkFlames(D) {
+  const free = dkAllFree(), n = [10, 13, 16][D.phase], me = G.players[0];
+  for (let i = free.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [free[i], free[j]] = [free[j], free[i]]; }
+  let put = 0;
+  for (const k of free) {
+    if (put >= n) break;
+    const x = k % COLS, y = (k / COLS) | 0;
+    if (me.alive && Math.abs(x - me.x) + Math.abs(y - me.y) < 1.5) continue;   // pas sous ses pieds
+    D.fl.set(k, { t: 5.7, warn: 0.7, seed: Math.random() * 10 }); put++;
+  }
+  addP({ kind: 'text', x: (D.hx + 0.5) * T, y: (DK_Y1 + 1.4) * T, vx: 0, vy: -26, life: 1.4, max: 1.4, size: 20, color: '#9fdcff', text: 'Bouclier ! Flammes !' });
+  Sfx.play('njcast'); D.pose = 'castF'; D.poseT = 0.7;
+}
 function dkDie(D) {
-  D.alive = false; D.deadT = 0; D.heart = 0; G.warn.length = 0; G.lobs.length = 0; D.boltQ = []; D.burn.clear();
+  D.alive = false; D.deadT = 0; D.heart = 0; G.warn.length = 0; G.lobs.length = 0; D.boltQ = []; D.burn.clear(); D.fl.clear(); D.shieldT = 0;
   for (let i = G.bombs.length - 1; i >= 0; i--) if (G.bombs[i].owner === D.owner) G.bombs.splice(i, 1);
   rebuildBombAt(); G.rageMsg = [`${D.name} est vaincu !`, '']; G.rageFlash = 2.4;
 }
@@ -2988,6 +3013,19 @@ function drawDkBack(c, t) {
   c.globalAlpha = 0.4 + 0.25 * Math.sin(t * 2.2); c.strokeStyle = '#c04cff'; c.lineWidth = 2; c.lineCap = 'round';
   c.beginPath(); c.moveTo(x - 70, y + 20); c.lineTo(x - 100, y + 4); c.lineTo(x - 112, y + 22); c.moveTo(x + 70, y + 22); c.lineTo(x + 98, y + 6); c.lineTo(x + 116, y + 18); c.stroke();
   c.globalAlpha = 1;
+  // petites flammes du bouclier : un cercle orange pendant 0,7 s, puis une flammèche qui danse 5 s
+  for (const [k, f] of D.fl) {
+    const fx0 = (k % COLS + 0.5) * T, fy0 = (((k / COLS) | 0) + 0.5) * T;
+    if (f.warn > 0) { c.globalAlpha = 0.5 + 0.3 * Math.sin(t * 20); c.strokeStyle = '#ff9a3c'; c.lineWidth = 2.5; c.beginPath(); c.arc(fx0, fy0 + 6, T * (0.18 + 0.2 * (1 - f.warn / 0.7)), 0, TAU); c.stroke(); c.globalAlpha = 1; continue; }
+    const a = Math.min(1, f.t), w = 1 + 0.12 * Math.sin(t * 13 + f.seed), hh = T * 0.42 * (1 + 0.1 * Math.sin(t * 9 + f.seed * 2));
+    c.globalAlpha = a;
+    const gl = c.createRadialGradient(fx0, fy0 + 8, 2, fx0, fy0 + 8, T * 0.45); gl.addColorStop(0, 'rgba(255,140,40,.45)'); gl.addColorStop(1, 'rgba(255,80,20,0)'); c.fillStyle = gl; c.fillRect(fx0 - T / 2, fy0 - T / 2, T, T);
+    for (const [col, sc] of [['#e8401c', 1], ['#ff9a2a', 0.7], ['#ffe27a', 0.4]]) {
+      c.fillStyle = col; c.beginPath(); c.moveTo(fx0, fy0 + 14 - hh * sc * 1.6);
+      c.quadraticCurveTo(fx0 + 12 * sc * w, fy0 + 2, fx0, fy0 + 14); c.quadraticCurveTo(fx0 - 12 * sc * w, fy0 + 2, fx0, fy0 + 14 - hh * sc * 1.6); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
   // brûlures : sol calciné, braises qui rougeoient (plus pâles la dernière seconde)
   for (const [k, left] of D.burn) {
     const bx = (k % COLS) * T, by = ((k / COLS) | 0) * T, f = Math.min(1, left), fl = 0.55 + 0.25 * Math.sin(t * 9 + k);
@@ -3018,6 +3056,15 @@ function drawDk(c, t) {
     const moving = D.alive && D.heart <= 0 && Math.abs(D.tx - D.hx) > 0.02 && D.poseT <= 0;
     const fr = moving ? (D.tx < D.hx ? 'left' : 'right') + (1 + (Math.floor((D.walk || 0) * 1.6) % 4)) : D.pose || 'down0';
     bossFrame(c, fr, x, feet, h, { rage, hit: D.hitT > 0 ? 0.7 : 0, flip: D.pose === 'castS' && D.flip && !moving, swell: 1 + 0.012 * Math.sin(t * 2.2) }, DK_IMG);
+  }
+  // bouclier (3 s après chaque tranche de 3 dégâts) : une bulle bleue qui scintille
+  if (D.alive && D.shieldT > 0) {
+    const a = Math.min(1, D.shieldT / 0.5) * (0.75 + 0.25 * Math.sin(t * 9)), cy = feet - h * 0.48;
+    c.save(); c.globalAlpha = a;
+    const sg = c.createRadialGradient(x, cy, h * 0.2, x, cy, h * 0.62); sg.addColorStop(0, 'rgba(120,200,255,0)'); sg.addColorStop(0.8, 'rgba(120,200,255,.22)'); sg.addColorStop(1, 'rgba(190,235,255,.5)');
+    c.fillStyle = sg; ell(c, x, cy, h * 0.62, h * 0.56); c.fill();
+    c.strokeStyle = 'rgba(200,240,255,.85)'; c.lineWidth = 2.5; ell(c, x, cy, h * 0.62, h * 0.56); c.stroke();
+    c.restore();
   }
   // le cœur : la gemme de son torse brille, et s'ouvre en grand
   const gy = feet - h * 0.52, open = D.heart > 0;
@@ -3062,10 +3109,10 @@ function drawDkBar(c, t) {
   if (G.players.some(o => o.alive && o.y > DKR - 3.2)) c.globalAlpha = 0.35;
   c.fillStyle = 'rgba(10,8,14,.75)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
   c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = '#e6c8ff';
-  c.fillText(D.name + (D.heart > 0 ? ' · cœur ouvert !' : D.phase >= 2 ? ' · déchaîné' : D.phase ? ' · enragé' : ''), x, y + 1);
+  c.fillText(D.name + (D.shieldT > 0 ? ' · bouclier' : D.heart > 0 ? ' · cœur ouvert !' : D.phase >= 2 ? ' · déchaîné' : D.phase ? ' · enragé' : ''), x, y + 1);
   c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.8)'; c.fillText(`${Math.max(0, D.hp)} / ${D.max} PV`, x + w, y + 1); c.textAlign = 'left';
   c.fillStyle = '#2a1f3a'; rr(c, x, y + 19, w, 11, 5.5); c.fill();
-  const f = Math.max(0, D.hp) / D.max; c.fillStyle = D.hitT > 0 ? '#ffffff' : D.heart > 0 ? '#ff6ad0' : '#a45bff'; if (f > 0) { rr(c, x, y + 19, Math.max(11, w * f), 11, 5.5); c.fill(); }
+  const f = Math.max(0, D.hp) / D.max; c.fillStyle = D.shieldT > 0 ? '#7ad0ff' : D.hitT > 0 ? '#ffffff' : D.heart > 0 ? '#ff6ad0' : '#a45bff'; if (f > 0) { rr(c, x, y + 19, Math.max(11, w * f), 11, 5.5); c.fill(); }
   c.fillStyle = 'rgba(10,8,14,.8)'; for (const q of [1 / 3, 2 / 3]) c.fillRect(x + w * q - 1, y + 19, 2, 11);   // seuils de rage
   c.restore();
 }
