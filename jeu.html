@@ -1580,13 +1580,13 @@ const CAMP = [
       // la 1re bombe file au fond (13,5) avant celle arrêtée en (11,5) ; (11,3) et (11,7) arrêtées à la main
       { list: [[11, 1], [13, 3], [13, 4], [13, 6], [13, 7], [11, 9]], combo: true, spots: [[11, 3], [13, 5], [11, 5], [11, 7]],
         msg: 'Six d\'un coup : la bombe du fond d\'abord !' },
-      // un ordi niveau 10 (Gavroche) dans le quart haut gauche (x 1-7, y 1-5), sans corde : il court dans tous les sens dans son coin
-      // (x 1-3, y 1-3, autour du pilier) pour ne pas être soufflé ; il ne pose pas de bombe et ne les repousse pas. Piège : (1,1), (3,1) puis (3,3)
-      { list: [], movers: [[1, 3]], moverSkin: 4, zone: [1, 1, 7, 5], nest: [1, 1, 3, 3], start: [5, 5], mvSpeed: 4,
-        spots: [[1, 1], [3, 1], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : coince-le avec tes bombes !' },
       // le grand bouquet : (13,3) puis (11,3), (13,7) puis (11,7), avec 3 barils relais
       { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
         spots: [[13, 3], [11, 3], [13, 7], [11, 7]], msg: 'Le grand bouquet : 8 cibles d\'un coup !' },
+      // un ordi niveau 10 (Gavroche) dans le quart haut gauche (x 1-7, y 1-5), sans corde : il court dans tous les sens dans son coin
+      // (x 1-3, y 1-5 : la bande de gauche du quart) pour ne pas être soufflé ; il ne pose pas de bombe et ne les repousse pas. Piège : (1,1), (1,3), (3,5), (3,3) en chaîne
+      { list: [], movers: [[1, 3]], moverSkin: 4, zone: [1, 1, 7, 5], nest: [1, 1, 3, 5], start: [5, 5], mvSpeed: 4,
+        spots: [[1, 1], [1, 3], [3, 5], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : coince-le avec tes bombes !' },
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
