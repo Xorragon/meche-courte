@@ -1577,6 +1577,10 @@ const CAMP = [
       // la 1re bombe file au fond (13,5) avant celle arrêtée en (11,5) ; (11,3) et (11,7) arrêtées à la main
       { list: [[11, 1], [13, 3], [13, 4], [13, 6], [13, 7], [11, 9]], combo: true, spots: [[11, 3], [13, 5], [11, 5], [11, 7]],
         msg: 'Six d\'un coup : la bombe du fond d\'abord !' },
+      // la cible qui esquive : dans le quart haut gauche (x 1-7, y 1-5), sans corde ; elle fuit les explosions comme un ordi niveau 10,
+      // lentement, sans sortir de son coin (x 1-3, y 1-3, autour du pilier). Piège possible : (1,1), (3,1) puis (3,3), en chaîne, avec (5,1) et (3,5)
+      { list: [[5, 1], [3, 5]], movers: [[1, 3]], combo: true, zone: [1, 1, 7, 5], nest: [1, 1, 3, 3], start: [5, 5], mvSpeed: 2,
+        spots: [[1, 1], [3, 1], [3, 3]], msg: 'Elle esquive comme un ordi : enferme-la dans son coin, en un seul combo !' },
       // le grand bouquet : (13,3) puis (11,3), (13,7) puis (11,7), avec 3 barils relais
       { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
         spots: [[13, 3], [11, 3], [13, 7], [11, 7]], msg: 'Le grand bouquet : 8 cibles d\'un coup !' },
@@ -2268,10 +2272,12 @@ function newRound() {
 function solidAt(x, y) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   if (G.tg && x >= G.tg.fence) return true;   // défi 4 : la corde du stand de tir (les bombes poussées passent dessous)
+  if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // défi 8 : le joueur reste dans son quart de carte
   return G.grid[y * COLS + x] !== EMPTY;
 }
 function blockedFor(p, x, y) {
   if (solidAt(x, y)) return true;
+  if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;   // stand de tir : on ne traverse pas les cibles ni les barils
   const b = G.bombAt[y * COLS + x];
   return !!(b && !b.passers.has(p.id));
 }
@@ -2286,6 +2292,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
   if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;
+  if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // les bombes poussées restent dans le quart de carte
   const o = G.bombAt[k]; if (o && o !== self) return true;
   for (const f of G.falling) if (f.k === k) return true;
   if (ignorePlayers) return false;
@@ -2585,7 +2592,7 @@ function updateBombs(dt) {
         if (b.prog >= 1) {
           b.x = nx; b.y = ny; b.prog = 0;
           if (b.stopReq) { stopBomb(b); fx('halt', b.x, b.y); }
-          else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy)) { const tg2 = tgtAt(b.x + b.mdx, b.y + b.mdy); if (tgtShieldBlocks(tg2, -b.mdx, -b.mdy)) { tgtBlocked(tg2); tgtBounce(b); } else { b.hitTgt = tg2; stopBomb(b); } }
+          else if (G.tg && tgtAt(b.x + b.mdx, b.y + b.mdy) && !tgtAt(b.x + b.mdx, b.y + b.mdy).ai) { const tg2 = tgtAt(b.x + b.mdx, b.y + b.mdy); if (tgtShieldBlocks(tg2, -b.mdx, -b.mdy)) { tgtBlocked(tg2); tgtBounce(b); } else { b.hitTgt = tg2; stopBomb(b); } }
           else if (bossAt(b.x + b.mdx, b.y + b.mdy)) boom();
           else if (G.nj && ((njOpen() && njAt(b.x + b.mdx, b.y + b.mdy)) || cloneAt(b.x + b.mdx, b.y + b.mdy))) { /* vu à l'image suivante */ }
           else if (bombBlocked(b.x + b.mdx, b.y + b.mdy, b)) stopBomb(b);
@@ -3633,6 +3640,7 @@ function slideCells(x, y, dx, dy, self) {
 }
 function passableAI(k, extraK) {
   if (G.grid[k] !== EMPTY || G.bombAt[k] || k === extraK) return false;
+  if (G.aiZone && !G.aiZone.has(k)) return false;   // cible qui esquive : seulement dans son coin
   if (G.bossBlock && G.bossBlock.has(k)) return false;   // ne pas aller se coller au boss
   for (const f of G.falling) if (f.k === k) return false;
   return true;
@@ -7706,11 +7714,11 @@ function teamEndRound(meDead) {
 }
 /* ---------- Défi 4 : le stand de tir. Des cibles en bois qu'on ne fait tomber qu'en leur poussant une bombe dessus ---------- */
 const tgtFlashSize = w => w.flash && w.flash[0].t ? w.flash[0].t.length : 1;   // cibles éclair : seules, ou par paires ({ t, s })
-const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need * tgtFlashSize(w) : w.list.length), 0);
+const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need * tgtFlashSize(w) : w.list.length + (w.movers ? w.movers.length : 0)), 0);
 const COMBO_WIN = 0.6;   // combo : les cibles doivent toutes être touchées dans cet intervalle
 function tgtInit(c) {
   return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, flashNeed: 0, nextT: 0, blockT: 0,
-    blues: [], cur: null, okT: 0, coolT: 0, fails: 0, blueMsgT: -9 };
+    blues: [], cur: null, okT: 0, coolT: 0, fails: 0, blueMsgT: -9, fence0: c.fence || 99, zone: null, nest: null };
 }
 function tgtWave(T4) {
   T4.wave++; const w = T4.waves[T4.wave]; if (!w) return;
@@ -7720,6 +7728,15 @@ function tgtWave(T4) {
   for (const k of T4.placed) if ((G.grid[k] === STONE || G.grid[k] === CRATE) && !G.bombAt[k]) { G.grid[k] = EMPTY; G.burn[k] = 0; fx('crate', k % COLS, (k / COLS) | 0); }
   T4.placed = [];
   T4.list = (w.list || []).map((a, i) => tgtMake(a, i));
+  // cibles qui esquivent (ordi niveau 10, dans leur coin) ; le joueur est enfermé dans le même quart de carte
+  for (const a of w.movers || []) T4.list.push({ ...tgtMake(a, T4.list.length), ai: true, path: [], thinkT: 0, wanderT: 1, inFl: false, v: w.mvSpeed || 2 });
+  T4.zone = w.zone || null; T4.nest = w.nest || null; T4.fence = w.zone ? 99 : T4.fence0;
+  if (w.zone) {
+    const me = G.players[0];
+    const mx = Math.round(me ? me.x : 0), my = Math.round(me ? me.y : 0);
+    if (me && me.alive && (!inRect(w.zone, mx, my) || (w.nest && inRect(w.nest, mx, my)) || tgtAt(mx, my))) {   // hors du quart, dans le coin de la cible ou sur une cible : on le replace
+      fx('crate', Math.round(me.x), Math.round(me.y)); me.x = w.start[0]; me.y = w.start[1]; fx('crate', me.x, me.y); }
+  }
   T4.blues = (w.blue || []).map((a, i) => ({ ...tgtMake(a, i), blue: true, shield: false }));   // cibles bleues : à ne pas toucher
   T4.kegs = (w.kegs || []).map(([x, y]) => ({ x, y, alive: true, fuse: -1, back: 0 }));
   if (w.flash) tgtFlashNext(T4);
@@ -7740,6 +7757,7 @@ function tgtWave(T4) {
     if (w.stop) tipPulse();
   }
 }
+const inRect = (r, x, y) => x >= r[0] && y >= r[1] && x <= r[2] && y <= r[3];
 const tgtNear = (o, x, y, d) => o.alive && Math.abs(o.x - x) < d && Math.abs(o.y - y) < d;
 const tgtAt = (x, y) => G.tg ? G.tg.list.find(o => tgtNear(o, x, y, 0.9)) || G.tg.blues.find(o => tgtNear(o, x, y, 0.9)) || null : null;
 const kegAt = (x, y) => G.tg ? G.tg.kegs.find(k => k.alive && k.x === x && k.y === y) || null : null;
@@ -7778,7 +7796,7 @@ function kegBoom(kg) {
 // l'avant d'une bombe poussée touche-t-il une cible ? (les cibles mobiles peuvent arriver sur le côté)
 function tgtFront(b) {
   const fx0 = b.x + b.mdx * (b.prog + 0.55), fy0 = b.y + b.mdy * (b.prog + 0.55);
-  return G.tg.list.find(o => tgtNear(o, fx0, fy0, 0.62)) || G.tg.blues.find(o => tgtNear(o, fx0, fy0, 0.62)) || null;
+  return G.tg.list.find(o => !o.ai && tgtNear(o, fx0, fy0, 0.62)) || G.tg.blues.find(o => tgtNear(o, fx0, fy0, 0.62)) || null;
 }
 // une cible touchée (bombe poussée dessus, ou explosion) ; en combo, elle ne tombe que si toutes les cibles de la vague le sont ensemble
 function tgtStrike(o, sx, sy) {
@@ -7854,6 +7872,7 @@ function tgtTick(dt) {
   // combo raté : toutes les cibles n'ont pas été touchées ensemble, celles qui l'ont été se relèvent
   if (T4.comboT && !T4.okT && G.t > T4.comboT) tgtComboFail();
   for (const o of T4.blues) { o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; }
+  for (const o of T4.list) if (o.ai && o.alive && o.spawn >= 1) tgtMover(o, dt);
   for (const o of T4.list) {
     o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; if (o.pop > 0) o.pop += dt;
     if (o.shield) o.sa += dt * (TAU / 2.6) * o.sdir;
@@ -7863,6 +7882,53 @@ function tgtTick(dt) {
     const blocked = ny < o.y0 || ny > o.y1 || G.grid[idx(o.x, ahead)] !== EMPTY || (G.bombAt[idx(o.x, ahead)] && ahead !== Math.round(o.y));
     if (blocked) o.dir = -o.dir; else o.y = ny;
   }
+}
+// cible qui esquive (défi 8) : elle fuit les explosions avec la même lecture du danger qu'un ordi niveau 10 (computeDanger, findEscape),
+// lentement et sans sortir de son coin ; une flamme où elle entre la touche aussi
+function tgtMover(o, dt) {
+  const T4 = G.tg, cx = Math.round(o.x), cy = Math.round(o.y), fl = G.flameT[idx(cx, cy)] > 0;
+  if (fl && !o.inFl) tgtStrike(o); o.inFl = fl;
+  if (!o.alive) return;
+  const me = G.players[0], meK = me && me.alive ? idx(Math.round(me.x), Math.round(me.y)) : -1;
+  if (o.path.length) {
+    const n = o.path[0], nk = idx(n.x, n.y);
+    if ((nk === meK || G.bombAt[nk]) && (Math.abs(o.x - cx) + Math.abs(o.y - cy) < 0.02)) o.path = [];   // case prise entre-temps : il repense
+    else {
+      const dx = n.x - o.x, dy = n.y - o.y, d = Math.abs(dx) + Math.abs(dy), st = o.v * dt;
+      if (d <= st) { o.x = n.x; o.y = n.y; o.path.shift(); } else { o.x += Math.sign(dx) * Math.min(st, Math.abs(dx)); o.y += Math.sign(dy) * Math.min(st, Math.abs(dy)); }
+      return;
+    }
+  }
+  o.thinkT -= dt; if (o.thinkT > 0) return;
+  o.thinkT = AI_LV[9].think;
+  // cases permises : son coin, sans les autres cibles, les barils ni le joueur
+  const zone = new Set(), nest = T4.nest;
+  for (let y = nest[1]; y <= nest[3]; y++) for (let x = nest[0]; x <= nest[2]; x++) {
+    const k = idx(x, y);
+    if (k === meK || kegAt(x, y) || T4.list.some(q => q !== o && q.alive && Math.round(q.x) === x && Math.round(q.y) === y)) continue;
+    zone.add(k);
+  }
+  const mk = POOL.depth ? null : { ...POOL.n }; POOL.depth++;
+  G.aiPredict = true;
+  try {
+    const D = computeDanger(null), sk = idx(cx, cy);
+    G.aiZone = zone;
+    if (D.S[sk] !== Infinity || sk === meK) {
+      const esc = findEscape(cx, cy, 0, 1 / o.v, AI_LV[9].margin, D, -1, false, shuffled(NB), null, 8);
+      if (esc && esc.length) o.path = esc;
+    } else if ((o.wanderT -= AI_LV[9].think) <= 0) {
+      // à l'abri : il se promène, en préférant les cases sûres d'où l'on peut encore fuir, loin du joueur
+      o.wanderT = 0.6 + Math.random() * 1.2;
+      let best = null, bs = -Infinity;
+      for (const [dx, dy] of NB) {
+        const nk = idx(cx + dx, cy + dy); if (!passableAI(nk, -1) || D.S[nk] !== Infinity) continue;
+        let sc = Math.random() * 1.5 + (me ? Math.hypot(cx + dx - me.x, cy + dy - me.y) * 0.4 : 0);
+        for (const [ex, ey] of NB) { const ek = idx(cx + dx + ex, cy + dy + ey); if (passableAI(ek, -1) && D.S[ek] === Infinity) sc += 0.5; }
+        if (sc > bs) { bs = sc; best = { x: cx + dx, y: cy + dy }; }
+      }
+      if (best && Math.random() < 0.7) o.path = [best];
+    }
+  } finally { G.aiZone = null; G.aiPredict = false; POOL.depth--; if (mk && POOL.N === N) POOL.n = mk; }
 }
 // bouton Astuce (défi 4) : comment arrêter une bombe poussée, avec les touches du joueur
 const tipEl = $('#tip-box');
@@ -7956,6 +8022,15 @@ function drawRange(c, t) {
   c.strokeStyle = '#f6efe0'; c.beginPath(); c.moveTo(rx, T); c.lineTo(rx, (ROWS - 1) * T); c.stroke();
   c.lineDashOffset = 9; c.strokeStyle = '#d8302a'; c.beginPath(); c.moveTo(rx, T); c.lineTo(rx, (ROWS - 1) * T); c.stroke();
   c.setLineDash([]);
+  if (T4.zone) {
+    const [x0, y0, x1, y1] = T4.zone, zx = x0 * T, zy = y0 * T, zw = (x1 - x0 + 1) * T, zh = (y1 - y0 + 1) * T;
+    c.fillStyle = 'rgba(8,12,6,.45)'; c.beginPath(); c.rect(T, T, (COLS - 2) * T, (ROWS - 2) * T); c.rect(zx + zw, zy, -zw, zh); c.fill('evenodd');
+    if (T4.nest) { const [a, b, a1, b1] = T4.nest; c.fillStyle = 'rgba(232,176,74,.22)'; c.fillRect(a * T, b * T, (a1 - a + 1) * T, (b1 - b + 1) * T); }
+    c.lineWidth = 4; c.setLineDash([9, 9]);
+    c.strokeStyle = '#f6efe0'; c.strokeRect(zx, zy, zw, zh);
+    c.lineDashOffset = 9; c.strokeStyle = '#d8302a'; c.strokeRect(zx, zy, zw, zh); c.lineDashOffset = 0;
+    c.setLineDash([]);
+  }
   // rail de la cible mobile
   for (const o of T4.list) if (o.moving && (o.alive || o.pop < 0.7)) { c.strokeStyle = 'rgba(90,58,30,.55)'; c.lineWidth = 3; c.beginPath(); c.moveTo((o.x + 0.5) * T - 7, (o.y0 + 0.5) * T); c.lineTo((o.x + 0.5) * T - 7, (o.y1 + 0.5) * T); c.moveTo((o.x + 0.5) * T + 7, (o.y0 + 0.5) * T); c.lineTo((o.x + 0.5) * T + 7, (o.y1 + 0.5) * T); c.stroke(); }
   for (const kg of T4.kegs) if (kg.alive) drawKeg(c, (kg.x + 0.5) * T, (kg.y + 0.5) * T, t, kg.fuse >= 0);
@@ -7973,7 +8048,8 @@ function drawRange(c, t) {
     const e = o.spawn, sc = e < 1 ? 1 - Math.pow(1 - e, 3) * 1 + Math.sin(e * Math.PI) * 0.15 : 1;
     const wob = o.shrug > 0 ? Math.sin(o.shrug * 40) * 0.12 : Math.sin(t * 2 + o.x) * 0.03;
     c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, x, y + T * 0.42, T * 0.3, T * 0.09); c.fill();
-    drawTarget(c, x, y - T * 0.08, T * 0.32, { scale: sc, tilt: wob, flash: o.hitAt != null ? 0.5 + 0.3 * Math.sin(t * 30) : o.shrug > 0 ? 0.25 : 0 });
+    const bob = o.ai && o.path.length ? Math.abs(Math.sin(t * 14)) * 3 : 0;   // la cible qui esquive sautille quand elle se déplace
+    drawTarget(c, x, y - T * 0.08 - bob, T * 0.32, { scale: sc, tilt: wob, flash: o.hitAt != null ? 0.5 + 0.3 * Math.sin(t * 30) : o.shrug > 0 ? 0.25 : 0 });
     if (o.life !== undefined && o.spawn >= 1) {   // cible éclair : anneau du temps qui reste
       const f = Math.max(0, o.life / o.max); c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.arc(x, y - T * 0.08, T * 0.42, 0, TAU); c.stroke();
       c.strokeStyle = f < 0.3 && Math.sin(t * 20) > 0 ? '#ff5a4a' : '#ffd36e'; c.beginPath(); c.arc(x, y - T * 0.08, T * 0.42, -Math.PI / 2, -Math.PI / 2 + f * TAU); c.stroke();
