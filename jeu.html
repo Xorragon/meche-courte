@@ -3789,19 +3789,36 @@ function aiHitValue(p, x, y, timer, range, eks, bset) {
   return bombValue(p, x, y, G.aiD, eks, bset, timer, range, true);
 }
 // L'ordi peut-il s'abriter depuis la case (fx, fy), avec ces bombes en plus (`extra`) ?
-function aiSafeWith(p, fx, fy, extra, t0 = 0) {
+function aiSafeWith(p, fx, fy, extra, t0 = 0, m = 0.1) {
   const lv = p.ai.lv, D2 = computeDanger(extra);
-  return D2.S[idx(fx, fy)] === Infinity || !!findEscape(fx, fy, t0, 1 / speedOf(p), lv.margin + 0.1, D2, -1, true, p.ai.nb, null, lv.sight);
+  return D2.S[idx(fx, fy)] === Infinity || !!findEscape(fx, fy, t0, 1 / speedOf(p), lv.margin + m, D2, -1, true, p.ai.nb, null, lv.sight);
+}
+// Marge en plus pour un coup de pied : un humain ne pousse pas au pixel près, il lui faut le temps de réagir et de repartir
+const KICK_MARGIN = 0.35;
+// première case de la glissade où la bombe poussée rentrerait dans des flammes (allumées ou à venir) et sauterait aussitôt ; -1 sinon
+function kickEarlyHit(cells, last, t0, D) {
+  for (let j = 0; j <= last; j++) {
+    const k = cells[j], a = t0 + (j + 0.5) / KICK_SPEED;
+    if (G.flameT[k] > a || D.S[k] <= t0 + (j + 1) / KICK_SPEED) return j;
+  }
+  return -1;
 }
 // Coup de pied réfléchi (niveau 6 et plus) : une bombe voisine immobile, poussée vers un adversaire.
 // Avec kick ≥ 4, l'ordi peut l'arrêter sur la case qui fait le plus de dégâts.
 function aiKickChoice(p, sx, sy, eks, bset) {
-  const lv = p.ai.lv; let best = null;
+  const lv = p.ai.lv, D0 = G.aiD || computeDanger(null); let best = null;
+  const cand = [];
   for (const [dx, dy] of NB) {
     const b = G.bombAt[idx(sx + dx, sy + dy)];
     if (!b || b.mdx || b.mdy || b.passers.has(p.id) || b.timer < 0.6 || b.x !== sx + dx || b.y !== sy + dy) continue;
     const cells = slideCells(b.x, b.y, dx, dy, b); if (!cells.length) continue;
-    const last = cells.length - 1;
+    // pousser une bombe dans une explosion tout près de soi : elle saute presque aussitôt, aucun humain n'a le temps de s'en sortir
+    const e = kickEarlyHit(cells, cells.length - 1, 0, D0);
+    cand.push({ b, dx, dy, cells, e });
+  }
+  for (const { b, dx, dy, cells, e } of cand) {
+    let last = cells.length - 1;
+    if (e >= 0) { if (e + 1 <= b.range + 1) continue; last = e; }
     for (let i = lv.kick >= 4 ? 0 : last; i <= last; i++) {
       const ta = (i + 1) / KICK_SPEED; if (ta > b.timer - 0.15) break;
       const cx = cells[i] % COLS, cy = (cells[i] / COLS) | 0;
@@ -3811,7 +3828,7 @@ function aiKickChoice(p, sx, sy, eks, bset) {
       if (v < 6 || (best && v <= best.v)) continue;
       // l'ordi doit pouvoir s'abriter de la bombe sur toute sa glissade (une flamme peut la faire sauter en route)
       G.aiSkip = b; const D2 = computeDanger(kickPath(b.x, b.y, cells, i, b.range, b.timer)); G.aiSkip = null;
-      if (D2.S[idx(sx, sy)] !== Infinity && !findEscape(sx, sy, 0, 1 / speedOf(p), lv.margin + 0.1, D2, -1, true, p.ai.nb, null, lv.sight)) continue;
+      if (D2.S[idx(sx, sy)] !== Infinity && !findEscape(sx, sy, 0, 1 / speedOf(p), lv.margin + KICK_MARGIN, D2, -1, true, p.ai.nb, null, lv.sight)) continue;
       best = { b, dx, dy, v, stop: i < last ? cells[i] : -1 };
     }
   }
@@ -3825,14 +3842,15 @@ function aiPlaceKickChoice(p, sx, sy, D, eks, bset) {
     if (!passableAI(fk, -1) || D.S[fk] !== Infinity) continue;
     if (G.players.some(o => o !== p && o.alive && Math.round(o.x) === fx && Math.round(o.y) === fy)) continue;
     const cells = slideCells(sx, sy, dx, dy, null); if (cells.length < 2) continue;
-    const t0 = step + 0.12, last = cells.length - 1;   // le temps de reculer d'une case, puis de pousser
+    const t0 = step + 0.12; let last = cells.length - 1;   // le temps de reculer d'une case, puis de pousser
+    const e = kickEarlyHit(cells, last, t0, D); if (e >= 0) { if (e + 2 <= p.range + 1) continue; last = e; }   // pas de poussée dans une explosion proche
     for (let i = lv.kick >= 4 ? 1 : last; i <= last; i++) {
       const ta = t0 + (i + 1) / KICK_SPEED; if (ta > FUSE - 0.3) break;
       const cx = cells[i] % COLS, cy = (cells[i] / COLS) | 0;
       const v = aiHitValue(p, cx, cy, FUSE, p.range, eks, bset);
       if (v < 7 || (best && v <= best.v)) continue;
       // abri depuis la case de recul, contre la bombe sur toute sa glissade (et si la poussée rate : restée sur place)
-      if (!aiSafeWith(p, fx, fy, kickPath(sx, sy, cells, i, p.range, FUSE, t0), step)) continue;
+      if (!aiSafeWith(p, fx, fy, kickPath(sx, sy, cells, i, p.range, FUSE, t0), step, KICK_MARGIN)) continue;
       if (!aiSafeWith(p, fx, fy, { x: sx, y: sy, r: p.range, t: FUSE }, step)) continue;   // et si la poussée rate
       best = { dx, dy, v, from: fk, stop: i < last ? cells[i] : -1 };
     }
