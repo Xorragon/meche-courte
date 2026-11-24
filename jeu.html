@@ -2298,7 +2298,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   if (G.dk && y >= 1 && y <= DK_Y1) return true;   // sinon elle s'arrête au bord de sa zone
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
-  if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;
+  if (G.tg && ((tgtAt(x, y) && !tgtAt(x, y).ai) || kegAt(x, y))) return true;   // l'ordi du défi 8 ne bloque pas les bombes : elles passent sous lui
   if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // les bombes poussées restent dans le quart de carte
   const o = G.bombAt[k]; if (o && o !== self) return true;
   for (const f of G.falling) if (f.k === k) return true;
