@@ -8519,9 +8519,9 @@ function drawWarn(c, t) {
   for (const w of G.warn) {
     if (w.t < 0) continue;
     const q = w.t / w.dur, a = (0.18 + 0.4 * q) * (0.7 + 0.3 * Math.sin(t * 24));
-    if (w.bolt) {   // éclair à venir (défi 10) : cible bleue qui se resserre
+    if (w.bolt) {   // éclair à venir (défi 10) : case bleue et cercle qui se resserre (sans croix)
       for (const k of w.cells) { const x = (k % COLS + 0.5) * T, y = ((k / COLS) | 0) * T + T / 2; c.fillStyle = `rgba(90,170,255,${(a * 0.8).toFixed(3)})`; c.fillRect(x - T / 2 + 3, y - T / 2 + 3, T - 6, T - 6);
-        c.strokeStyle = `rgba(200,235,255,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, T * (0.5 - 0.3 * q), 0, TAU); c.moveTo(x - 8, y); c.lineTo(x + 8, y); c.moveTo(x, y - 8); c.lineTo(x, y + 8); c.stroke(); }
+        c.strokeStyle = `rgba(200,235,255,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, T * (0.5 - 0.3 * q), 0, TAU); c.stroke(); }
       continue;
     }
     c.fillStyle = `rgba(255,30,15,${a.toFixed(3)})`; c.strokeStyle = `rgba(255,90,60,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2;
