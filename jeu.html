@@ -1531,6 +1531,7 @@ function allySafe(p, owner) {
   if (sideMode()) { const o = G.players[owner]; return !!o && o.team === p.team; }
   return false;
 }
+const ASC_SKIN = 92;   // icône du défi 9 (falaise et braises)
 const DEMON_SKIN = 94, TARGET8_SKIN = 93;   // TARGET8_SKIN : icône du défi 8 (cible dorée ×4)   // défi 10 : Brasimir, le Chevalier des braises (planche du joueur)
 const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9, CLOWN_SKIN = 97, MIME_SKIN = 96, TARGET_SKIN = 95;   // TARGET_SKIN : icône du défi 4 (cible)
    // Clown et Mime (défi 3) : planches du joueur ; portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
@@ -1592,7 +1593,8 @@ const CAMP = [
         spots: [[1, 1], [1, 3], [1, 5], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : pousse-lui tes bombes pour le coincer !' },
     ],
     spawns: { 0: [3, 5, 'right'] } },
-  { foe: 5 },
+  { name: 'L\'ascension', desc: 'Pour atteindre l\'antre de Brasimir, il faut grimper une falaise immense. Derrière toi, une marée de braises monte sans arrêt : fais sauter les caisses et les barils de poudre qui bouchent le chemin, trouve le passage dans les murs de pierre, et ne traîne pas. Plus haut, Brasimir te repère et fait pleuvoir des braises.',
+    foe: ASC_SKIN, dname: 'La marée de braises', climb: true, wins: 1, time: 420, rows: 45, crates: 0.5, maxB: 2, kegs: 12, spawns: { 0: [7, 43, 'up'] } },   // rangées 1 à 43 ; murs de pierre en 35, 27, 19, 11 (ASC_FLOORS)
   { name: 'Le Chevalier des braises', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Brasimir, le Chevalier des braises, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle ardent, météores, griffes de braise, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Tes explosions le blessent à tout moment, et quand son cœur s\'ouvre, une bombe poussée dedans fait très mal. Le combat le plus dur de la campagne.',
     foe: DEMON_SKIN, dname: 'Brasimir', demon: true, hp: 50, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
 ];
@@ -1879,8 +1881,8 @@ const Music = {
     const cur = this.slots[this.ci];
     if (!this.on()) { for (const sl of this.slots) if (!sl.el.paused) sl.el.pause(); this.paused = true; return; }
     if (this.paused) { this.paused = false; if (cur.name && !cur.el.ended) this.start(cur); }
-    const raging = (G.boss && G.boss.rage) || (G.dk && G.dk.phase >= 1) || (G.camp && G.camp.survive && G.phase === 'play' && G.time <= G.camp.rageAt);
-    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? (G.camp && (G.camp.npc || G.camp.demon) ? (raging ? 'rage' : 'boss') : 'classic')
+    const raging = (G.boss && G.boss.rage) || (G.dk && G.dk.phase >= 1) || (G.asc && G.asc.rage) || (G.camp && G.camp.survive && G.phase === 'play' && G.time <= G.camp.rageAt);
+    const scene = REPLAY.on ? this.scene || 'home' : G.mode === 'br' ? 'br' : G.mode === 'match' ? (G.camp && (G.camp.npc || G.camp.demon || G.camp.climb) ? (raging ? 'rage' : 'boss') : 'classic')
       : (!document.getElementById('camp').hidden || !document.getElementById('vs').hidden) ? 'camp' : 'home';
     const ph = G.phase, newGame = (this.prevPh === 'matchEnd' || this.prevPh === 'brEnd') && ph !== this.prevPh && !REPLAY.on
       || (scene === 'classic' && G.round < this.prevRound);
@@ -2061,7 +2063,7 @@ function assignChars(list) {
 }
 function setPlayers(list) {
   G.train = null;   // l'entraînement le remet juste après
-  G.nj = null; G.shur = []; G.dk = null;
+  G.nj = null; G.shur = []; G.dk = null; G.asc = null;
   assignChars(list);
   G.players = list; G.scores = list.map(() => 0); G.firsts = list.map(() => 0);
   G.places = []; G.gains = []; G.pointsMode = list.length >= 3; G.ranking = []; G.matchWin = [];
@@ -2269,6 +2271,7 @@ function newRound() {
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   G.shur = []; G.nj = campFlag('ninja') && G.players[1] ? njInit(G.players[1]) : null;
   G.itemX = null; G.dk = campFlag('demon') ? dkInit(G.camp) : null;
+  G.asc = campFlag('climb') ? ascInit(G.camp) : null;
   groundDirty = true;
 }
 
@@ -2280,6 +2283,7 @@ function solidAt(x, y) {
   if (G.tg && x >= G.tg.fence) return true;   // défi 4 : la corde du stand de tir (les bombes poussées passent dessous)
   if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // défi 8 : le joueur reste dans son quart de carte
   if (G.tg && G.tg.nest && inRect(G.tg.nest, x, y)) return true;
+  if (G.asc && G.asc.kegs.has(y * COLS + x)) return true;   // défi 9 : les barils de poudre
   if (G.dk && y >= 1 && y <= DK_Y1) return true;   // défi 10 : la zone du boss est interdite   // … sans entrer dans la zone de l'ordi (ses bombes poussées, elles, y entrent)
   return G.grid[y * COLS + x] !== EMPTY;
 }
@@ -2300,6 +2304,7 @@ function bombBlocked(x, y, self, ignorePlayers) {
   if (G.dk && y >= 1 && y <= DK_Y1) return true;   // sinon elle s'arrête au bord de sa zone
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
+  if (ascKeg(k)) return true;
   if (G.tg && ((tgtAt(x, y) && !tgtAt(x, y).ai) || kegAt(x, y))) return true;   // l'ordi du défi 8 ne bloque pas les bombes : elles passent sous lui
   if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // les bombes poussées restent dans le quart de carte
   const o = G.bombAt[k]; if (o && o !== self) return true;
@@ -2565,6 +2570,7 @@ function explode(b) {
         const tg = tgtAt(x, y), kg = !tg && kegAt(x, y);
         if (tg || kg) { igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who); if (tg) tgtStrike(tg, -dx, -dy); else kegIgnite(kg); break; }
       }
+      if (ascKeg(k)) { igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who); ascKegLit(k); break; }   // défi 9 : la flamme allume le baril et s'arrête dessus
       igniteCell(prev, bit, who); igniteCell(k, OPP[bit], who);
       if (g === CRATE) { if (G.mode === 'br' && k === G.chestK) chestHit(k, who); else if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } break; }
       if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; break; }
@@ -2723,6 +2729,149 @@ function gloopSplit(p) {
   Sfx.play('pickup');
 }
 
+
+/* ---------- Défi 9 : L'ascension. Une falaise très haute (15 × 45) : la marée de braises monte depuis le bas,
+   il faut grimper jusqu'à l'antre de Brasimir (rangée 1) en faisant sauter caisses et barils de poudre.
+   Des murs de pierre barrent la falaise (un passage à gauche, un à droite) ; dans la moitié haute, des braises tombent du ciel ---------- */
+const ASC_FLOORS = [35, 27, 19, 11], ASC_GAP = 8, ASC_V = [0.22, 0.42], ASC_WAIT = 5, ASC_KEG_R = 3, ASC_KEGS = 12, ASC_RAIN = [2.4, 1.5], ASC_RAIN_WARN = 1.05;
+function ascInit(c) {
+  const g = G.grid, clear = k => { if (g[k] === CRATE) { g[k] = EMPTY; G.hidden[k] = -1; } };
+  // départ (3 rangées du bas) et sommet (rangée 1) dégagés
+  for (let y = ROWS - 4; y <= ROWS - 2; y++) for (let x = 1; x < COLS - 1; x++) clear(idx(x, y));
+  for (let x = 1; x < COLS - 1; x++) clear(idx(x, 1));
+  // murs de pierre : toute la rangée, sauf un passage à gauche et un à droite, bouchés par une caisse
+  for (const y of c.floors || ASC_FLOORS) {
+    for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); g[k] = STONE; G.hidden[k] = -1; G.items[k] = -1; }
+    for (const xs of [[1, 3, 5], [9, 11, 13]]) { const k = idx(xs[(Math.random() * 3) | 0], y); g[k] = CRATE; G.hidden[k] = -1; }
+  }
+  // barils de poudre, à la place de caisses (pas trop près les uns des autres)
+  const kegs = new Map(), cand = [];
+  for (let y = 3; y <= ROWS - 7; y++) for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); if (g[k] === CRATE && !(c.floors || ASC_FLOORS).includes(y)) cand.push(k); }
+  for (const k of shuffled(cand)) {
+    if (kegs.size >= (c.kegs || ASC_KEGS)) break;
+    const x = k % COLS, y = (k / COLS) | 0;
+    if ([...kegs.keys()].some(o => Math.abs(o % COLS - x) + Math.abs(((o / COLS) | 0) - y) < 4)) continue;
+    g[k] = EMPTY; G.hidden[k] = -1; kegs.set(k, -1);
+  }
+  const owner = { id: BOSS_ID, active: 9, pal: palFor(3), keg: true };
+  return { ly: ROWS - 0.5, wait: ASC_WAIT, kegs, owner, rainT: 2, rage: false, best: ROWS - 2, why: '', endT: 0, won: false, cov: ROWS, t0: G.time };
+}
+const ascKeg = k => !!(G.asc && G.asc.kegs.has(k));
+function ascKegLit(k) { const A = G.asc; if (A && A.kegs.get(k) === -1) A.kegs.set(k, 0.14); }
+function ascKegBoom(k) {
+  const A = G.asc; A.kegs.delete(k);
+  const b = { x: k % COLS, y: (k / COLS) | 0, owner: A.owner, range: ASC_KEG_R, timer: 0, mdx: 0, mdy: 0, prog: 0, passers: new Set(), keg: true };
+  A.owner.active++; G.bombs.push(b); explode(b);
+}
+// hauteur atteinte, de 0 (départ) à 1 (sommet)
+const ascProg = y => clamp((ROWS - 2 - y) / (ROWS - 3), 0, 1);
+function ascRain(A, me) {
+  // 2 ou 3 braises : une sur le joueur (ou juste à côté), les autres autour
+  const n = ascProg(me.y) > 0.8 ? 3 : 2, done = new Set();
+  for (let j = 0; j < n; j++) {
+    let k = -1;
+    for (let tries = 0; tries < 12 && k < 0; tries++) {
+      const x = j === 0 ? Math.round(me.x) + (Math.random() < 0.5 ? 0 : (Math.random() < 0.5 ? -1 : 1)) : 1 + ((Math.random() * (COLS - 2)) | 0);
+      const y = j === 0 ? Math.round(me.y) + (Math.random() < 0.6 ? 0 : -1) : Math.round(me.y) - 4 + ((Math.random() * 6) | 0);
+      if (x < 1 || x > COLS - 2 || y < 1 || y > ROWS - 2) continue;
+      const kk = idx(x, y); if (G.grid[kk] === PILLAR || G.grid[kk] === STONE || G.grid[kk] === WALL || done.has(kk)) continue;
+      k = kk;
+    }
+    if (k < 0) continue; done.add(k);
+    warnCells([k], ASC_RAIN_WARN, () => {
+      bossBurn(k); Sfx.boom('classic', 0.4, 0.85); if (!reduceMotion) G.shake = Math.max(G.shake, 2.5);
+      const x = k % COLS, y = (k / COLS) | 0;
+      for (let i = 0; i < 9; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 130; addP({ kind: 'spark', x: (x + 0.5) * T, y: (y + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50, life: 0.5, max: 0.5, size: 3, color: i % 2 ? '#ffb347' : '#ff5a1f' }); }
+    }, j * 0.18);
+    G.warn[G.warn.length - 1].ember = true;
+  }
+}
+function ascTick(dt) {
+  const A = G.asc, me = G.players[0];
+  if (me.alive) A.best = Math.min(A.best, me.y);
+  // barils allumés
+  for (const [k, f] of A.kegs) if (f >= 0) { if (f - dt <= 0) ascKegBoom(k); else A.kegs.set(k, f - dt); }
+  if (A.won) return;
+  // la marée monte (plus vite en haut) ; elle ne reste jamais à plus de ASC_GAP rangées sous le joueur
+  if (A.wait > 0) A.wait -= dt;
+  else { const q = clamp(1 - A.ly / ROWS, 0, 1); A.ly -= (ASC_V[0] + (ASC_V[1] - ASC_V[0]) * q) * dt; }
+  if (me.alive) A.ly = Math.min(A.ly, me.y + ASC_GAP);
+  // les rangées englouties : caisses, bonus et barils disparaissent, les bombes sautent
+  const cov = Math.max(1, Math.ceil(A.ly - 0.3));
+  for (; A.cov > cov; ) {
+    const y = --A.cov; if (y >= ROWS - 1) continue;
+    for (let x = 1; x < COLS - 1; x++) {
+      const k = idx(x, y);
+      if (G.grid[k] === CRATE) { G.grid[k] = EMPTY; G.hidden[k] = -1; G.burn[k] = 0; }
+      G.items[k] = -1;
+      if (A.kegs.get(k) === -1) A.kegs.set(k, 0.05);
+      const b = G.bombAt[k]; if (b) b.timer = Math.min(b.timer, CHAIN_DELAY);
+    }
+    groundDirty = true;
+  }
+  if (me.alive && !(me.shield > 0) && me.y + 0.22 > A.ly) { A.why = 'lava'; kill(me, BOSS_ID); fx('crate', Math.round(me.x), Math.round(me.y)); }
+  // braises dans la moitié haute
+  if (me.alive && ascProg(me.y) >= 0.5) {
+    if (!A.rage) { A.rage = true; G.rageMsg = ['Brasimir t\'a repéré !', 'Des braises tombent du ciel : surveille les cases rouges']; G.rageFlash = 2.6; Sfx.play('njcast'); }
+    A.rainT -= dt;
+    if (A.rainT <= 0) { const q = ascProg(me.y); A.rainT = ASC_RAIN[0] + (ASC_RAIN[1] - ASC_RAIN[0]) * (q - 0.5) * 2; ascRain(A, me); }
+  }
+  // arrivé en haut
+  if (me.alive && me.y <= 1.15) { A.won = true; me.shield = 9; Sfx.play('pickup'); G.rageMsg = ['L\'antre de Brasimir !', 'Tu as grimpé toute la falaise']; G.rageFlash = 1.6; }
+  // des étincelles qui montent de la marée
+  if (Math.random() < dt * 14) { const x = 1 + Math.random() * (COLS - 2); addP({ kind: 'spark', x: x * T, y: A.ly * T, vx: (Math.random() - 0.5) * 30, vy: -60 - Math.random() * 90, life: 0.9, max: 0.9, size: 2.4, color: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a' }); }
+}
+// barils (dessinés rangée par rangée, comme les blocs)
+function ascDrawRow(c, y, t) {
+  for (const [k, f] of G.asc.kegs) if (((k / COLS) | 0) === y) drawKeg(c, (k % COLS + 0.5) * T, (y + 0.5) * T, t, f >= 0);
+}
+// braises qui tombent (pendant l'alerte), la marée, et l'entrée de l'antre en haut
+function ascDrawTop(c, t) {
+  const A = G.asc;
+  for (const w of G.warn) {
+    if (!w.ember || w.t < 0) continue;
+    const q = Math.min(1, w.t / w.dur), k = w.cells[0], x = (k % COLS + 0.5) * T, y = ((k / COLS) | 0) * T + T / 2 - (1 - q) * (1 - q) * T * 6;
+    c.save(); c.globalAlpha = Math.min(1, q * 3);
+    const g = c.createRadialGradient(x, y, 1, x, y, T * 0.34); g.addColorStop(0, '#fff2b0'); g.addColorStop(0.45, '#ff9a2a'); g.addColorStop(1, 'rgba(255,60,20,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, T * 0.34, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(255,140,40,.45)'; c.lineWidth = 5; c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + 3, y - T * 0.9); c.stroke();
+    c.restore();
+  }
+  // l'entrée de l'antre, au milieu du mur du haut
+  { const x = 7.5 * T, y = T; c.save();
+    c.fillStyle = '#1a0d14'; c.beginPath(); c.moveTo(x - T * 0.85, y); c.lineTo(x - T * 0.85, y - T * 0.45); c.arc(x, y - T * 0.45, T * 0.85, Math.PI, 0); c.lineTo(x + T * 0.85, y); c.closePath(); c.fill();
+    const g = c.createRadialGradient(x, y - 6, 2, x, y - 6, T * 1.1); g.addColorStop(0, `rgba(255,120,40,${(0.55 + 0.15 * Math.sin(t * 3)).toFixed(3)})`); g.addColorStop(1, 'rgba(255,60,20,0)');
+    c.fillStyle = g; c.fillRect(x - T * 1.2, y - T * 1.4, T * 2.4, T * 1.6);
+    c.restore(); }
+  // la marée de braises
+  const top = A.ly * T, bot = ROWS * T; if (top > bot) return;
+  c.save();
+  const glow = c.createLinearGradient(0, top - T * 1.6, 0, top); glow.addColorStop(0, 'rgba(255,90,20,0)'); glow.addColorStop(1, 'rgba(255,90,20,.35)');
+  c.fillStyle = glow; c.fillRect(0, top - T * 1.6, COLS * T, T * 1.6);
+  const g = c.createLinearGradient(0, top, 0, Math.min(bot, top + T * 3)); g.addColorStop(0, '#ffcf5a'); g.addColorStop(0.18, '#ff7a1f'); g.addColorStop(0.6, '#c2261a'); g.addColorStop(1, '#5a0f14');
+  c.fillStyle = g; c.beginPath(); c.moveTo(0, bot);
+  for (let x = 0; x <= COLS * T; x += 12) c.lineTo(x, top + Math.sin(x * 0.045 + t * 2.4) * 4 + Math.sin(x * 0.11 - t * 3.3) * 2.5);
+  c.lineTo(COLS * T, bot); c.closePath(); c.fill();
+  // bulles
+  for (let i = 0; i < COLS * 2; i++) {
+    const ph = (t * 0.6 + i * 0.37) % 1, x = ((i * 53.7) % (COLS * T)), y = top + 10 + ((i * 29) % (T * 2)) - ph * 8;
+    c.fillStyle = `rgba(255,220,120,${(0.5 * (1 - ph)).toFixed(3)})`; c.beginPath(); c.arc(x, y, 2 + 3 * ph, 0, TAU); c.fill();
+  }
+  c.restore();
+}
+// jauge à droite : le sommet en haut, ta hauteur et celle de la marée
+function ascDrawBar(c, t) {
+  const A = G.asc, me = G.players[0], x = W - 30, y0 = 70, h = H - 150;
+  c.save();
+  c.fillStyle = 'rgba(12,8,10,.65)'; rr(c, x - 9, y0 - 26, 26, h + 40, 12); c.fill();
+  c.fillStyle = '#2a2024'; rr(c, x, y0, 8, h, 4); c.fill();
+  const lq = ascProg(A.ly), py = y0 + h * (1 - ascProg(me.y));
+  const lg = c.createLinearGradient(0, y0 + h * (1 - lq), 0, y0 + h); lg.addColorStop(0, '#ffb347'); lg.addColorStop(1, '#b8201a');
+  c.fillStyle = lg; if (lq > 0) { rr(c, x, y0 + h * (1 - lq), 8, h * lq, 4); c.fill(); }
+  c.fillStyle = '#ffd36e'; c.font = '800 11px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText('▲', x + 4, y0 - 6);
+  c.fillStyle = me.pal.ui; c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.arc(x + 4, py, 6.5, 0, TAU); c.fill(); c.stroke();
+  c.restore();
+}
 
 /* ---------- Défi 10 : Brasimir, le Chevalier des braises. Il arpente sa zone en haut de l'arène (rangées 1 à 3, 5 cases de large),
    interdite au joueur ; seule une bombe poussée vers le haut dans son cœur (quand il s'ouvre, il s'arrête au-dessus d'une colonne impaire) le blesse.
@@ -4456,7 +4605,7 @@ function update(dt) {
     if (G.time <= 0) {
       G.time = 0;
       // défi de survie : pas de mort subite, c'est Kaboum qui explose
-      if (!G.sudden && !campFlag('survive') && !campFlag('boss') && !campFlag('targets')) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
+      if (!G.sudden && !campFlag('survive') && !campFlag('boss') && !campFlag('targets') && !campFlag('climb')) { G.sudden = true; G.suddenFlash = 1.8; G.sdTimer = 0.8; fx('snd', 'sudden'); }
     }
     if (G.sudden) {
       G.sdTimer -= dt;
@@ -4526,6 +4675,12 @@ function update(dt) {
     if (!me.alive && G.camp.retryWave && G.time > 0) { T4.deadT = (T4.deadT || 0) + dt; if (T4.deadT > 0.7) tgtRetry(); }   // défi 8 : soufflé = on recommence la vague, même si ses cibles sont tombées
     else if (!left) { T4.endT += dt; if (T4.endT > 0.9) tgtEnd(true); }
     else if (!me.alive || G.time <= 0 || dry) { T4.why = !me.alive ? 'dead' : G.time <= 0 ? 'time' : 'ammo'; G.endTimer = G.endTimer || 1.2; G.endTimer -= dt; if (G.endTimer <= 0) tgtEnd(false); }
+  } else if (G.phase === 'play' && G.asc) {
+    // défi 9 : gagné en haut de la falaise ; perdu si la marée te rattrape, si tu es soufflé ou si le temps est écoulé
+    ascTick(dt);
+    const me = G.players[0];
+    if (G.asc.won) { G.asc.endT += dt; if (G.asc.endT > 1.1) bossEnd(true); }
+    else if (!me.alive || G.time <= 0) { if (!G.asc.why) G.asc.why = me.alive ? 'time' : 'dead'; G.endTimer = G.endTimer || 1.1; G.endTimer -= dt; if (G.endTimer <= 0) bossEnd(false); }
   } else if (G.phase === 'play' && G.dk) {
     // défi 10 : gagné quand Malakor a fini d'exploser ; perdu si tu es soufflé ou si le temps est écoulé
     dkTick(dt);
@@ -5864,7 +6019,7 @@ function endRound() {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 function afterRound() {
-  if (G.camp && (G.camp.boss || G.camp.targets)) { G.phase = 'matchEnd'; showEnd(); return; }   // défis en une seule manche (boss, stand de tir)
+  if (G.camp && (G.camp.boss || G.camp.targets || G.camp.climb || G.camp.demon)) { G.phase = 'matchEnd'; showEnd(); return; }   // défis en une seule manche (boss, stand de tir)
   if (G.pointsMode) {
     if (G.round >= POINT_ROUNDS) {
       if (G.mode === 'match') { G.phase = 'matchEnd'; showEnd(); return; }
@@ -6773,6 +6928,7 @@ function render() {
       } else if (G.items[k] >= 0) drawFieldItem(c, k, t);
     }
     if (G.dk && y === 1) drawDkBack(c, t);
+    if (G.asc && G.asc.kegs.size) ascDrawRow(c, y, t);
     for (const b of bombRows[y]) { const bx = b.x + b.mdx * b.prog, by = b.y + b.mdy * b.prog; if (bx >= vx0 - 1 && bx <= vx1 + 1) drawBomb(c, (bx + 0.5) * T, (by + 0.5) * T, b, t); }
     for (const p of heroRows[y]) {
       if (p.x < vx0 - 1 || p.x > vx1 + 1) continue;
@@ -6802,6 +6958,7 @@ function render() {
   }
 
   drawFlames(c);
+  if (G.asc) ascDrawTop(c, t);
   if (G.mode === 'br') {
     drawMegaRing(c); drawMegaFinale(c, t); drawMegaBomb(c, t);
     const me = G.players[localIdx()], tg = me && me.ct && G.phase === 'play' ? G.players[me.ct.tg] : null;
@@ -6851,6 +7008,7 @@ function render() {
     const tt = G.phaseT;
     if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55 && campFlag('targets')) drawBanner(c, `Fais tomber les ${G.tg ? G.tg.total : 7} cibles !`, G.camp.intro || 'Pousse tes bombes de l\'autre côté de la corde', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55 && campFlag('climb')) drawBanner(c, 'Grimpe jusqu\'à l\'antre !', 'La marée de braises monte : fais sauter les caisses et ne traîne pas', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Pousse tes bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
@@ -6859,10 +7017,10 @@ function render() {
     if (G.lastWinner === 0) drawBanner(c, 'Ton équipe gagne la manche', sc, '#ffd36e', a);
     else if (G.lastWinner === 1) drawBanner(c, `${foeName(G.camp)} gagnent la manche`, sc, '#f3e5c0', a);
     else drawBanner(c, 'Égalité !', 'Personne ne marque', '#f3e5c0', a);
-  } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive || G.camp.targets)) {
+  } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive || G.camp.targets || G.camp.climb || G.camp.demon)) {
     const a = Math.min(1, (2.8 - G.phaseT) * 4), won = G.lastWinner === 0;
-    const why = G.tg && { time: 'Temps écoulé', ammo: 'Plus de bombes', dead: 'Soufflé par ta propre bombe' }[G.tg.why];
-    drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : G.tg ? G.camp.winSub || 'En plein dans le mille' : 'Tu as tenu bon') : why || (G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer'), won ? '#ffd36e' : '#f3e5c0', a);
+    const why = G.tg ? { time: 'Temps écoulé', ammo: 'Plus de bombes', dead: 'Soufflé par ta propre bombe' }[G.tg.why] : G.asc && { lava: 'Rattrapé par les braises', time: 'Temps écoulé', dead: 'Soufflé' }[G.asc.why];
+    drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : G.camp.demon ? `${G.camp.dname} est vaincu` : G.asc ? 'Tu as atteint l\'antre de Brasimir' : G.tg ? G.camp.winSub || 'En plein dans le mille' : 'Tu as tenu bon') : why || (G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer'), won ? '#ffd36e' : '#f3e5c0', a);
   } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
     const a = Math.min(1, (3.2 - G.phaseT) * 4);
     const ids = G.players.map((_, i) => i).sort((x, y) => G.places[x] - G.places[y]);
@@ -6881,6 +7039,7 @@ function render() {
   if (G.boss && inGame()) drawBossBar(c, t);
   if (G.nj && inGame()) drawNjBar(c, t);
   if (G.dk && inGame()) drawDkBar(c, t);
+  if (G.asc && inGame()) ascDrawBar(c, t);
   if (G.tg && inGame()) drawTgtBar(c, t);
   if (G.paused) { c.fillStyle = 'rgba(8,14,10,.35)'; c.fillRect(0, 0, W, H); }
 }
@@ -6905,6 +7064,16 @@ function drawPortrait(cv, pal, skin, v = 0) {
   if (skin === TARGET8_SKIN) {   // défi 8 : cible dorée et badge ×4
     c.fillStyle = '#2c1c0c'; c.fillRect(0, 0, 52, 52); drawTarget(c, 24, 25, 16, { gold: true });
     c.fillStyle = 'rgba(20,14,6,.88)'; rr(c, 28, 31, 21, 15, 6); c.fill(); c.fillStyle = '#ffd36e'; c.font = '800 12px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('×4', 38.5, 39);
+    c.restore(); return;
+  }
+  if (skin === ASC_SKIN) {   // défi 9 : falaise, marée de braises et entrée de l'antre
+    c.fillStyle = '#1c1020'; c.fillRect(0, 0, 52, 52);
+    c.fillStyle = '#5c5662'; c.beginPath(); c.moveTo(4, 52); c.lineTo(10, 30); c.lineTo(16, 28); c.lineTo(20, 14); c.lineTo(26, 9); c.lineTo(32, 14); c.lineTo(36, 26); c.lineTo(42, 30); c.lineTo(48, 52); c.closePath(); c.fill();
+    c.fillStyle = '#7d7684'; c.beginPath(); c.moveTo(20, 14); c.lineTo(26, 9); c.lineTo(32, 14); c.lineTo(27, 16); c.closePath(); c.fill();
+    c.fillStyle = '#2a0d10'; c.beginPath(); c.arc(26, 16, 3.2, Math.PI, 0); c.lineTo(29.2, 19); c.lineTo(22.8, 19); c.closePath(); c.fill();
+    c.fillStyle = '#ff9a2a'; c.beginPath(); c.arc(26, 17.5, 1.6, 0, TAU); c.fill();
+    const g2 = c.createLinearGradient(0, 36, 0, 52); g2.addColorStop(0, '#ffcf5a'); g2.addColorStop(0.3, '#ff6a1f'); g2.addColorStop(1, '#8a1414');
+    c.fillStyle = g2; c.beginPath(); c.moveTo(0, 52); for (let x = 0; x <= 52; x += 4) c.lineTo(x, 39 + Math.sin(x * 0.4) * 2); c.lineTo(52, 52); c.closePath(); c.fill();
     c.restore(); return;
   }
   if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
@@ -8406,6 +8575,7 @@ function bossBurn(k) {
   const g = G.grid[k], x = k % COLS, y = (k / COLS) | 0;
   if (g === WALL || g === PILLAR || g === STONE) return;
   if (g === CRATE) { if (G.burn[k] <= 0) { G.burn[k] = FLAME_DUR; fx('crate', x, y); } return; }
+  if (ascKeg(k)) { ascKegLit(k); return; }
   if (G.items[k] >= 0 && !isOrb(G.items[k])) { fx('poof', x, y, G.items[k]); G.items[k] = -1; }
   const ob = G.bombAt[k]; if (ob) ob.timer = Math.min(ob.timer, CHAIN_DELAY);
   igniteCell(k, 31, BOSS_ID);
@@ -8650,6 +8820,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
+      : c.climb ? `Grimpe tout en haut de la falaise (${c.rows - 2} rangées) avant que la marée de braises te rattrape · fais sauter les caisses, et les barils de poudre (portée ${ASC_KEG_R}) · des murs de pierre barrent le chemin : un passage à gauche, un à droite · dans la moitié haute, des braises tombent du ciel (cases rouges) · tes bombes peuvent te souffler · une seule tentative`
       : c.demon ? `D'abord un tunnel où tu ramasses tous les bonus, puis ${c.dname}, qui arpente le haut de l'arène (zone interdite) · ${c.hp} PV : tes explosions qui le touchent lui en retirent 1, une bombe poussée contre lui 2, et dans son cœur ouvert 5 (il s'arrête alors au-dessus de la colonne rose) · ses sorts couvrent toute l'arène, et ses brûlures restent un moment · ${Math.round(c.time / 60 * 10) / 10} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
@@ -8692,7 +8863,7 @@ function startCamp(i) {
   if (!campReady(i)) return;
   const c = CAMP[i], me = { pal: palFor(0), skin: settings.skin }, foe = { pal: palFor(1), skin: c.foe };
   vsEl.innerHTML = `<div class="vs-side l" style="--vc:${me.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>Toi</span></div>`
-    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.demon ? `Boss final · ${c.hp} coups au cœur` : c.ninja ? 'Boss · 3 PV' : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
+    + `<div class="vs-side r" style="--vc:${c.npc ? '#d0302a' : c.targets ? '#e8b04a' : c.climb ? '#ff7a2f' : foe.pal.ui}"><canvas width="300" height="300"></canvas><b></b><span>${c.boss ? `Boss · ${c.hp} PV` : c.demon ? `Boss final · ${c.hp} PV` : c.climb ? `${c.rows - 2} rangées à grimper` : c.ninja ? 'Boss · 3 PV' : c.npc ? 'Boss' : c.targets ? `${tgtCount(c)} cibles · ${c.ammo} bombes` : 'Ordi ' + AI_LV_NAME[c.lv]}</span></div>`
     + `<div class="vs-mid">VS</div><div class="vs-top"><small>Défi ${i + 1} sur ${CAMP.length}</small></div>`;
   const fr = campSeats(c);
   if (c.boss) vsEl.querySelector('.vs-side.l span').textContent = fr.length ? `Toi, ${fr.map(L => cleanNick(L.nick, 'Ami')).join(', ')}${c.allies > fr.length ? ` + ${c.allies - fr.length} allié${c.allies - fr.length > 1 ? 's' : ''}` : ''}` : `Toi + ${c.allies} alliés`;
@@ -8734,6 +8905,13 @@ function startCampMatch(i) {
     me.team = 0; al.team = 0; e1.team = 1; e2.team = 1;
     setPlayers([me, e1, al, e2]); campNetStart(); G.pointsMode = false; G.round = 1; G.winsNeeded = c.wins;
     newRound(); setupHud();
+    menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
+    blurActive(); return;
+  }
+  if (c.climb) {
+    // défi 9 : seul sur la falaise
+    setPlayers([me]); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
+    newRound(); me.maxBombs = c.maxB || 1; setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
@@ -8943,6 +9121,7 @@ function showEndCamp() {
   const text = c.targets ? (won ? `Les ${G.tg.total} cibles sont tombées, avec ${G.tg.ammo} bombe${G.tg.ammo > 1 ? 's' : ''} en réserve et ${Math.ceil(G.time)} s d'avance !` : `${G.tg.hits} cible${G.tg.hits > 1 ? 's' : ''} sur ${G.tg.total} · ${{ time: 'temps écoulé', ammo: 'plus de bombes', dead: 'soufflé par ta propre bombe' }[G.tg.why] || 'raté'}.`)
     : c.survive ? (won ? `Tu as tenu ${c.survive} secondes !` : `Tenu ${Math.max(0, Math.round(c.survive - G.campT))} s sur ${c.survive}.`)
     : c.boss ? (won ? `${c.npc} est vaincu !` : G.time <= 0 ? `Temps écoulé : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.` : `${G.players.some(o => o.remote) ? 'Toute l\'équipe a été soufflée' : c.tomb ? 'Tu as été soufflé et personne n\'a pu te relever' : 'Tu as été soufflé'} : ${c.npc} avait encore ${G.boss ? G.boss.hp : '?'} PV sur ${c.hp}.`)
+    : c.climb ? (won ? `Tu as atteint l'antre de Brasimir en ${Math.floor((c.time - G.time) / 60)} min ${String(Math.round((c.time - G.time) % 60)).padStart(2, '0')} !` : `Tu es monté à ${Math.round(ascProg(G.asc ? G.asc.best : ROWS) * 100)} % de la falaise · ${G.asc && G.asc.why === 'lava' ? 'rattrapé par les braises' : G.asc && G.asc.why === 'time' ? 'temps écoulé' : 'soufflé'}.`)
     : c.demon ? (won ? `${c.dname} est vaincu ! La campagne est terminée !` : G.time <= 0 ? `Temps écoulé : ${c.dname} avait encore ${G.dk ? G.dk.hp : '?'} PV sur ${c.hp}.` : `${c.dname} avait encore ${G.dk ? G.dk.hp : '?'} PV sur ${c.hp}.`)
     : c.ninja ? (won ? 'Le Ninja est vaincu !' : `Le Ninja avait encore ${G.nj ? G.nj.hp : '?'} PV sur 3.`)
     : c.split ? (won ? 'Les 7 Gloop ont éclaté !' : `Il restait ${G.players.filter(o => o.team === 1 && o.alive).length} Gloop.`)
@@ -11509,7 +11688,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap(), CAMP, tgtCount, startCamp, campUnlock, CHARS };
+window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap(), CAMP, tgtCount, startCamp, campUnlock, CHARS, ascProg };
 boot({});
 })();
 </script>
