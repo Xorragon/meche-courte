@@ -1526,7 +1526,7 @@ function allySafe(p, owner) {
   if (sideMode()) { const o = G.players[owner]; return !!o && o.team === p.team; }
   return false;
 }
-const DEMON_SKIN = 94;   // défi 10 : Malakor, le Seigneur démon (planche du joueur)
+const DEMON_SKIN = 94, TARGET8_SKIN = 93;   // TARGET8_SKIN : icône du défi 8 (cible dorée ×4)   // défi 10 : Malakor, le Seigneur démon (planche du joueur)
 const NPC_SKIN = 99, BOSS_SKIN = 98, BOSS_ID = 9, CLOWN_SKIN = 97, MIME_SKIN = 96, TARGET_SKIN = 95;   // TARGET_SKIN : icône du défi 4 (cible)
    // Clown et Mime (défi 3) : planches du joueur ; portraits des personnages non jouables de la campagne (Kaboum, Grondor) ; BOSS_ID : propriétaire de ses flammes
 const CAMP = [
@@ -1563,7 +1563,32 @@ const CAMP = [
     foe: 8, lv: 2, split: true, wins: 1, crates: 0.4 },   // moitié moins de caisses, autant de bonus cachés (le sac de bonus est fixe)
   { name: 'L\'ombre du Ninja', desc: 'Le Ninja ne pose jamais de bombe, mais il est vif : il permute avec tes bombes, saute par-dessus les murs et lance des shurikens. Souffle-le avec tes explosions, ou pousse-lui une bombe dessus quand il prépare une technique. Trois coups pour le vaincre !',
     foe: 10, lv: 6, ninja: true, wins: 1, crates: 0.35, time: 240 },
-  { foe: 11 }, { foe: 5 },
+  { name: 'Le maître artificier', desc: 'Le grand stand de tir, version maître : jusqu\'à 4 bombes à la fois, et des cibles qu\'il faut faire tomber toutes ensemble, d\'une seule réaction en chaîne. Barils de poudre, mèche à allumer au bon endroit, duos éclair, et des cibles bleues à ne surtout pas toucher.',
+    foe: TARGET8_SKIN, stand: 'Le grand stand', intro: 'Jusqu\'à 4 bombes à la fois : fais tout sauter d\'un coup', winSub: 'Maître artificier !',
+    wins: 1, time: 360, ammo: 40, fuse: 6, noCrates: true, fence: 9, maxB: 4, speed: 1,   // mèche de 6 s : le temps de placer 4 bombes
+    // toutes les vagues sont des combos : toutes les cibles rouges doivent tomber ensemble (0,6 s) ; blue : cibles à ne pas toucher (combo raté) ;
+    // msg : consigne de la vague ; hint : les cercles dorés n'apparaissent qu'après un essai raté ; kegFuse : délai des barils ; failMsg : message d'un combo raté
+    targets: [
+      // la 1re bombe file au fond (13,5), la 2e s'arrête en (11,5)
+      { list: [[11, 3], [11, 7], [13, 3], [13, 7]], combo: true, spots: [[13, 5], [11, 5]] },
+      // les barils arrêtent les bombes en (11,r) et relaient l'explosion vers les cibles du fond ; 4 bombes avant que la 1re saute
+      { list: [[13, 3], [13, 5], [13, 7], [13, 9], [11, 1], [11, 11]], combo: true, kegs: [[12, 3], [12, 5], [12, 7], [12, 9]], spots: [[11, 3], [11, 5], [11, 7], [11, 9]],
+        msg: 'Les barils arrêtent tes bombes : une par rangée, et vite !' },
+      // cibles bleues : une bombe qui file au fond de la rangée 5 les touche
+      { list: [[11, 1], [13, 3], [13, 7], [11, 9]], blue: [[13, 4], [13, 6]], combo: true, spots: [[11, 3], [11, 5], [11, 7]],
+        msg: 'Cibles bleues : ne les touche surtout pas, sinon le combo est raté' },
+      // duos éclair : deux cibles à la fois, à faire tomber ensemble avant qu'elles ne disparaissent
+      { flash: [{ t: [[11, 3], [13, 5]], s: [[11, 5]] }, { t: [[11, 11], [13, 7]], s: [[13, 9], [11, 9]] }, { t: [[9, 4], [11, 7]], s: [[11, 5], [9, 5]] }, { t: [[9, 2], [11, 4]], s: [[11, 3], [9, 3]] }],
+        need: 3, life: 9.5, combo: true, msg: 'Duos éclair : fais tomber chaque paire d\'un coup, il en faut 3' },
+      // la mèche de poudre : 6 barils en colonne ; allumée par un bout (rangée 1 ou 11), trop lente (0,8 s d'écart) ; par le milieu (rangée 5 ou 7), 0,48 s ; rangées 3 et 9 fermées par une cible
+      { list: [[13, 1], [13, 3], [13, 5], [13, 7], [13, 9], [13, 11], [9, 3], [9, 9]], combo: true, kegs: [[11, 1], [11, 3], [11, 5], [11, 7], [11, 9], [11, 11]], kegFuse: 0.16,
+        spots: [[10, 5], [10, 7]], hint: true, failMsg: 'Trop lent ! Allume plus près du milieu', msg: 'La mèche de poudre : une bombe suffit, mais allume-la au bon endroit' },
+      // le grand bouquet : (13,3) puis (11,3), (13,7) puis (11,7), avec 3 barils relais
+      { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
+        spots: [[13, 3], [11, 3], [13, 7], [11, 7]], hint: true, msg: 'Le grand bouquet : 8 cibles d\'un coup, sans aide cette fois' },
+    ],
+    spawns: { 0: [3, 5, 'right'] } },
+  { foe: 5 },
   { name: 'Le Seigneur démon', desc: 'Malakor, le Seigneur démon, domine l\'arène depuis son trône. Immense et immobile, il couvre toute l\'arène de sorts : souffle infernal, météores, griffes, bombes démoniaques, cage de feu. Tu as tous tes pouvoirs au maximum dès le départ. Quand son cœur s\'ouvre, pousse-lui une bombe dedans. Le combat le plus dur de la campagne.',
     foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 6, wins: 1, time: 300, noCrates: true, spawns: { 0: [7, 10, 'up'] } },
 ];
@@ -6626,7 +6651,7 @@ function render() {
   if (G.phase === 'intro') {
     const tt = G.phaseT;
     if (tt > 0.55 && campFlag('survive')) drawBanner(c, `Tiens ${campFlag('survive') >= 60 ? campFlag('survive') / 60 + ' minute' : campFlag('survive') + ' s'} !`, 'Évite les bombes de Kaboum', '#f3e5c0', (1.7 - tt) * 6);
-    else if (tt > 0.55 && campFlag('targets')) drawBanner(c, `Fais tomber les ${G.tg ? G.tg.total : 7} cibles !`, 'Pousse tes bombes de l\'autre côté de la corde', '#f3e5c0', (1.7 - tt) * 6);
+    else if (tt > 0.55 && campFlag('targets')) drawBanner(c, `Fais tomber les ${G.tg ? G.tg.total : 7} cibles !`, G.camp.intro || 'Pousse tes bombes de l\'autre côté de la corde', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55 && campFlag('boss')) drawBanner(c, `Abattez ${G.camp.npc} !`, 'Pousse tes bombes contre lui : double dégât', '#f3e5c0', (1.7 - tt) * 6);
     else if (tt > 0.55) drawBanner(c, G.pointsMode ? `Manche ${G.round} sur ${POINT_ROUNDS}` : `Manche ${G.round}`, G.mode === 'demo' ? 'Démonstration' : G.pointsMode && G.round === POINT_ROUNDS ? 'Dernière manche !' : 'Prêts ?', '#f3e5c0', (1.7 - tt) * 6);
     else drawBanner(c, "C'est parti !", '', '#ffcf5a', tt * 5);
@@ -6638,7 +6663,7 @@ function render() {
   } else if (G.phase === 'roundEnd' && G.camp && (G.camp.boss || G.camp.survive || G.camp.targets)) {
     const a = Math.min(1, (2.8 - G.phaseT) * 4), won = G.lastWinner === 0;
     const why = G.tg && { time: 'Temps écoulé', ammo: 'Plus de bombes', dead: 'Soufflé par ta propre bombe' }[G.tg.why];
-    drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : G.tg ? 'En plein dans le mille' : 'Tu as tenu bon') : why || (G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer'), won ? '#ffd36e' : '#f3e5c0', a);
+    drawBanner(c, won ? 'Défi réussi !' : 'Défi raté', won ? (G.camp.boss ? `${G.camp.npc} est vaincu` : G.tg ? G.camp.winSub || 'En plein dans le mille' : 'Tu as tenu bon') : why || (G.camp.boss && G.time <= 0 ? 'Temps écoulé' : 'Tu peux réessayer'), won ? '#ffd36e' : '#f3e5c0', a);
   } else if (G.phase === 'roundEnd' && G.pointsMode && G.places.length) {
     const a = Math.min(1, (3.2 - G.phaseT) * 4);
     const ids = G.players.map((_, i) => i).sort((x, y) => G.places[x] - G.places[y]);
@@ -6678,6 +6703,11 @@ function drawPortrait(cv, pal, skin, v = 0) {
   const g = c.createRadialGradient(26, 20, 4, 26, 26, 30); g.addColorStop(0, pal.coat); g.addColorStop(1, '#0c1510');
   c.fillStyle = g; c.fillRect(0, 0, 52, 52);
   if (skin === TARGET_SKIN) { c.fillStyle = '#3a2a18'; c.fillRect(0, 0, 52, 52); drawTarget(c, 26, 27, 17, {}); c.restore(); return; }
+  if (skin === TARGET8_SKIN) {   // défi 8 : cible dorée et badge ×4
+    c.fillStyle = '#2c1c0c'; c.fillRect(0, 0, 52, 52); drawTarget(c, 24, 25, 16, { gold: true });
+    c.fillStyle = 'rgba(20,14,6,.88)'; rr(c, 28, 31, 21, 15, 6); c.fill(); c.fillStyle = '#ffd36e'; c.font = '800 12px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('×4', 38.5, 39);
+    c.restore(); return;
+  }
   if (skin === NPC_SKIN) { if (sheetReady(KAB_IMG)) c.drawImage(KAB_IMG, 14, 6, 196, 196, -1, 4, 54, 54); else drawKaboum(c, 26, 31, 15, { t: 0.4, look: [0.3, 1] }); c.restore(); return; }
   { const SS = sheetOfSkin(skin); if (SS) { const im = SS.happy; if (sheetReady(im)) c.drawImage(im, 30, 10, 164, 164, 0, 0, 52, 52); c.restore(); return; } }
   if (skin === DEMON_SKIN) { if (sheetReady(DK_IMG)) c.drawImage(DK_IMG, 22, 2, 184, 184, -3, 2, 58, 58); c.restore(); return; }
@@ -7681,18 +7711,22 @@ function teamEndRound(meDead) {
   fx('snd', done ? 'match' : w >= 0 ? 'win' : 'draw');
 }
 /* ---------- Défi 4 : le stand de tir. Des cibles en bois qu'on ne fait tomber qu'en leur poussant une bombe dessus ---------- */
-const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need : w.list.length), 0);
+const tgtFlashSize = w => w.flash && w.flash[0].t ? w.flash[0].t.length : 1;   // cibles éclair : seules, ou par paires ({ t, s })
+const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need * tgtFlashSize(w) : w.list.length), 0);
 const COMBO_WIN = 0.6;   // combo : les cibles doivent toutes être touchées dans cet intervalle
 function tgtInit(c) {
-  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, nextT: 0, blockT: 0 };
+  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, flashNeed: 0, nextT: 0, blockT: 0,
+    blues: [], cur: null, okT: 0, coolT: 0, fails: 0, blueMsgT: -9 };
 }
 function tgtWave(T4) {
   T4.wave++; const w = T4.waves[T4.wave]; if (!w) return;
-  T4.def = w; T4.comboT = 0; T4.flashI = 0; T4.flashHits = 0; T4.nextT = 0;
+  T4.def = w; T4.comboT = 0; T4.flashI = 0; T4.flashHits = 0; T4.nextT = 0; T4.okT = 0; T4.coolT = 0; T4.fails = 0; T4.cur = null;
+  T4.flashNeed = w.flash ? w.need * tgtFlashSize(w) : 0;
   // ce que la vague d'avant avait posé (blocs, caisses) disparaît
   for (const k of T4.placed) if ((G.grid[k] === STONE || G.grid[k] === CRATE) && !G.bombAt[k]) { G.grid[k] = EMPTY; G.burn[k] = 0; fx('crate', k % COLS, (k / COLS) | 0); }
   T4.placed = [];
   T4.list = (w.list || []).map((a, i) => tgtMake(a, i));
+  T4.blues = (w.blue || []).map((a, i) => ({ ...tgtMake(a, i), blue: true, shield: false }));   // cibles bleues : à ne pas toucher
   T4.kegs = (w.kegs || []).map(([x, y]) => ({ x, y, alive: true, fuse: -1, back: 0 }));
   if (w.flash) tgtFlashNext(T4);
   for (const [x, y] of w.crates || []) { const k = idx(x, y); if (G.grid[k] === EMPTY && !G.bombAt[k]) { G.grid[k] = CRATE; G.hidden[k] = -1; G.burn[k] = 0; T4.placed.push(k); } }
@@ -7701,7 +7735,7 @@ function tgtWave(T4) {
   if (T4.wave > 0) {
     const last = T4.wave === T4.waves.length - 1;
     G.rageMsg = [last ? 'Dernière vague !' : `Vague ${T4.wave + 1} sur ${T4.waves.length}`,
-      w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible'
+      w.msg ? w.msg : w.stop ? 'Arrête ta bombe au bon endroit : son explosion touchera la cible'
         : w.kegs ? 'Les trois ensemble ! Une flamme fait sauter les barils'
         : w.combo ? 'Les deux en même temps ! Deux bombes l\'une au-dessus de l\'autre explosent en chaîne'
         : w.shield ? 'Boucliers tournants : tire quand le bouclier est de l\'autre côté'
@@ -7712,7 +7746,8 @@ function tgtWave(T4) {
     if (w.stop) tipPulse();
   }
 }
-const tgtAt = (x, y) => G.tg ? G.tg.list.find(o => o.alive && Math.abs(o.x - x) < 0.9 && Math.abs(o.y - y) < 0.9) || null : null;
+const tgtNear = (o, x, y, d) => o.alive && Math.abs(o.x - x) < d && Math.abs(o.y - y) < d;
+const tgtAt = (x, y) => G.tg ? G.tg.list.find(o => tgtNear(o, x, y, 0.9)) || G.tg.blues.find(o => tgtNear(o, x, y, 0.9)) || null : null;
 const kegAt = (x, y) => G.tg ? G.tg.kegs.find(k => k.alive && k.x === x && k.y === y) || null : null;
 function tgtMake(a, i) {
   return { x: a[0], y: a[1], y0: a[2], y1: a[3], moving: a.length >= 4, v: a[4] || 1.15, dir: i % 2 ? -1 : 1, alive: true, pop: 0, spawn: 0, shrug: 0, hitAt: null,
@@ -7720,9 +7755,11 @@ function tgtMake(a, i) {
 }
 // cibles éclair : la suivante apparaît (elles reviennent dans le même ordre)
 function tgtFlashNext(T4) {
-  const w = T4.def; let a = w.flash[T4.flashI++ % w.flash.length];
-  for (let j = 0; j < w.flash.length && G.bombAt[idx(a[0], a[1])]; j++) a = w.flash[T4.flashI++ % w.flash.length];   // pas sur une bombe
-  T4.list = [{ ...tgtMake(a, 0), life: w.life, max: w.life }];
+  const w = T4.def, n = w.flash.length, pts = e => e.t || [e];
+  let e = w.flash[T4.flashI++ % n];
+  for (let j = 0; j < n && pts(e).some(a => G.bombAt[idx(a[0], a[1])]); j++) e = w.flash[T4.flashI++ % n];   // pas sur une bombe
+  T4.cur = e; T4.comboT = 0; T4.okT = 0;
+  T4.list = pts(e).map((a, i) => ({ ...tgtMake(a, i), life: w.life, max: w.life }));
 }
 // bouclier tournant : il arrête ce qui arrive du côté où il se trouve (sx, sy : côté d'où vient le coup)
 const tgtShieldBlocks = (o, sx, sy) => o.shield && Math.cos(o.sa) * sx + Math.sin(o.sa) * sy > 0.26;
@@ -7738,7 +7775,7 @@ function tgtBounce(b) {
   b.mdx = -b.mdx; b.mdy = -b.mdy; b.stopReq = false; b.passers.clear(); rebuildBombAt();
 }
 // baril de poudre touché par une flamme : il explose juste après (portée 2), comme une bombe du joueur
-function kegIgnite(kg) { if (kg.fuse < 0) kg.fuse = 0.12; }
+function kegIgnite(kg) { if (kg.fuse < 0) kg.fuse = (G.tg && G.tg.def.kegFuse) || 0.12; }
 function kegBoom(kg) {
   kg.alive = false; kg.fuse = -1; kg.back = 3;   // il revient quelques secondes plus tard
   const me = G.players[0], b = { x: kg.x, y: kg.y, owner: { id: 0, active: 1, pal: me.pal }, range: 2, timer: 0, mdx: 0, mdy: 0, prog: 0, passers: new Set(), keg: true };
@@ -7747,26 +7784,54 @@ function kegBoom(kg) {
 // l'avant d'une bombe poussée touche-t-il une cible ? (les cibles mobiles peuvent arriver sur le côté)
 function tgtFront(b) {
   const fx0 = b.x + b.mdx * (b.prog + 0.55), fy0 = b.y + b.mdy * (b.prog + 0.55);
-  return G.tg.list.find(o => o.alive && Math.abs(o.x - fx0) < 0.62 && Math.abs(o.y - fy0) < 0.62) || null;
+  return G.tg.list.find(o => tgtNear(o, fx0, fy0, 0.62)) || G.tg.blues.find(o => tgtNear(o, fx0, fy0, 0.62)) || null;
 }
 // une cible touchée (bombe poussée dessus, ou explosion) ; en combo, elle ne tombe que si toutes les cibles de la vague le sont ensemble
 function tgtStrike(o, sx, sy) {
   const T4 = G.tg; if (!o.alive) return;
   if (sx !== undefined && tgtShieldBlocks(o, sx, sy)) { tgtBlocked(o); return; }
+  if (o.blue) { tgtBlue(o); return; }
   if (!T4.def.combo) { tgtHit(o); return; }
-  o.hitAt = G.t; o.shrug = 0.6;
+  o.shrug = 0.6;
+  if (G.t < T4.coolT) return;   // juste après un combo raté, la même explosion ne compte plus
+  o.hitAt = G.t;
   const up = T4.list.filter(q => q.alive);
   if (up.every(q => q.hitAt != null && G.t - q.hitAt <= COMBO_WIN)) {
-    const x = up.reduce((a, q) => a + q.x, 0) / up.length, y = Math.min(...up.map(q => q.y));
-    up.forEach(q => tgtHit(q));
-    addP({ kind: 'text', x: (x + 0.5) * T, y: (y + 0.5) * T - 60, vx: 0, vy: -36, life: 1.4, max: 1.4, size: 30, color: '#ffd36e', text: 'Combo !' });
-    T4.comboT = 0;
+    if (T4.blues.length) { if (!T4.okT) T4.okT = G.t + 0.3; }   // cibles bleues : on attend la fin de la réaction en chaîne
+    else tgtComboDone(up);
   } else if (!T4.comboT) T4.comboT = G.t + COMBO_WIN;
+}
+function tgtComboDone(up) {
+  const T4 = G.tg, x = up.reduce((a, q) => a + q.x, 0) / up.length, y = Math.min(...up.map(q => q.y));
+  up.forEach(q => tgtHit(q));
+  addP({ kind: 'text', x: (x + 0.5) * T, y: (y + 0.5) * T - 60, vx: 0, vy: -36, life: 1.4, max: 1.4, size: up.length > 4 ? 36 : 30, color: '#ffd36e', text: up.length > 4 ? `Combo ×${up.length} !` : 'Combo !' });
+  if (up.length > 4 && !reduceMotion) G.shake = Math.max(G.shake, 7);
+  T4.comboT = 0; T4.okT = 0;
+}
+// combo raté : les cibles touchées se relèvent, les barils reviennent ; les cercles dorés d'une vague « sans aide » apparaissent
+function tgtComboFail(msg) {
+  const T4 = G.tg, up = T4.list.filter(q => q.alive);
+  T4.comboT = 0; T4.okT = 0; T4.coolT = G.t + 0.8;
+  if (!up.length) return;
+  T4.fails++;
+  for (const kg of T4.kegs) if (!kg.alive) kg.back = Math.min(kg.back || 1.2, 1.2);   // les barils reviennent pour un nouvel essai
+  const n = T4.list.length;
+  for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0];
+  addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a',
+    text: msg || T4.def.failMsg || (n > 3 ? 'Toutes ensemble !' : n > 2 ? 'Les trois ensemble !' : 'En même temps !') }); Sfx.play('thud');
+  if (T4.def.hint && T4.fails === 1 && T4.def.spots) { G.rageMsg = ['Un indice', 'Les cercles dorés montrent où placer tes bombes']; G.rageFlash = 2.4; }
+}
+// cible bleue touchée : elle ne tombe pas, et le combo en cours (ou celui de la même explosion) est raté
+function tgtBlue(o) {
+  const T4 = G.tg; o.shrug = 0.9;
+  if (G.t - T4.blueMsgT > 1) { T4.blueMsgT = G.t; addP({ kind: 'text', x: (o.x + 0.5) * T, y: (o.y + 0.5) * T - 34, vx: 0, vy: -30, life: 1.2, max: 1.2, size: 20, color: '#8cc4ff', text: 'Pas les bleues !' }); }
+  if (T4.def.combo) { if (T4.list.some(q => q.alive && q.hitAt != null) || T4.okT) tgtComboFail('Combo raté'); else T4.coolT = G.t + 0.8; }
+  Sfx.play('thud');
 }
 function tgtHit(o) {
   const T4 = G.tg; if (!o.alive) return;
   o.alive = false; o.pop = 0.001; T4.hits++;
-  if (T4.def.flash) { T4.flashHits++; T4.nextT = G.t + 0.7; }
+  if (T4.def.flash) { T4.flashHits++; if (T4.list.every(q => !q.alive || q === o)) T4.nextT = G.t + 0.7; }
   const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T;
   for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.6, max: 0.6, size: 2.6, color: ['#ffd166', '#ff5a3c', '#fff3e0', '#a8743f'][j % 4] }); }
   addP({ kind: 'text', x, y: y - 30, vx: 0, vy: -46, life: 1, max: 1, size: 22, color: '#ffd166', text: T4.hits === T4.total ? 'Dernière !' : `${T4.hits} / ${T4.total}` });
@@ -7774,31 +7839,28 @@ function tgtHit(o) {
 }
 function tgtTick(dt) {
   const T4 = G.tg;
-  const done = T4.def.flash ? T4.flashHits >= T4.def.need && T4.list.every(o => !o.alive && o.pop > 0.7) : T4.list.every(o => !o.alive && o.pop > 0.7);
+  const done = T4.def.flash ? T4.flashHits >= T4.flashNeed && T4.list.every(o => !o.alive && o.pop > 0.7) : T4.list.every(o => !o.alive && o.pop > 0.7);
   if (T4.wave < 0 || (done && T4.wave < T4.waves.length - 1)) tgtWave(T4);
   T4.waveT += dt;
   // cibles éclair : chacune ne reste que quelques secondes
-  if (T4.def.flash && T4.flashHits < T4.def.need) {
-    const o = T4.list[0];
-    if (o && o.alive && o.spawn >= 1) { o.life -= dt; if (o.life <= 0) { o.alive = false; o.miss = true; o.pop = 0.001; T4.nextT = G.t + 0.45; Sfx.play('thud'); } }
-    if (o && !o.alive && T4.nextT && G.t >= T4.nextT) { T4.nextT = 0; tgtFlashNext(T4); }
+  if (T4.def.flash && T4.flashHits < T4.flashNeed) {
+    const up = T4.list.filter(o => o.alive);
+    if (up.length && up[0].spawn >= 1) {
+      for (const o of up) o.life -= dt;
+      if (up[0].life <= 0) { for (const o of up) { o.alive = false; o.miss = true; o.pop = 0.001; o.hitAt = null; } T4.comboT = 0; T4.okT = 0; T4.nextT = G.t + 0.45; Sfx.play('thud'); }
+    }
+    if (!up.length && T4.nextT && G.t >= T4.nextT) { T4.nextT = 0; tgtFlashNext(T4); }
   }
   // barils allumés
   for (const kg of T4.kegs) {
     if (kg.alive && kg.fuse >= 0) { kg.fuse -= dt; if (kg.fuse <= 0) kegBoom(kg); }
     if (!kg.alive && kg.back > 0) { kg.back -= dt; if (kg.back <= 0 && !G.bombAt[idx(kg.x, kg.y)] && G.grid[idx(kg.x, kg.y)] === EMPTY) { kg.alive = true; kg.fuse = -1; fx('crate', kg.x, kg.y); } }
   }
-  // combo raté : une seule cible touchée, elle se relève
-  if (T4.comboT && G.t > T4.comboT) {
-    T4.comboT = 0;
-    const up = T4.list.filter(q => q.alive);
-    if (up.length) {
-      for (const kg of T4.kegs) if (!kg.alive) kg.back = Math.min(kg.back || 1.2, 1.2);   // les barils reviennent pour un nouvel essai
-      const three = T4.list.length > 2;
-      for (const q of up) { q.hitAt = null; q.shrug = 0.8; } const q = up[0];
-      addP({ kind: 'text', x: (q.x + 0.5) * T - T, y: (q.y + 0.5) * T - 50, vx: 0, vy: -26, life: 1.8, max: 1.8, size: 18, color: '#ff9a6a', text: three ? 'Les trois ensemble !' : 'En même temps !' }); Sfx.play('thud');
-    }
-  }
+  // combo réussi (vague avec cibles bleues : vérifié à la fin de la réaction en chaîne)
+  if (T4.okT && G.t >= T4.okT) { const up = T4.list.filter(q => q.alive); T4.okT = 0; if (up.length && up.every(q => q.hitAt != null)) tgtComboDone(up); }
+  // combo raté : toutes les cibles n'ont pas été touchées ensemble, celles qui l'ont été se relèvent
+  if (T4.comboT && !T4.okT && G.t > T4.comboT) tgtComboFail();
+  for (const o of T4.blues) { o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; }
   for (const o of T4.list) {
     o.spawn = Math.min(1, o.spawn + dt * 3); if (o.shrug > 0) o.shrug -= dt; if (o.pop > 0) o.pop += dt;
     if (o.shield) o.sa += dt * (TAU / 2.6) * o.sdir;
@@ -7813,7 +7875,7 @@ function tgtTick(dt) {
 const tipEl = $('#tip-box');
 function tipText() {
   const k0 = keyLabel(settings.keys[0].stop), k1 = keyLabel(settings.keys[1].stop), pd = padLabel(settings.pad.stop);
-  return `Après avoir poussé une bombe, appuie sur <kbd>${esc(k0)}</kbd> (ou <kbd>${esc(k1)}</kbd>), <kbd>${esc(pd)}</kbd> à la manette, ou le bouton <kbd>Stop</kbd> sur téléphone : elle s'arrête sur la case suivante. Arrête-la juste à côté d'une cible : son explosion la fera tomber. Deux bombes arrêtées à 2 cases l'une de l'autre explosent en chaîne : parfait pour un combo !${navigator.getGamepads && [...navigator.getGamepads()].some(g => g && g.connected) ? ' À la manette, <kbd>Select</kbd> rouvre cette astuce.' : ''}`;
+  return `Après avoir poussé une bombe, appuie sur <kbd>${esc(k0)}</kbd> (ou <kbd>${esc(k1)}</kbd>), <kbd>${esc(pd)}</kbd> à la manette, ou le bouton <kbd>Stop</kbd> sur téléphone : elle s'arrête sur la case suivante. Arrête-la juste à côté d'une cible : son explosion la fera tomber. Deux bombes arrêtées à 2 cases l'une de l'autre explosent en chaîne : parfait pour un combo !${G.camp && G.camp.maxB ? ' Une bombe poussée s\'arrête aussi toute seule contre une autre bombe ou un baril. Ta première bombe posée saute la première : toutes les autres doivent être en place avant !' : ''}${navigator.getGamepads && [...navigator.getGamepads()].some(g => g && g.connected) ? ' À la manette, <kbd>Select</kbd> rouvre cette astuce.' : ''}`;
 }
 function openTip() {
   if (!G.tg) return;
@@ -7855,8 +7917,9 @@ function drawTarget(c, x, y, r, o) {
   c.fillStyle = '#6b4424'; c.fillRect(-r * 0.12, r * 0.55, r * 0.24, r * 0.9);           // pied
   c.fillStyle = '#4b2e17'; c.fillRect(-r * 0.55, r * 1.38, r * 1.1, r * 0.2);
   c.fillStyle = '#3a2412'; c.beginPath(); c.arc(0, 0, r * 1.06, 0, TAU); c.fill();         // bord
-  const rings = ['#f6efe0', '#d8302a', '#f6efe0', '#d8302a', '#ffd166'];
+  const rings = o.blue ? ['#f6efe0', '#2f6fd8', '#f6efe0', '#2f6fd8', '#dcecff'] : o.gold ? ['#fff3c8', '#d89a1a', '#fff3c8', '#d89a1a', '#ff5a3c'] : ['#f6efe0', '#d8302a', '#f6efe0', '#d8302a', '#ffd166'];
   rings.forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(0, 0, r * (1 - i * 0.2), 0, TAU); c.fill(); });
+  if (o.blue) { c.strokeStyle = '#2f6fd8'; c.lineWidth = r * 0.16; c.lineCap = 'round'; c.beginPath(); c.moveTo(-r * 0.12, -r * 0.12); c.lineTo(r * 0.12, r * 0.12); c.moveTo(r * 0.12, -r * 0.12); c.lineTo(-r * 0.12, r * 0.12); c.stroke(); }   // petite croix : « ne pas toucher »
   if (o.flash) { c.globalAlpha = o.flash; c.fillStyle = '#fff'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.globalAlpha = 1; }
   c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1.2; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke();
   c.restore();
@@ -7924,12 +7987,18 @@ function drawRange(c, t) {
     }
     if (o.shield) drawTgtShield(c, x, y - T * 0.08, o.sa, t);
   }
+  for (const o of T4.blues) {   // cibles bleues (à ne pas toucher)
+    const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T - 2, e = o.spawn, sc = e < 1 ? 1 - Math.pow(1 - e, 3) + Math.sin(e * Math.PI) * 0.15 : 1;
+    c.fillStyle = 'rgba(20,35,10,.3)'; ell(c, x, y + T * 0.42, T * 0.3, T * 0.09); c.fill();
+    drawTarget(c, x, y - T * 0.08, T * 0.32, { blue: true, scale: sc, tilt: o.shrug > 0 ? Math.sin(o.shrug * 40) * 0.14 : Math.sin(t * 2 + o.y) * 0.03, flash: o.shrug > 0 ? 0.3 : 0 });
+  }
   c.restore();
 }
 function drawTgtBar(c, t) {
-  const T4 = G.tg, n = T4.total, w = Math.min(n > 8 ? 470 : 380, W - 120), x = (W - w) / 2, y = 12, ir = n > 8 ? 7 : 9;
+  const T4 = G.tg, n = T4.total, w = Math.min(n > 20 ? 600 : n > 8 ? 470 : 380, W - 120), x = (W - w) / 2, y = 12, ir = n > 20 ? 5.5 : n > 8 ? 7 : 9;
   c.save(); c.translate(-G.cam.x, -G.cam.y);
-  if (T4.def.spots && T4.list.some(q => q.alive)) for (const [sx, sy] of T4.def.spots) {
+  const spots = T4.def.flash ? T4.cur && T4.cur.s : T4.def.hint && !T4.fails ? null : T4.def.spots;
+  if (spots && T4.list.some(q => q.alive && q.spawn >= 1)) for (const [sx, sy] of spots) {
     if (G.bombAt[idx(sx, sy)]) continue;
     const px = (sx + 0.5) * T, py = (sy + 0.5) * T, r = T * (0.3 + 0.04 * Math.sin(t * 4));
     c.save(); c.setLineDash([5, 6]); c.lineDashOffset = t * 20; c.lineWidth = 2.5; c.strokeStyle = 'rgba(255,211,110,.75)'; c.beginPath(); c.arc(px, py, r, 0, TAU); c.stroke(); c.setLineDash([]);
@@ -8280,7 +8349,7 @@ function renderCampCard() {
       : c.demon ? `Seul contre ${c.dname}, immense et immobile en haut de l'arène · tous tes pouvoirs au maximum dès le départ, ni caisses ni bonus · quand son cœur s'ouvre, pousse une bombe dedans par la colonne du milieu : ${c.hp} coups · ses sorts couvrent toute l'arène · ${c.time / 60} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
-      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
+      : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ne touche pas les cibles bleues · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler`
       : `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}) · ${c.inset ? 'petite arène' : 'arène normale'} · ${c.wins} manche${c.wins > 1 ? 's' : ''} gagnante${c.wins > 1 ? 's' : ''}`)
       + (rewardXp(rewardOf(campSel)) ? ` · récompense : ${rewardTxt(rewardOf(campSel))} d'XP (${rewardXp(rewardOf(campSel)).toLocaleString('fr-FR')} XP)` : '')
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
@@ -8318,7 +8387,7 @@ function startCamp(i) {
     drawDuo(cvs[0], [me.pal, me.skin], [palFor(2), mate[0]]); drawDuo(cvs[1], [palFor(1), c.foes[0]], [palFor(3), c.foes[1]]);
     bs[0].textContent = `${settings.name || CHARS[me.skin].name} et ${mate[1]}`; bs[1].textContent = foeName(c);
     vsEl.querySelector('.vs-side.l span').textContent = 'Ton équipe'; vsEl.querySelector('.vs-side.r span').textContent = `Ordis ${AI_LV_NAME[c.lv]}`;
-  } else { drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin); bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = c.targets ? 'Le stand de tir' : foeName(c); }
+  } else { drawPortrait(cvs[0], me.pal, me.skin); drawPortrait(cvs[1], foe.pal, foe.skin); bs[0].textContent = settings.name || CHARS[me.skin].name; bs[1].textContent = c.targets ? c.stand || 'Le stand de tir' : foeName(c); }
   vsEl.querySelector('.vs-top').append(c.name);
   campEl.hidden = true; vsEl.hidden = false; Sfx.play('pickup');
   clearTimeout(vsT); vsNext = () => { vsNext = null; vsEl.hidden = true; startCampMatch(i); };
@@ -8382,7 +8451,7 @@ function startCampMatch(i) {
   if (c.targets) {
     // défi 4 : seul au stand de tir
     setPlayers([me]); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
-    newRound(); me.maxBombs = 2; setupHud();
+    newRound(); me.maxBombs = c.maxB || 2; if (c.speed) me.speedLv = c.speed; setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
   }
@@ -11124,7 +11193,7 @@ function boot(data) {
   try { Sfx.init(); Music.tick(); } catch (e) {}
   requestAnimationFrame(t => { last = t; loop(t); });
 }
-window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap() };
+window.__mc = { gameXp, xpBoostOf, dkCast, dkOpenHeart, njStartCast, njFreeNear, njChoose, njThink, rebuildBombAt, idx, campReward: i => campReward(i), xpTick, setPlayers, makePlayer, newRound, lvOf, LV_NAMES, computeDanger, slidePath, doKick, think, startBr, leaveOnline, Sfx, Music, startCampMatch, AI_LV, bossDamage, bossCast, fx, earVol, REC, REPLAY, orbsFor, pickup, kill, placeBomb, chestHit, spawnChest, pubOf, statAdd, doEmote, csOf, igniteCell, emoteSlot, drawBomb, rankOf, drawRankEmblem, drawRankFrame, drawAura, drawChar, PALS1: () => PALS, drawPortrait, XP_TOTAL, levelOfXp, addXp, syncXpUi, PALS0: () => PALS, G, settings, cols: () => COLS, rows: () => ROWS, update, render, drawToken, drawHero, PALS, NET, __buildSnap: () => buildSnap(), CAMP, tgtCount, startCamp };
 boot({});
 })();
 </script>
