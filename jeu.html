@@ -498,6 +498,9 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .varpick button:hover,.varpick button:focus-visible{border-color:rgba(255,214,110,.7)}
 .varpick.flash button[aria-checked="true"]{animation:vpflash .5s 2}
 @keyframes vpflash{50%{box-shadow:0 0 0 4px rgba(255,214,110,.45)}}
+.camp-wave{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;font-size:13px;color:#ff9d8f}
+.camp-wave button{min-width:34px;padding:4px 8px;border-radius:8px;border:1px solid #ff9d8f66;background:#0000;color:#ffe;font:inherit;cursor:pointer}
+.camp-wave button[aria-checked="true"]{background:#ff9d8f;color:#201010;font-weight:700}
 .coll-var{justify-content:center;margin:2px 0 4px}
 .coll-var button{padding:4px}.coll-var button span{display:none}
 @media (max-width:520px){.varpick button{padding:4px}.varpick button span{display:none}}
@@ -1087,7 +1090,7 @@ body.touch .cta kbd,body.touch .ghost kbd{display:none}
     <p class="camp-res" id="camp-res" role="status" hidden></p>
     <div class="camp-path" id="camp-path" role="group" aria-label="Les 10 défis"></div>
     <div class="camp-bar" aria-hidden="true"><i id="camp-fill"></i></div>
-    <div class="camp-card" id="camp-card" role="status"><h3 id="camp-name"></h3><p id="camp-desc"></p><p class="camp-rules" id="camp-rules"></p></div>
+    <div class="camp-card" id="camp-card" role="status"><h3 id="camp-name"></h3><p id="camp-desc"></p><p class="camp-rules" id="camp-rules"></p><div class="camp-wave" id="camp-wave" role="radiogroup" aria-label="Vague de départ (mode admin)" hidden></div></div>
     <div class="camp-coop" id="camp-coop">
       <div class="cc-row"><button class="ghost" id="camp-inv" type="button">Inviter des amis</button><span class="cc-code" id="camp-codebox" hidden>Code <b id="camp-code"></b><button class="ghost" id="camp-link" type="button">Copier le lien</button></span></div>
       <ul class="cc-mates" id="camp-mates"></ul>
@@ -7714,10 +7717,15 @@ function teamEndRound(meDead) {
 }
 /* ---------- Défi 4 : le stand de tir. Des cibles en bois qu'on ne fait tomber qu'en leur poussant une bombe dessus ---------- */
 const tgtFlashSize = w => w.flash && w.flash[0].t ? w.flash[0].t.length : 1;   // cibles éclair : seules, ou par paires ({ t, s })
-const tgtCount = c => c.targets.reduce((a, w) => a + (w.flash ? w.need * tgtFlashSize(w) : w.list.length + (w.movers ? w.movers.length : 0)), 0);
+const tgtWaveCount = w => w.flash ? w.need * tgtFlashSize(w) : w.list.length + (w.movers ? w.movers.length : 0);
+const tgtCount = c => c.targets.reduce((a, w) => a + tgtWaveCount(w), 0);
+// mode admin : vague de départ choisie pour tester un défi des cibles (0 = la première), par défi (clé : sa liste de vagues, partagée avec la copie G.camp)
+const tgtAdminWave = new WeakMap();
+const tgtStartOf = c => settings.admin ? Math.min(tgtAdminWave.get(c.targets) | 0, c.targets.length - 1) : 0;
 const COMBO_WIN = 0.6;   // combo : les cibles doivent toutes être touchées dans cet intervalle
 function tgtInit(c) {
-  return { waves: c.targets, wave: -1, list: [], hits: 0, total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, flashNeed: 0, nextT: 0, blockT: 0,
+  const s0 = tgtStartOf(c);   // les vagues sautées comptent comme réussies
+  return { waves: c.targets, wave: s0 - 1, list: [], hits: c.targets.slice(0, s0).reduce((a, w) => a + tgtWaveCount(w), 0), total: tgtCount(c), ammo: c.ammo | 0, fence: c.fence || 99, endT: 0, waveT: 0, why: '', emptyMsg: false, comboT: 0, def: {}, placed: [], kegs: [], flashI: 0, flashHits: 0, flashNeed: 0, nextT: 0, blockT: 0,
     blues: [], cur: null, okT: 0, coolT: 0, fails: 0, blueMsgT: -9, fence0: c.fence || 99, zone: null, nest: null };
 }
 function tgtWave(T4) {
@@ -8424,6 +8432,18 @@ function renderCampCard() {
       + (campSel < d ? ' · déjà réussi' : !campReady(campSel) ? ` · réussis d'abord le défi ${d + 1}` : '');
   }
   go.disabled = !campReady(campSel);
+  // mode admin : choisir la vague de départ d'un défi des cibles
+  const cw = $('#camp-wave'), adm = !!settings.admin && !!c.targets; cw.hidden = !adm; cw.innerHTML = '';
+  if (adm) {
+    cw.innerHTML = '<span>Admin · vague de départ</span>';
+    const cur = tgtStartOf(c);
+    c.targets.forEach((w, n) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(n === cur));
+      b.textContent = n + 1; b.title = w.msg || `Vague ${n + 1}`;
+      b.addEventListener('click', () => { tgtAdminWave.set(c.targets, n); renderCampCard(); try { $('#camp-wave [aria-checked="true"]').focus({ preventScroll: true }); } catch (e) {} });
+      cw.appendChild(b);
+    });
+  }
   if (NET.role === 'host' && NET.campLobby) refreshHostLobby(); else renderCampCoop();
   go.firstChild.textContent = campRes && !campRes.won && campRes.i === campSel ? 'Réessayer ' : campSel < d ? 'Rejouer le défi ' : 'Lancer le défi ';
   // résultat du défi qu'on vient de jouer
