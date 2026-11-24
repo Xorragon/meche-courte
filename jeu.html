@@ -1591,8 +1591,8 @@ const CAMP = [
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
-  { name: 'Le Seigneur démon', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Malakor, le Seigneur démon, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle infernal, météores, griffes, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Quand son cœur s\'ouvre, il s\'arrête : pousse-lui une bombe dedans. Le combat le plus dur de la campagne.',
-    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 6, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
+  { name: 'Le Seigneur démon', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Malakor, le Seigneur démon, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle infernal, météores, griffes, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Tes explosions le blessent à tout moment, et quand son cœur s\'ouvre, une bombe poussée dedans fait très mal. Le combat le plus dur de la campagne.',
+    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 50, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
 const foeName = c => c.dname || (c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe)));
@@ -2266,7 +2266,7 @@ function newRound() {
   { const tb = document.getElementById('btn-tip'); if (tb) tb.hidden = !G.tg; }
   for (const p of G.players) { resetPlayer(p); if (p.npc) npcReset(p); }
   G.shur = []; G.nj = campFlag('ninja') && G.players[1] ? njInit(G.players[1]) : null;
-  G.dk = campFlag('demon') ? dkInit(G.camp) : null;
+  G.itemX = null; G.dk = campFlag('demon') ? dkInit(G.camp) : null;
   groundDirty = true;
 }
 
@@ -2294,7 +2294,7 @@ function rebuildBombAt() {
 }
 function bombBlocked(x, y, self, ignorePlayers) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
-  if (G.dk && self && dkOpen() && dkHeartAt(x, y)) return false;   // défi 10 : cœur ouvert, la bombe peut y entrer
+  if (G.dk && self && y === DK_Y1 && dkBodyAt(x, y)) return false;   // défi 10 : une bombe poussée vers lui peut le frapper
   if (G.dk && y >= 1 && y <= DK_Y1) return true;   // sinon elle s'arrête au bord de sa zone
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
@@ -2541,13 +2541,14 @@ function placeBomb(p) {
   fx('drop', cx, cy);
   return true;
 }
-function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; if (G.bossHit) G.bossHit.add(k); if (G.burnTag && G.dk) G.dk.burn.set(k, G.burnTag); }   // burnTag : bombe de soufre (défi 10)
+function igniteCell(k, bits, who) { if (G.dkHitSet) G.dkHitSet.add(k); G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; if (G.bossHit) G.bossHit.add(k); if (G.burnTag && G.dk) G.dk.burn.set(k, G.burnTag); }   // burnTag : bombe de soufre (défi 10)
 function explode(b) {
   const i = G.bombs.indexOf(b); if (i < 0) return;
   G.bombs.splice(i, 1);
   b.owner.active = Math.max(0, b.owner.active - 1);
   const [cx, cy] = bombCell(b), k0 = idx(cx, cy);
   G.bombAt[k0] = null; G.burnTag = b.burn || 0;
+  G.dkHitSet = G.dk && G.dk.alive && G.dk.started && b.owner !== G.dk.owner ? new Set() : null;   // défi 10 : ses cases touchées
   const who = b.owner.id;
   // une explosion de l'équipe (ou une bombe du boss renvoyée par l'équipe) qui touche le boss : 1 dégât, 2 si elle a été poussée contre lui
   const hurt = G.boss && G.boss.alive && (b.owner !== G.boss || b.kickBy !== undefined);
@@ -2570,7 +2571,9 @@ function explode(b) {
     }
   }
   if (hurt) { const hit = [...G.bossHit].some(k => bossAt(k % COLS, (k / COLS) | 0)); G.bossHit = null; if (hit) bossDamage(b.kickHit ? 2 : 1, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner); }
-  G.burnTag = 0; rebuildBombAt();
+  G.burnTag = 0;
+  if (G.dkHitSet) { const hs = G.dkHitSet; G.dkHitSet = null; if ([...hs].some(k => dkBodyAt(k % COLS, (k / COLS) | 0))) dkHit(null, 'blast'); }
+  rebuildBombAt();
   fx('boom', cx, cy, who);
 }
 function updateBombs(dt) {
@@ -2592,7 +2595,7 @@ function updateBombs(dt) {
       else if (bossAt(nx, ny) || bossAt(b.x, b.y)) boom();
       // défi 7 : contre le Ninja qui prépare une technique, la bombe le frappe ; sinon il la pare et elle reste collée contre lui
       else if (G.nj && njOpen() && njAt(nx, ny)) { b.hitNinja = true; stopBomb(b); }
-      else if (G.dk && dkOpen() && dkHeartAt(nx, ny)) { b.hitDk = true; stopBomb(b); }
+      else if (G.dk && ny === DK_Y1 && dkBodyAt(nx, ny) && b.mdy < 0) { b.hitDk = dkOpen() && dkHeartAt(nx, ny) ? 'heart' : 'kick'; stopBomb(b); }
       else if (G.nj && cloneAt(nx, ny)) cloneGone(cloneAt(nx, ny));
       else if (bombBlocked(nx, ny, b, b.prog > 0)) stopBomb(b);
       else {
@@ -2622,7 +2625,7 @@ function updateBombs(dt) {
   }
   for (let i = G.bombs.length - 1; i >= 0; i--) {
     const b = G.bombs[i]; if (!b.hitDk) continue;
-    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); dkHit(b);
+    G.bombs.splice(i, 1); b.owner.active = Math.max(0, (b.owner.active | 0) - 1); dkHit(b, b.hitDk);
   }
   for (let i = G.bombs.length - 1; i >= 0; i--) {
     const b = G.bombs[i]; if (!b.hitNinja) continue;
@@ -2727,8 +2730,8 @@ const DK_WARN = [1.15, 1.0, 0.9], DK_GAP = [1.5, 1.1, 0.75], DK_HEART = [2.8, 2.
 const DK_SPELLS = { souffle: 'Souffle infernal', meteores: 'Pluie de météores', griffes: 'Griffes de l\'abîme', bombes: 'Bombes démoniaques', cage: 'Cage de feu',
   foudre: 'Foudre céleste', soufre: 'Bombes de soufre', rideau: 'Rideau de feu' };
 const DK_GATE = [7, 12], DK_TUN = [6, 13, 8, 23];   // porte de l'arène ; tunnel x 6-8, y 13-23
-// bonus du tunnel, du bas vers le haut : 7 bombes, 6 portées, 5 vitesses, le gant (le coup de pied est déjà là)
-const DK_LOOT = [2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 4];
+// bonus du tunnel, du bas vers le haut, tous dans la colonne du milieu : [bonus, ×N] ; 7 bombes, 6 portées, 5 vitesses, le gant (le coup de pied est déjà là)
+const DK_LOOT = [[0, 3], [1, 3], [2, 3], [0, 3], [1, 3], [2, 2], [0, 1], [4, 1]];
 function dkInit(c) {
   const cells = new Set();
   for (let y = 1; y <= DK_Y1; y++) for (let x = 1; x < COLS - 1; x++) cells.add(idx(x, y));   // la zone du boss
@@ -2737,11 +2740,9 @@ function dkInit(c) {
     const [x0, y0, x1, y1] = DK_TUN;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) G.grid[idx(x, y)] = EMPTY;
     G.grid[idx(DK_GATE[0], DK_GATE[1])] = EMPTY;
-    // les bonus au sol : au milieu du tunnel, puis sur les côtés
-    const spots = [];
-    for (let y = y1 - 1; y >= y0; y--) spots.push(idx(7, y));
-    for (let y = y1 - 1; y >= y0 + 1 && spots.length < DK_LOOT.length; y -= 1) spots.push(idx(y % 2 ? 6 : 8, y));
-    DK_LOOT.forEach((it, i) => { if (spots[i] !== undefined) G.items[spots[i]] = it; });
+    // les bonus au sol, tous dans la colonne du milieu, une case sur une
+    G.itemX = new Map();
+    DK_LOOT.forEach(([it, n], i) => { const k = idx(7, y1 - 1 - i); G.items[k] = it; if (n > 1) G.itemX.set(k, n); });
   }
   const owner = { id: BOSS_ID, npc: true, demon: true, name: c.dname, skin: DEMON_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#3a1d3f', ui: '#c04cff' }, active: 0, alive: true };
   return { cells, owner, name: c.dname, hp: c.hp, max: c.hp, phase: 0, alive: true, deadT: 0, castT: 3.2, busy: 0, since: 0, last: '', heart: 0, heartMax: 0,
@@ -2749,6 +2750,9 @@ function dkInit(c) {
 }
 const dkOpen = () => !!(G.dk && G.dk.alive && G.dk.heart > 0);
 const dkHeartAt = (x, y) => x === Math.round(G.dk.hx) && y === DK_Y1;
+// son corps (5 cases de large, rangées 1 à 3) ; une bombe poussée vers le haut le touche en rangée 3
+const dkBodyAt = (x, y) => !!(G.dk && G.dk.alive && G.dk.started) && y >= 1 && y <= DK_Y1 && Math.abs(x - G.dk.hx) <= 2.4;
+const DK_DMG = { blast: 1, kick: 2, heart: 5 };
 const dkFree = k => G.grid[k] === EMPTY && !(G.dk && G.dk.cells.has(k)) && ((k / COLS) | 0) < DKR - 1;
 function dkAllFree() { const out = []; for (let y = DK_Y1 + 1; y < DKR - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); if (dkFree(k)) out.push(k); } return out; }
 const dkIn = (x, y) => x >= 1 && x <= COLS - 2 && y > DK_Y1 && y <= DKR - 2;
@@ -2785,7 +2789,7 @@ function dkTick(dt) {
     if (!D.tunMsg) { D.tunMsg = true; G.rageMsg = ['Le tunnel', 'Ramasse tous les bonus, puis entre dans l\'arène']; G.rageFlash = 2.6; }
     dkTunnelTick(D, me); if (!D.started) return;
   }
-  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Quand son cœur s\'ouvre, il s\'arrête : pousse une bombe vers le haut, droit dans son cœur']; G.rageFlash = 2.8; }
+  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Tes explosions le blessent ; une bombe poussée dans son cœur ouvert fait très mal']; G.rageFlash = 2.8; }
   if (!D.alive) { dkDeathTick(D, dt); return; }
   dkMove(D, dt, me);
   // salves de foudre en attente
@@ -2928,18 +2932,23 @@ function dkCast(kind, extra) {
 function dkOpenHeart() {
   const D = G.dk; D.heart = D.heartMax = DK_HEART[D.phase]; D.pose = 'castF'; D.poseT = D.heart; D.drip = 0.6; D.hx = D.tx = Math.round(D.hx);
   dkText('Son cœur s\'ouvre !', '#ff8ad8', 20); Sfx.play('sudden');
-  if (!D.hint) { D.hint = true; addP({ kind: 'text', x: (D.hx + 0.5) * T, y: (DK_Y1 + 2) * T, vx: 0, vy: -16, life: 2.4, max: 2.4, size: 15, color: '#ffd6f0', text: 'Pousse une bombe vers le haut, dans la colonne rose !' }); }
+  if (!D.hint) { D.hint = true; addP({ kind: 'text', x: (D.hx + 0.5) * T, y: (DK_Y1 + 2) * T, vx: 0, vy: -16, life: 2.4, max: 2.4, size: 15, color: '#ffd6f0', text: 'Pousse une bombe vers le haut, dans la colonne rose : -5 !' }); }
 }
-function dkHit(b) {
+// défi 10 : une explosion qui le touche (1), une bombe poussée contre lui (2), dans son cœur ouvert (5) ; une explosion ne compte qu'une fois
+function dkHit(b, kind) {
   const D = G.dk; if (!D || !D.alive) return;
-  D.hp--; D.hitT = 0.35; D.heart = 0; D.castT = 1.2; D.openNext = false; D.wait = 0.6;
+  const n = DK_DMG[kind] || 1, big = kind === 'heart';
+  D.hp = Math.max(0, D.hp - n); D.hitT = big ? 0.35 : 0.15;
   const x = (D.hx + 0.5) * T, y = (DK_Y1 + 1) * T - DK_H() * 0.52;
-  for (let j = 0; j < 30; j++) { const a = Math.random() * TAU, sp = 100 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, max: 0.6, size: 3.2, color: j % 3 ? '#ff8ad8' : '#ffd166' }); }
-  addP({ kind: 'text', x, y: y - 20, vx: 0, vy: -40, life: 1.2, max: 1.2, size: 26, color: '#ffd166', text: D.hp ? `-1 · ${D.hp} PV` : 'Coup fatal !' });
-  Sfx.boom('mega', 0.8); Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, 10); rumble(0.6, 0.8, 300);
+  if (big) {
+    D.heart = 0; D.castT = Math.max(D.castT, 1.2); D.openNext = false; D.wait = 0.6;
+    for (let j = 0; j < 30; j++) { const a = Math.random() * TAU, sp = 100 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, max: 0.6, size: 3.2, color: j % 3 ? '#ff8ad8' : '#ffd166' }); }
+    Sfx.boom('mega', 0.8); Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, 10); rumble(0.6, 0.8, 300);
+  } else { Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, kind === 'kick' ? 4 : 2); }
+  addP({ kind: 'text', x: x + (Math.random() - 0.5) * 40, y: y - 20, vx: 0, vy: -40, life: 1, max: 1, size: big ? 28 : kind === 'kick' ? 22 : 18, color: big ? '#ffd166' : '#ffb3e6', text: D.hp ? (big ? `Dans le cœur ! -${n}` : `-${n}`) : 'Coup fatal !' });
   if (D.hp <= 0) { dkDie(D); return; }
-  const ph = D.hp <= 2 ? 2 : D.hp <= 4 ? 1 : 0;
-  if (ph !== D.phase) {
+  const ph = D.hp <= D.max / 3 ? 2 : D.hp <= D.max * 2 / 3 ? 1 : 0;
+  if (ph > D.phase) {
     D.phase = ph; fx('snd', 'sudden');
     G.rageMsg = ph === 1 ? [`${D.name} enrage !`, 'Il bouge et frappe plus vite'] : [`${D.name} se déchaîne !`, 'Deux sorts à la fois, et des météores même cœur ouvert'];
     G.rageFlash = 1.8;
@@ -3055,8 +3064,9 @@ function drawDkBar(c, t) {
   c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = '#e6c8ff';
   c.fillText(D.name + (D.heart > 0 ? ' · cœur ouvert !' : D.phase >= 2 ? ' · déchaîné' : D.phase ? ' · enragé' : ''), x, y + 1);
   c.textAlign = 'right'; c.fillStyle = 'rgba(243,229,192,.8)'; c.fillText(`${Math.max(0, D.hp)} / ${D.max} PV`, x + w, y + 1); c.textAlign = 'left';
-  const gw = (w - 4 * (D.max - 1)) / D.max;
-  for (let i = 0; i < D.max; i++) { c.fillStyle = i < D.hp ? (D.hitT > 0 ? '#ffffff' : D.heart > 0 ? '#ff6ad0' : '#a45bff') : '#2a1f3a'; rr(c, x + i * (gw + 4), y + 19, gw, 11, 5.5); c.fill(); }
+  c.fillStyle = '#2a1f3a'; rr(c, x, y + 19, w, 11, 5.5); c.fill();
+  const f = Math.max(0, D.hp) / D.max; c.fillStyle = D.hitT > 0 ? '#ffffff' : D.heart > 0 ? '#ff6ad0' : '#a45bff'; if (f > 0) { rr(c, x, y + 19, Math.max(11, w * f), 11, 5.5); c.fill(); }
+  c.fillStyle = 'rgba(10,8,14,.8)'; for (const q of [1 / 3, 2 / 3]) c.fillRect(x + w * q - 1, y + 19, 2, 11);   // seuils de rage
   c.restore();
 }
 /* ---------- Défi 7 : le Ninja. Tes explosions le blessent, et une bombe poussée sur lui pendant
@@ -3467,6 +3477,8 @@ function updateFlying(dt, apply) {
 }
 function pickup(p, k) {
   const it = G.items[k]; G.items[k] = -1;
+  const nx = (G.itemX && G.itemX.get(k)) || 1; if (G.itemX) G.itemX.delete(k);   // défi 10 : bonus ×2 ou ×3
+  for (let j = 1; j < nx; j++) { if (it === 0) p.maxBombs = Math.min(capBombs(), p.maxBombs + 1); else if (it === 1) p.range = Math.min(capRange(), p.range + 1); else if (it === 2) p.speedLv = Math.min(capSpeed(), p.speedLv + 1); }
   if (isOrb(it)) addPts(p, ORB_VALS[it - ORB0]);
   else if (it === 0) p.maxBombs = Math.min(capBombs(), p.maxBombs + 1);
   else if (it === 1) p.range = Math.min(capRange(), p.range + 1);
@@ -6018,6 +6030,8 @@ function drawFieldItem(c, k, t) {
   g.addColorStop(0, ITEMS[type].c1 + '88'); g.addColorStop(1, ITEMS[type].c1 + '00');
   c.fillStyle = g; c.fillRect(x - 26, y - 26, 52, 52);
   drawToken(c, type, x, y - 2 + bob, pop);
+  const nx = G.itemX && G.itemX.get(k);
+  if (nx > 1) { c.fillStyle = 'rgba(20,14,6,.88)'; rr(c, x + 6, y - 24 + bob, 24, 17, 6); c.fill(); c.fillStyle = '#ffd36e'; c.font = '800 13px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('×' + nx, x + 18, y - 15 + bob); }
 }
 
 /* ---------- Bombe ---------- */
@@ -8584,7 +8598,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
-      : c.demon ? `D'abord un tunnel où tu ramasses tous les bonus, puis ${c.dname}, qui arpente le haut de l'arène (zone interdite) · quand son cœur s'ouvre, il s'arrête : pousse une bombe vers le haut, droit dans son cœur : ${c.hp} coups · ses sorts couvrent toute l'arène, et ses brûlures restent un moment · ${Math.round(c.time / 60 * 10) / 10} min`
+      : c.demon ? `D'abord un tunnel où tu ramasses tous les bonus, puis ${c.dname}, qui arpente le haut de l'arène (zone interdite) · ${c.hp} PV : tes explosions qui le touchent lui en retirent 1, une bombe poussée contre lui 2, et dans son cœur ouvert 5 (il s'arrête alors au-dessus de la colonne rose) · ses sorts couvrent toute l'arène, et ses brûlures restent un moment · ${Math.round(c.time / 60 * 10) / 10} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler${c.retryWave ? ' : tu recommences alors la vague' : ''}`
