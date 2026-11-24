@@ -1591,8 +1591,8 @@ const CAMP = [
     ],
     spawns: { 0: [3, 5, 'right'] } },
   { foe: 5 },
-  { name: 'Le Seigneur démon', desc: 'Malakor, le Seigneur démon, domine l\'arène depuis son trône. Immense et immobile, il couvre toute l\'arène de sorts : souffle infernal, météores, griffes, bombes démoniaques, cage de feu. Tu as tous tes pouvoirs au maximum dès le départ. Quand son cœur s\'ouvre, pousse-lui une bombe dedans. Le combat le plus dur de la campagne.',
-    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 6, wins: 1, time: 300, noCrates: true, spawns: { 0: [7, 10, 'up'] } },
+  { name: 'Le Seigneur démon', desc: 'Traverse d\'abord le tunnel et ramasse tous les bonus. Au bout, Malakor, le Seigneur démon, arpente le haut de l\'arène, où tu ne peux pas entrer, et couvre tout de sorts : souffle infernal, météores, griffes, foudre céleste, bombes de soufre qui laissent des brûlures, rideau de feu… Quand son cœur s\'ouvre, il s\'arrête : pousse-lui une bombe dedans. Le combat le plus dur de la campagne.',
+    foe: DEMON_SKIN, dname: 'Malakor', demon: true, hp: 6, wins: 1, time: 330, noCrates: true, tunnel: true, rows: 25, spawns: { 0: [7, 23, 'up'] } },   // rangées 13 à 24 : le tunnel
 ];
 const skinName = k => (SHEET_SKINS[k] && SHEET_SKINS[k].name) || (CHARS[k] && CHARS[k].name) || '?';
 const foeName = c => c.dname || (c.targets ? 'les cibles' : c.npc || (c.foes ? c.foes.map(skinName).join(' et ') : skinName(c.foe)));
@@ -2277,7 +2277,8 @@ function solidAt(x, y) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   if (G.tg && x >= G.tg.fence) return true;   // défi 4 : la corde du stand de tir (les bombes poussées passent dessous)
   if (G.tg && G.tg.zone && !inRect(G.tg.zone, x, y)) return true;   // défi 8 : le joueur reste dans son quart de carte
-  if (G.tg && G.tg.nest && inRect(G.tg.nest, x, y)) return true;   // … sans entrer dans la zone de l'ordi (ses bombes poussées, elles, y entrent)
+  if (G.tg && G.tg.nest && inRect(G.tg.nest, x, y)) return true;
+  if (G.dk && y >= 1 && y <= DK_Y1) return true;   // défi 10 : la zone du boss est interdite   // … sans entrer dans la zone de l'ordi (ses bombes poussées, elles, y entrent)
   return G.grid[y * COLS + x] !== EMPTY;
 }
 function blockedFor(p, x, y) {
@@ -2294,6 +2295,7 @@ function rebuildBombAt() {
 function bombBlocked(x, y, self, ignorePlayers) {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
   if (G.dk && self && dkOpen() && dkHeartAt(x, y)) return false;   // défi 10 : cœur ouvert, la bombe peut y entrer
+  if (G.dk && y >= 1 && y <= DK_Y1) return true;   // sinon elle s'arrête au bord de sa zone
   const k = idx(x, y);
   if (G.grid[k] !== EMPTY) return true;
   if (G.tg && (tgtAt(x, y) || kegAt(x, y))) return true;
@@ -2410,6 +2412,7 @@ function doThrow(bx, by, dx, dy, p) {
 const throwTime = s => s <= THROW_DIST ? s * THROW_STEP : THROW_DIST * THROW_STEP + (s - THROW_DIST) * BOUNCE_STEP;
 function landFree(k) {
   if (G.grid[k] !== EMPTY || G.bombAt[k] || G.items[k] >= 0) return false;
+  if (G.dk && G.dk.cells.has(k)) return false;   // défi 10 : rien ne retombe dans la zone du boss
   for (const f of G.falling) if (f.k === k) return false;
   for (const f of G.flying) if (f.k === k) return false;
   return true;
@@ -2538,13 +2541,13 @@ function placeBomb(p) {
   fx('drop', cx, cy);
   return true;
 }
-function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; if (G.bossHit) G.bossHit.add(k); }
+function igniteCell(k, bits, who) { G.flameBits[k] |= bits; G.flameT[k] = FLAME_DUR; G.flameOwner[k] = who; if (G.bossHit) G.bossHit.add(k); if (G.burnTag && G.dk) G.dk.burn.set(k, G.burnTag); }   // burnTag : bombe de soufre (défi 10)
 function explode(b) {
   const i = G.bombs.indexOf(b); if (i < 0) return;
   G.bombs.splice(i, 1);
   b.owner.active = Math.max(0, b.owner.active - 1);
   const [cx, cy] = bombCell(b), k0 = idx(cx, cy);
-  G.bombAt[k0] = null;
+  G.bombAt[k0] = null; G.burnTag = b.burn || 0;
   const who = b.owner.id;
   // une explosion de l'équipe (ou une bombe du boss renvoyée par l'équipe) qui touche le boss : 1 dégât, 2 si elle a été poussée contre lui
   const hurt = G.boss && G.boss.alive && (b.owner !== G.boss || b.kickBy !== undefined);
@@ -2567,7 +2570,7 @@ function explode(b) {
     }
   }
   if (hurt) { const hit = [...G.bossHit].some(k => bossAt(k % COLS, (k / COLS) | 0)); G.bossHit = null; if (hit) bossDamage(b.kickHit ? 2 : 1, b.kickBy !== undefined && b.kickBy !== null ? G.players[b.kickBy] || b.owner : b.owner); }
-  rebuildBombAt();
+  G.burnTag = 0; rebuildBombAt();
   fx('boom', cx, cy, who);
 }
 function updateBombs(dt) {
@@ -2716,27 +2719,81 @@ function gloopSplit(p) {
 }
 
 
-/* ---------- Défi 10 : Malakor, le Seigneur démon. Immense et immobile en haut de l'arène (cases x 5-9, y 1-3) ;
-   seule une bombe poussée dans son cœur (par la colonne 7, quand il s'ouvre) le blesse ---------- */
-const DK_X0 = 5, DK_X1 = 9, DK_Y1 = 3, DK_HX = 7;
-const DK_WARN = [1.15, 1.0, 0.9], DK_GAP = [1.5, 1.1, 0.75], DK_HEART = [2.8, 2.5, 2.2];
-const DK_SPELLS = { souffle: 'Souffle infernal', meteores: 'Pluie de météores', griffes: 'Griffes de l\'abîme', bombes: 'Bombes démoniaques', cage: 'Cage de feu' };
+/* ---------- Défi 10 : Malakor, le Seigneur démon. Il arpente sa zone en haut de l'arène (rangées 1 à 3, 5 cases de large),
+   interdite au joueur ; seule une bombe poussée vers le haut dans son cœur (quand il s'ouvre, il s'arrête au-dessus d'une colonne impaire) le blesse.
+   Avant l'arène : un tunnel (colonnes 6 à 8, rangées 13 à 23) où l'on ramasse tous les bonus ; la grille se referme derrière le joueur ---------- */
+const DK_Y1 = 3, DKR = 13;   // DKR : rangées de l'arène (le tunnel est en dessous)
+const DK_WARN = [1.15, 1.0, 0.9], DK_GAP = [1.5, 1.1, 0.75], DK_HEART = [2.8, 2.5, 2.2], DK_SPEED = [1.1, 1.4, 1.8];
+const DK_SPELLS = { souffle: 'Souffle infernal', meteores: 'Pluie de météores', griffes: 'Griffes de l\'abîme', bombes: 'Bombes démoniaques', cage: 'Cage de feu',
+  foudre: 'Foudre céleste', soufre: 'Bombes de soufre', rideau: 'Rideau de feu' };
+const DK_GATE = [7, 12], DK_TUN = [6, 13, 8, 23];   // porte de l'arène ; tunnel x 6-8, y 13-23
+// bonus du tunnel, du bas vers le haut : 7 bombes, 6 portées, 5 vitesses, le gant (le coup de pied est déjà là)
+const DK_LOOT = [2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 4];
 function dkInit(c) {
   const cells = new Set();
-  for (let y = 1; y <= DK_Y1; y++) for (let x = DK_X0; x <= DK_X1; x++) { const k = idx(x, y); G.grid[k] = WALL; G.items[k] = -1; cells.add(k); }
+  for (let y = 1; y <= DK_Y1; y++) for (let x = 1; x < COLS - 1; x++) cells.add(idx(x, y));   // la zone du boss
+  if (c.tunnel) {
+    for (let y = DKR - 1; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const k = idx(x, y); G.grid[k] = WALL; G.items[k] = -1; }
+    const [x0, y0, x1, y1] = DK_TUN;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) G.grid[idx(x, y)] = EMPTY;
+    G.grid[idx(DK_GATE[0], DK_GATE[1])] = EMPTY;
+    // les bonus au sol : au milieu du tunnel, puis sur les côtés
+    const spots = [];
+    for (let y = y1 - 1; y >= y0; y--) spots.push(idx(7, y));
+    for (let y = y1 - 1; y >= y0 + 1 && spots.length < DK_LOOT.length; y -= 1) spots.push(idx(y % 2 ? 6 : 8, y));
+    DK_LOOT.forEach((it, i) => { if (spots[i] !== undefined) G.items[spots[i]] = it; });
+  }
   const owner = { id: BOSS_ID, npc: true, demon: true, name: c.dname, skin: DEMON_SKIN, cs: [0, 0, 0, 0, 0, 0], pal: { ...palFor(3), coat: '#3a1d3f', ui: '#c04cff' }, active: 0, alive: true };
   return { cells, owner, name: c.dname, hp: c.hp, max: c.hp, phase: 0, alive: true, deadT: 0, castT: 3.2, busy: 0, since: 0, last: '', heart: 0, heartMax: 0,
-    pose: 'down0', poseT: 0, hitT: 0, spell: '', spellT: 0, intro: false, hint: false };
+    pose: 'down0', poseT: 0, hitT: 0, spell: '', spellT: 0, intro: false, hint: false, started: !c.tunnel, hx: 7, tx: 7, dash: 0, burn: new Map(), bolts: [] };
 }
 const dkOpen = () => !!(G.dk && G.dk.alive && G.dk.heart > 0);
-const dkHeartAt = (x, y) => x === DK_HX && y === DK_Y1;
-const dkFree = k => G.grid[k] === EMPTY && !(G.dk && G.dk.cells.has(k));
-function dkAllFree() { const out = []; for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); if (dkFree(k)) out.push(k); } return out; }
+const dkHeartAt = (x, y) => x === Math.round(G.dk.hx) && y === DK_Y1;
+const dkFree = k => G.grid[k] === EMPTY && !(G.dk && G.dk.cells.has(k)) && ((k / COLS) | 0) < DKR - 1;
+function dkAllFree() { const out = []; for (let y = DK_Y1 + 1; y < DKR - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = idx(x, y); if (dkFree(k)) out.push(k); } return out; }
+const dkIn = (x, y) => x >= 1 && x <= COLS - 2 && y > DK_Y1 && y <= DKR - 2;
+// tunnel : quand le joueur entre dans l'arène, la grille se referme derrière lui et le combat commence
+function dkTunnelTick(D, me) {
+  if (!me.alive || me.y > DKR - 2.6) return;
+  D.started = true; D.castT = 2.6;
+  const [gx, gy] = DK_GATE; G.grid[idx(gx, gy)] = WALL; groundDirty = true; fx('crate', gx, gy); Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, 6);
+}
+// déplacement : il va d'une colonne impaire à une autre (3 à 11), plutôt vers le joueur ; il s'arrête quand son cœur s'ouvre
+function dkMove(D, dt, me) {
+  if (D.heart > 0) return;
+  const sp = D.dash > 0 ? 6 : DK_SPEED[D.phase];
+  if (Math.abs(D.tx - D.hx) < 0.01) {
+    D.hx = D.tx; D.dash = 0;
+    if (D.openNext && D.castT <= 0) return;   // il attend d'ouvrir son cœur, bien aligné
+    D.wait = (D.wait || 0) - dt; if (D.wait > 0) return;
+    const px = me.alive ? Math.round(me.x) : 7, opts = [];
+    for (let x = 3; x <= 11; x += 2) if (x !== D.hx) opts.push([x, Math.random() * 3 - Math.abs(x - px) * 0.35]);
+    opts.sort((a, b) => b[1] - a[1]); D.tx = opts[0][0]; D.wait = 0.3 + Math.random() * 0.9;
+  }
+  const d = D.tx - D.hx; D.hx += Math.sign(d) * Math.min(Math.abs(d), sp * dt); D.walk = (D.walk || 0) + dt * sp;
+}
 function dkTick(dt) {
   const D = G.dk, me = G.players[0];
   D.hitT = Math.max(0, D.hitT - dt); D.poseT -= dt; if (D.poseT <= 0) D.pose = 'down0';
-  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Quand son cœur s\'ouvre, pousse une bombe dedans par la colonne du milieu']; G.rageFlash = 2.8; }
+  // brûlures des bombes de soufre : elles soufflent qui s'y tient
+  for (const [k, t] of D.burn) {
+    if (t - dt <= 0) D.burn.delete(k); else D.burn.set(k, t - dt);
+  }
+  if (me.alive && !(me.shield > 0) && D.burn.has(idx(Math.round(me.x), Math.round(me.y)))) kill(me, BOSS_ID);
+  for (let i = D.bolts.length - 1; i >= 0; i--) if ((D.bolts[i].t += dt) > 0.35) D.bolts.splice(i, 1);
+  if (!D.started) {
+    if (!D.tunMsg) { D.tunMsg = true; G.rageMsg = ['Le tunnel', 'Ramasse tous les bonus, puis entre dans l\'arène']; G.rageFlash = 2.6; }
+    dkTunnelTick(D, me); if (!D.started) return;
+  }
+  if (!D.intro) { D.intro = true; G.rageMsg = [`${D.name}, le Seigneur démon`, 'Quand son cœur s\'ouvre, il s\'arrête : pousse une bombe vers le haut, droit dans son cœur']; G.rageFlash = 2.8; }
   if (!D.alive) { dkDeathTick(D, dt); return; }
+  dkMove(D, dt, me);
+  // salves de foudre en attente
+  if (D.boltQ) for (let i = D.boltQ.length - 1; i >= 0; i--) {
+    const q = D.boltQ[i]; if (G.t < q.at) continue; D.boltQ.splice(i, 1);
+    const free = dkAllFree(); if (me.alive) dkBolt(Math.round(me.x), Math.round(me.y), q.Wb, 0);
+    for (let j = 1; j < q.n && free.length; j++) { const k = free[(Math.random() * free.length) | 0]; dkBolt(k % COLS, (k / COLS) | 0, q.Wb, j * 0.06); }
+  }
   if (D.heart > 0) {
     D.heart -= dt;
     if (D.heart <= 0) { D.heart = 0; D.castT = 0.5; dkText('Son cœur se referme', '#d9b3ff', 15); }
@@ -2745,28 +2802,28 @@ function dkTick(dt) {
   }
   D.castT -= dt;
   if (D.castT > 0 || !me.alive) return;
-  // après un souffle (il s'épuise) ou tous les 3 sorts : son cœur s'ouvre
-  if (D.openNext) { D.openNext = false; dkOpenHeart(); return; }
+  // après un souffle (il s'épuise) ou tous les 3 sorts : son cœur s'ouvre, dès qu'il est arrêté sur une colonne
+  if (D.openNext) { if (Math.abs(D.tx - D.hx) < 0.01) { D.openNext = false; dkOpenHeart(); } return; }
   const kind = dkPick();
   const busy = dkCast(kind);
   // déchaîné : un second sort en même temps
-  if (D.phase >= 2 && kind !== 'souffle') dkCast(kind === 'meteores' ? 'bombes' : 'meteores', true);
+  if (D.phase >= 2 && kind !== 'souffle' && kind !== 'rideau') dkCast(kind === 'meteores' ? 'bombes' : 'meteores', true);
   D.since++; if (kind === 'souffle' || D.since >= 3) { D.openNext = true; D.since = 0; }
   D.castT = busy + DK_GAP[D.phase];
 }
 function dkPick() {
-  const D = G.dk, pool = [['souffle', 1.2], ['meteores', 1.3], ['griffes', 1.1], ['bombes', 1], ['cage', 1]].filter(o => o[0] !== D.last);
+  const D = G.dk, pool = [['souffle', 1.1], ['meteores', 1], ['griffes', 0.9], ['bombes', 0.8], ['cage', 0.9], ['foudre', 1.2], ['soufre', 1.1], ['rideau', 1]].filter(o => o[0] !== D.last);
   let r = Math.random() * pool.reduce((a, o) => a + o[1], 0);
   for (const [k, w] of pool) { r -= w; if (r <= 0) return (D.last = k); }
   return (D.last = pool[0][0]);
 }
-function dkText(text, color = '#f0d6ff', size = 18) { addP({ kind: 'text', x: (DK_HX + 0.5) * T, y: (DK_Y1 + 1.2) * T, vx: 0, vy: -28, life: 1.4, max: 1.4, size, color, text }); }
+function dkText(text, color = '#f0d6ff', size = 18) { addP({ kind: 'text', x: (G.dk.hx + 0.5) * T, y: (DK_Y1 + 1.2) * T, vx: 0, vy: -28, life: 1.4, max: 1.4, size, color, text }); }
 function dkFire(cells, quiet) {
   for (const k of cells) bossBurn(k);
   if (!quiet) { Sfx.boom('classic', 0.8, 1); if (!reduceMotion) G.shake = Math.max(G.shake, 5); }
 }
 // une croix de rayon 1 (météore)
-function dkPlus(x, y) { const out = []; for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = idx(x + dx, y + dy); if (x + dx > 0 && y + dy > 0 && x + dx < COLS - 1 && y + dy < ROWS - 1 && dkFree(k)) out.push(k); } return out; }
+function dkPlus(x, y) { const out = []; for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = idx(x + dx, y + dy); if (dkIn(x + dx, y + dy) && dkFree(k)) out.push(k); } return out; }
 function dkMeteor(me, n, fast) {
   const D = G.dk, W = DK_WARN[D.phase] + (fast ? 0.15 : 0.25), free = dkAllFree();
   for (let j = 0; j < n; j++) {
@@ -2774,30 +2831,41 @@ function dkMeteor(me, n, fast) {
     if (j % 3 === 0 && me.alive) { x = Math.round(me.x) + ((Math.random() * 3) | 0) - 1; y = Math.round(me.y) + ((Math.random() * 3) | 0) - 1; }
     else { const k = free[(Math.random() * free.length) | 0]; x = k % COLS; y = (k / COLS) | 0; }
     const cells = dkPlus(x, y); if (!cells.length) continue;
-    warnCells(cells, W, () => { dkFire(cells, true); Sfx.boom('classic', 0.45, 0.8); for (let i = 0; i < 8; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 120; addP({ kind: 'spark', x: (x + 0.5) * T, y: (y + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.5, max: 0.5, size: 3, color: i % 2 ? '#c04cff' : '#ff7a3a' }); } if (!reduceMotion) G.shake = Math.max(G.shake, 3); }, j * 0.12);
+    warnCells(cells, W, () => { dkFire(cells, true); Sfx.boom('classic', 0.45, 0.8); for (let i = 0; i < 8; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 120; addP({ kind: 'spark', x: (x + 0.5) * T, y: (y + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.5, max: 0.5, size: 3, color: i % 2 ? '#ff9a3c' : '#c04cff' }); } }, j * 0.12);
   }
 }
-// une case est-elle à l'abri du souffle (un pilier, un bloc ou le mur entre sa gueule et elle) ?
+// une case est-elle à l'abri du souffle (un pilier ou un bloc entre sa gueule et elle) ?
 function dkShadowed(x, y) {
   // l'ombre d'un pilier : la case juste derrière lui, vue depuis sa gueule (une case par pilier)
-  const dx = DK_HX - x, dy = DK_Y1 - y, ax = Math.abs(dx), ay = Math.abs(dy);
+  const hx = Math.round(G.dk.hx), dx = hx - x, dy = DK_Y1 - y, ax = Math.abs(dx), ay = Math.abs(dy);
   if (ax === ay) return false;
   const k = ax > ay ? idx(x + Math.sign(dx), y) : idx(x, y + Math.sign(dy));
   if (G.dk.cells.has(k)) return false;
   const g = G.grid[k]; return g === PILLAR || g === STONE;
 }
+// éclair : l'avertissement est bleu (G.warn avec bolt), puis la foudre tombe du ciel
+function dkBolt(x, y, W, delay) {
+  const k = idx(x, y); if (!dkIn(x, y) || !dkFree(k)) return;
+  warnCells([k], W, () => {
+    dkFire([k], true); G.dk.bolts.push({ x, y, t: 0, seed: Math.random() * 1000 });
+    Sfx.play('shur'); Sfx.boom('crystal', 0.35, 0.9); if (!reduceMotion) G.shake = Math.max(G.shake, 3);
+    for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 160; addP({ kind: 'spark', x: (x + 0.5) * T, y: (y + 0.5) * T, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35, max: 0.35, size: 2.5, color: i % 2 ? '#e8f6ff' : '#7ad0ff' }); }
+  }, delay);
+  G.warn[G.warn.length - 1].bolt = true;
+}
 function dkCast(kind, extra) {
-  const D = G.dk, me = G.players[0], W = DK_WARN[D.phase], px = Math.round(me.x), py = Math.round(me.y);
-  if (!extra) { D.spell = kind; D.spellT = G.t; D.pose = kind === 'bombes' ? 'castS' : 'castF'; D.flip = px < DK_HX; dkText(DK_SPELLS[kind] + (D.phase >= 2 && kind !== 'souffle' ? ' !' : '')); Sfx.play('njcast'); }
+  const D = G.dk, me = G.players[0], W = DK_WARN[D.phase], px = Math.round(me.x), py = Math.round(me.y), hx = Math.round(D.hx);
+  if (!extra) { D.spell = kind; D.spellT = G.t; D.pose = kind === 'bombes' || kind === 'soufre' ? 'castS' : 'castF'; D.flip = px < D.hx; dkText(DK_SPELLS[kind] + (D.phase >= 2 && kind !== 'souffle' ? ' !' : '')); Sfx.play('njcast'); }
   if (kind === 'souffle') {
     // souffle infernal : un balayage en 4 secteurs depuis sa gueule ; seules les cases cachées derrière un pilier sont à l'abri
-    const secs = [[], [], [], []], cx = DK_HX, cy = DK_Y1 + 0.55, rev = Math.random() < 0.5;
+    const secs = [[], [], [], []], cx = hx, cy = DK_Y1 + 0.55, rev = Math.random() < 0.5;
     for (const k of dkAllFree()) {
       const x = k % COLS, y = (k / COLS) | 0; if (dkShadowed(x, y)) continue;
       const a = Math.atan2(y - cy, x - cx);   // 0 (droite) … π (gauche)
       let i = Math.min(3, Math.max(0, Math.floor((Math.PI - Math.max(0, Math.min(Math.PI, a < -0.5 ? Math.PI : a))) / (Math.PI / 4))));
       if (rev) i = 3 - i; secs[i].push(k);
     }
+    D.tx = hx; D.wait = W + 1.6;   // il s'arrête pour souffler
     secs.forEach((cells, i) => warnCells(cells, W + 0.15, () => dkFire(cells), i * 0.38));
     D.poseT = W + 1.4; return W + 1.6;
   }
@@ -2811,22 +2879,46 @@ function dkCast(kind, extra) {
     if (D.phase >= 1) warnCells(A, W, () => dkFire(A), 2 * W);
     D.poseT = W * (D.phase >= 1 ? 3 : 2); return W * (D.phase >= 1 ? 3 : 2) + 0.3;
   }
-  if (kind === 'bombes') {
-    // bombes démoniaques, lancées en cloche près du joueur (on peut les lui renvoyer dans le cœur)
-    const n = extra ? 3 : [4, 5, 6][D.phase], used = new Set();
+  if (kind === 'bombes' || kind === 'soufre') {
+    // bombes démoniaques (on peut les lui renvoyer dans le cœur) ; bombes de soufre : leur explosion laisse une brûlure qui dure
+    const sou = kind === 'soufre', n = extra ? 3 : sou ? [3, 4, 5][D.phase] : [4, 5, 6][D.phase], used = new Set(), R = sou ? 2 : 3;
     for (let j = 0; j < n; j++) {
       const cands = [];
-      for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) { if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue; const k = idx(x, y); if (dkFree(k) && !G.bombAt[k] && !used.has(k) && !(x === px && y === py)) cands.push(k); }
+      for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) { if (!dkIn(x, y)) continue; const k = idx(x, y); if (dkFree(k) && !G.bombAt[k] && !used.has(k) && !(x === px && y === py)) cands.push(k); }
       if (!cands.length) break;
       const k = cands[(Math.random() * cands.length) | 0]; used.add(k);
-      G.lobs.push({ k, sx: D.flip ? DK_X0 : DK_X1, sy: 1.6, t: -j * 0.1, dur: 1.0, fuse: [2.4, 2.1, 1.8][D.phase], range: 3, owner: D.owner });
+      G.lobs.push({ k, sx: D.flip ? D.hx - 2 : D.hx + 2, sy: 1.6, t: -j * 0.1, dur: 1.0, fuse: sou ? [2.6, 2.3, 2.0][D.phase] : [2.4, 2.1, 1.8][D.phase], range: R, owner: D.owner, burn: sou ? [4.5, 5, 5.5][D.phase] : 0 });
     }
     Sfx.play('throw'); D.poseT = Math.max(D.poseT, 0.9); return 1.4;
+  }
+  if (kind === 'foudre') {
+    // foudre céleste : 3 salves ; chaque éclair vise une case (un sur le joueur, les autres au hasard)
+    const n = [3, 4, 5][D.phase], Wb = [0.85, 0.75, 0.65][D.phase];
+    D.boltQ = [0, 0.75, 1.5].map(d => ({ at: G.t + d, n, Wb }));   // chaque salve vise l'endroit où est le joueur quand elle commence
+    D.poseT = 2.2; return 2.4 + Wb;
+  }
+  if (kind === 'rideau') {
+    // rideau de feu : il file à l'autre bout de sa zone ; une colonne sur deux s'embrase quand il passe au-dessus (puis les autres, dès qu'il enrage)
+    const from = hx, to = hx <= 7 ? 11 : 3, par = Math.random() < 0.5 ? 0 : 1, dir = Math.sign(to - from);
+    D.tx = to; D.dash = 1; D.wait = 0.8;
+    const cols = [];
+    for (let x = 1; x <= COLS - 2; x++) cols.push(x);
+    if (dir < 0) cols.reverse();
+    const t0 = x => Math.max(0, (x - from) * dir) / 6;
+    for (const x of cols) {
+      const A = [], B = [];
+      for (let y = DK_Y1 + 1; y < DKR - 1; y++) { const k = idx(x, y); if (dkFree(k)) (x % 2 === par ? A : B).push(k); }
+      if (A.length) warnCells(A, W, () => dkFire(A, true), t0(x));
+      if (D.phase >= 1 && B.length) warnCells(B, W, () => dkFire(B, true), t0(x) + W + 0.25);
+    }
+    const end = Math.abs(to - from) / 6 + W + (D.phase >= 1 ? W + 0.25 : 0);
+    Sfx.boom('classic', 0.6, 1);
+    D.poseT = end; return end + 0.4;
   }
   // cage de feu : un anneau autour du joueur, puis son centre
   const ring = [], mid = [];
   for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) {
-    if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) continue;
+    if (!dkIn(x, y)) continue;
     const k = idx(x, y); if (!dkFree(k)) continue;
     (Math.max(Math.abs(x - px), Math.abs(y - py)) === 2 ? ring : mid).push(k);
   }
@@ -2834,14 +2926,14 @@ function dkCast(kind, extra) {
   D.poseT = W + 1; return W + 1.3;
 }
 function dkOpenHeart() {
-  const D = G.dk; D.heart = D.heartMax = DK_HEART[D.phase]; D.pose = 'castF'; D.poseT = D.heart; D.drip = 0.6;
+  const D = G.dk; D.heart = D.heartMax = DK_HEART[D.phase]; D.pose = 'castF'; D.poseT = D.heart; D.drip = 0.6; D.hx = D.tx = Math.round(D.hx);
   dkText('Son cœur s\'ouvre !', '#ff8ad8', 20); Sfx.play('sudden');
-  if (!D.hint) { D.hint = true; addP({ kind: 'text', x: (DK_HX + 0.5) * T, y: (DK_Y1 + 2) * T, vx: 0, vy: -16, life: 2.4, max: 2.4, size: 15, color: '#ffd6f0', text: 'Pousse une bombe vers le haut, dans la colonne rose !' }); }
+  if (!D.hint) { D.hint = true; addP({ kind: 'text', x: (D.hx + 0.5) * T, y: (DK_Y1 + 2) * T, vx: 0, vy: -16, life: 2.4, max: 2.4, size: 15, color: '#ffd6f0', text: 'Pousse une bombe vers le haut, dans la colonne rose !' }); }
 }
 function dkHit(b) {
   const D = G.dk; if (!D || !D.alive) return;
-  D.hp--; D.hitT = 0.35; D.heart = 0; D.castT = 1.2; D.openNext = false;
-  const x = (DK_HX + 0.5) * T, y = (DK_Y1 + 1) * T - DK_H() * 0.52;
+  D.hp--; D.hitT = 0.35; D.heart = 0; D.castT = 1.2; D.openNext = false; D.wait = 0.6;
+  const x = (D.hx + 0.5) * T, y = (DK_Y1 + 1) * T - DK_H() * 0.52;
   for (let j = 0; j < 30; j++) { const a = Math.random() * TAU, sp = 100 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, max: 0.6, size: 3.2, color: j % 3 ? '#ff8ad8' : '#ffd166' }); }
   addP({ kind: 'text', x, y: y - 20, vx: 0, vy: -40, life: 1.2, max: 1.2, size: 26, color: '#ffd166', text: D.hp ? `-1 · ${D.hp} PV` : 'Coup fatal !' });
   Sfx.boom('mega', 0.8); Sfx.play('thud'); if (!reduceMotion) G.shake = Math.max(G.shake, 10); rumble(0.6, 0.8, 300);
@@ -2849,12 +2941,12 @@ function dkHit(b) {
   const ph = D.hp <= 2 ? 2 : D.hp <= 4 ? 1 : 0;
   if (ph !== D.phase) {
     D.phase = ph; fx('snd', 'sudden');
-    G.rageMsg = ph === 1 ? [`${D.name} enrage !`, 'Ses sorts frappent plus vite'] : [`${D.name} se déchaîne !`, 'Deux sorts à la fois, et des météores même cœur ouvert'];
+    G.rageMsg = ph === 1 ? [`${D.name} enrage !`, 'Il bouge et frappe plus vite'] : [`${D.name} se déchaîne !`, 'Deux sorts à la fois, et des météores même cœur ouvert'];
     G.rageFlash = 1.8;
   }
 }
 function dkDie(D) {
-  D.alive = false; D.deadT = 0; D.heart = 0; G.warn.length = 0; G.lobs.length = 0;
+  D.alive = false; D.deadT = 0; D.heart = 0; G.warn.length = 0; G.lobs.length = 0; D.boltQ = []; D.burn.clear();
   for (let i = G.bombs.length - 1; i >= 0; i--) if (G.bombs[i].owner === D.owner) G.bombs.splice(i, 1);
   rebuildBombAt(); G.rageMsg = [`${D.name} est vaincu !`, '']; G.rageFlash = 2.4;
 }
@@ -2862,34 +2954,48 @@ function dkDeathTick(D, dt) {
   const t0 = D.deadT; D.deadT += dt;
   // une série d'explosions sur tout son corps, puis la grande
   if (Math.floor(t0 * 7) !== Math.floor(D.deadT * 7) && D.deadT < 2) {
-    const x = (DK_X0 + Math.random() * (DK_X1 - DK_X0 + 1)) * T, y = (0.6 + Math.random() * DK_Y1) * T;
+    const x = (D.hx - 2 + Math.random() * 5) * T, y = (0.6 + Math.random() * DK_Y1) * T;
     for (let j = 0; j < 12; j++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 200; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, max: 0.5, size: 3, color: j % 2 ? '#c04cff' : '#ffb03b' }); }
     Sfx.boom('classic', 0.7, 1); if (!reduceMotion) G.shake = Math.max(G.shake, 6);
   }
   if (t0 < 2 && D.deadT >= 2) {
     Sfx.boom('mega', 1); setTimeout(() => Sfx.boom('classic', 1), 160); if (!reduceMotion) G.shake = 24; rumble(1, 1, 900); G.megaFlash = 1.2;
-    const x = (DK_HX + 0.5) * T, y = 2 * T;
+    const x = (D.hx + 0.5) * T, y = 2 * T;
     for (let i = 0; i < 50; i++) addP({ kind: 'smoke', x: x + (Math.random() - 0.5) * 160, y: y + (Math.random() - 0.5) * 100, vx: (Math.random() - 0.5) * 260, vy: -40 - Math.random() * 160, life: 1.4, max: 1.4, size: 14, color: '90,40,110' });
   }
 }
 const DK_H = () => T * 4.3;
-// estrade sombre sous le trône (dessinée avant la rangée 1)
+// zone du boss assombrie, corde qui la ferme, estrade sombre sous lui, brûlures du soufre (dessinées avant la rangée 1)
 function drawDkBack(c, t) {
-  const x = (DK_HX + 0.5) * T, y = (DK_Y1 + 0.75) * T;
+  const D = G.dk, x = (D.hx + 0.5) * T, y = (DK_Y1 + 0.75) * T;
   c.save();
+  c.fillStyle = 'rgba(30,8,40,.32)'; c.fillRect(T, T, (COLS - 2) * T, DK_Y1 * T);
+  const ry = (DK_Y1 + 1) * T;
+  for (let xx = 1; xx < COLS - 1; xx++) { const px = xx * T; c.fillStyle = '#5a3a1e'; c.fillRect(px + T * 0.15, ry - 3, T * 0.7, 6); }
+  c.lineWidth = 4; c.setLineDash([9, 9]); c.strokeStyle = '#f6efe0'; c.beginPath(); c.moveTo(T, ry); c.lineTo((COLS - 1) * T, ry); c.stroke();
+  c.lineDashOffset = 9; c.strokeStyle = '#7a1fa0'; c.beginPath(); c.moveTo(T, ry); c.lineTo((COLS - 1) * T, ry); c.stroke(); c.setLineDash([]); c.lineDashOffset = 0;
   const g = c.createRadialGradient(x, y, 10, x, y, T * 3); g.addColorStop(0, 'rgba(25,10,30,.75)'); g.addColorStop(0.6, 'rgba(40,15,50,.45)'); g.addColorStop(1, 'rgba(40,15,50,0)');
   c.fillStyle = g; ell(c, x, y, T * 3, T * 1.6); c.fill();
   c.globalAlpha = 0.4 + 0.25 * Math.sin(t * 2.2); c.strokeStyle = '#c04cff'; c.lineWidth = 2; c.lineCap = 'round';
   c.beginPath(); c.moveTo(x - 70, y + 20); c.lineTo(x - 100, y + 4); c.lineTo(x - 112, y + 22); c.moveTo(x + 70, y + 22); c.lineTo(x + 98, y + 6); c.lineTo(x + 116, y + 18); c.stroke();
+  c.globalAlpha = 1;
+  // brûlures : sol calciné, braises qui rougeoient (plus pâles la dernière seconde)
+  for (const [k, left] of D.burn) {
+    const bx = (k % COLS) * T, by = ((k / COLS) | 0) * T, f = Math.min(1, left), fl = 0.55 + 0.25 * Math.sin(t * 9 + k);
+    c.globalAlpha = f; c.fillStyle = 'rgba(40,12,6,.7)'; c.fillRect(bx + 2, by + 2, T - 4, T - 4);
+    const eg = c.createRadialGradient(bx + T / 2, by + T / 2, 2, bx + T / 2, by + T / 2, T * 0.55); eg.addColorStop(0, `rgba(255,150,40,${fl.toFixed(3)})`); eg.addColorStop(1, 'rgba(200,40,10,0)');
+    c.fillStyle = eg; c.fillRect(bx, by, T, T);
+    c.fillStyle = '#ffd36e'; for (let j = 0; j < 4; j++) { const sx = bx + ((k * 13 + j * 11) % 36) + 6, sy = by + ((k * 7 + j * 17) % 34) + 7; if (Math.sin(t * 7 + j * 2 + k) > 0) c.fillRect(sx, sy, 3, 3); }
+  }
   c.restore();
 }
 function drawDk(c, t) {
-  const D = G.dk, x = (DK_HX + 0.5) * T, feet = (DK_Y1 + 1) * T - 4, h = DK_H();
+  const D = G.dk, x = (D.hx + 0.5) * T, feet = (DK_Y1 + 1) * T - 4, h = DK_H();
   if (!D.alive && D.deadT > 2.1) return;
   // colonne rose du cœur ouvert : le chemin des bombes
   if (D.heart > 0) {
     const a = 0.16 + 0.1 * Math.sin(t * 10), f = D.heart / D.heartMax;
-    c.save(); c.fillStyle = `rgba(255,110,210,${a.toFixed(3)})`; c.fillRect(DK_HX * T + 6, feet, T - 12, (ROWS - 1) * T - feet);
+    c.save(); c.fillStyle = `rgba(255,110,210,${a.toFixed(3)})`; c.fillRect(Math.round(D.hx) * T + 6, feet, T - 12, (DKR - 1) * T - feet);
     c.strokeStyle = 'rgba(255,170,230,.8)'; c.lineWidth = 3; c.beginPath(); c.arc(x, feet + 14, 16, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore();
   }
   c.save();
@@ -2899,7 +3005,10 @@ function drawDk(c, t) {
   c.fillStyle = hg; c.fillRect(x - h, feet - h * 1.3, h * 2, h * 1.4);
   if (sheetReady(DK_IMG)) {
     const rage = D.phase >= 2 ? 0.1 + 0.08 * Math.sin(t * 8) : D.phase === 1 ? 0.06 : 0;
-    bossFrame(c, D.pose || 'down0', x, feet, h, { rage, hit: D.hitT > 0 ? 0.7 : 0, flip: D.pose === 'castS' && D.flip, swell: 1 + 0.012 * Math.sin(t * 2.2) }, DK_IMG);
+    // en marche : les images de marche gauche ou droite ; sinon sa pose
+    const moving = D.alive && D.heart <= 0 && Math.abs(D.tx - D.hx) > 0.02 && D.poseT <= 0;
+    const fr = moving ? (D.tx < D.hx ? 'left' : 'right') + (1 + (Math.floor((D.walk || 0) * 1.6) % 4)) : D.pose || 'down0';
+    bossFrame(c, fr, x, feet, h, { rage, hit: D.hitT > 0 ? 0.7 : 0, flip: D.pose === 'castS' && D.flip && !moving, swell: 1 + 0.012 * Math.sin(t * 2.2) }, DK_IMG);
   }
   // le cœur : la gemme de son torse brille, et s'ouvre en grand
   const gy = feet - h * 0.52, open = D.heart > 0;
@@ -2914,15 +3023,34 @@ function drawDkBomb(c, x, y, b, t) {
   const left = Math.max(0, b.timer ?? 2), pulse = 1 + Math.sin(t * (8 + (2.4 - Math.min(2.4, left)) * 10)) * 0.05;
   c.save(); c.translate(x, y + 2);
   c.fillStyle = 'rgba(15,25,10,.3)'; ell(c, 0, 13, 12, 4); c.fill();
+  if (b.burn) { const g = c.createRadialGradient(0, -2, 2, 0, -2, 26); g.addColorStop(0, 'rgba(255,170,40,.55)'); g.addColorStop(1, 'rgba(255,80,20,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, -2, 26, 0, TAU); c.fill(); }
   c.scale(pulse, 2 - pulse); c.drawImage(DK_BOMB, -22, -26, 44, 44);
-  if (left < 0.6 && Math.sin(t * 32) > 0) { c.fillStyle = 'rgba(200,80,255,.35)'; c.beginPath(); c.arc(0, -2, 16, 0, TAU); c.fill(); }
+  if (b.burn) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = 'rgba(255,140,30,.38)'; c.fillRect(-24, -28, 48, 48); c.globalCompositeOperation = 'source-over'; }
+  if (left < 0.6 && Math.sin(t * 32) > 0) { c.fillStyle = b.burn ? 'rgba(255,160,40,.4)' : 'rgba(200,80,255,.35)'; c.beginPath(); c.arc(0, -2, 16, 0, TAU); c.fill(); }
   c.restore();
 }
-// barre de vie en bas de l'arène (le boss occupe le haut)
+// éclairs : un trait brisé du haut de l'écran jusqu'à la case
+function drawDkBolts(c) {
+  const D = G.dk; if (!D || !D.bolts.length) return;
+  c.save(); c.translate(-G.cam.x, -G.cam.y); c.lineCap = 'round'; c.lineJoin = 'round';
+  for (const b of D.bolts) {
+    const a = 1 - b.t / 0.35, x = (b.x + 0.5) * T, y1 = (b.y + 0.5) * T, y0 = G.cam.y - 10;
+    let r = b.seed; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    const pts = [[x + (rnd() - 0.5) * 30, y0]]; for (let yy = y0 + 40; yy < y1; yy += 34) pts.push([x + (rnd() - 0.5) * 34, yy]); pts.push([x, y1]);
+    for (const [w, col] of [[9, `rgba(120,200,255,${(0.35 * a).toFixed(3)})`], [3.5, `rgba(240,250,255,${a.toFixed(3)})`]]) {
+      c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([px, py], i) => i ? c.lineTo(px, py) : c.moveTo(px, py)); c.stroke();
+    }
+    c.fillStyle = `rgba(200,235,255,${(0.5 * a).toFixed(3)})`; c.beginPath(); c.arc(x, y1, T * 0.45, 0, TAU); c.fill();
+  }
+  c.restore();
+}
+// barre de vie en bas de l'écran (le boss occupe le haut)
 function drawDkBar(c, t) {
-  const D = G.dk, w = Math.min(380, W - 180), x = (W - w) / 2, y = H - 50;
+  const D = G.dk; drawDkBolts(c);
+  if (!D.started) return;
+  const w = Math.min(380, W - 180), x = (W - w) / 2, y = H - 50;
   c.save();
-  if (G.players.some(o => o.alive && o.y > ROWS - 3.2)) c.globalAlpha = 0.35;
+  if (G.players.some(o => o.alive && o.y > DKR - 3.2)) c.globalAlpha = 0.35;
   c.fillStyle = 'rgba(10,8,14,.75)'; rr(c, x - 12, y - 4, w + 24, 40, 12); c.fill();
   c.font = '800 13px "Alegreya Sans", sans-serif'; c.textBaseline = 'top'; c.fillStyle = '#e6c8ff';
   c.fillText(D.name + (D.heart > 0 ? ' · cœur ouvert !' : D.phase >= 2 ? ' · déchaîné' : D.phase ? ' · enragé' : ''), x, y + 1);
@@ -5094,7 +5222,7 @@ function updateCamera(dt) {
   if (G.camSnap) { F.x = px; F.y = py; }
   if (px - F.x > DX) F.x = px - DX; else if (F.x - px > DX) F.x = px + DX;
   if (py - F.y > DY) F.y = py - DY; else if (F.y - py > DY) F.y = py + DY;
-  const tx = clamp(F.x - W / 2, 0, COLS * T - W), ty = clamp(F.y - H / 2, 0, ROWS * T - H);
+  const tx = clamp(F.x - W / 2, 0, COLS * T - W), ty = G.dk && G.dk.started ? 0 : clamp(F.y - H / 2, 0, ROWS * T - H);   // défi 10 : dans l'arène, la caméra la montre en entier
   if (G.camSnap || Math.abs(tx - G.cam.x) > W * 1.5 || Math.abs(ty - G.cam.y) > H * 1.5) {
     G.cam.x = tx; G.cam.y = ty; V.x = 0; V.y = 0; G.camSnap = false; return;
   }
@@ -7469,7 +7597,7 @@ function updateLobs(dt) {
     const x = l.k % COLS, y = (l.k / COLS) | 0;
     const own = l.owner || npc;
     if (!own || G.grid[l.k] !== EMPTY || G.bombAt[l.k]) { fx('land', x, y); continue; }
-    const b = { x, y, owner: own, range: l.range || 2, timer: l.fuse, mdx: 0, mdy: 0, prog: 0, passers: new Set() };
+    const b = { x, y, owner: own, range: l.range || 2, timer: l.fuse, mdx: 0, mdy: 0, prog: 0, passers: new Set(), burn: l.burn || 0 };
     for (const o of G.players) if (o.alive && !o.npc && Math.abs(o.x - x) < 0.98 && Math.abs(o.y - y) < 0.98) b.passers.add(o.id);
     G.bombs.push(b); own.active = (own.active | 0) + 1; rebuildBombAt();
     fx('land', x, y);
@@ -8327,6 +8455,11 @@ function drawWarn(c, t) {
   for (const w of G.warn) {
     if (w.t < 0) continue;
     const q = w.t / w.dur, a = (0.18 + 0.4 * q) * (0.7 + 0.3 * Math.sin(t * 24));
+    if (w.bolt) {   // éclair à venir (défi 10) : cible bleue qui se resserre
+      for (const k of w.cells) { const x = (k % COLS + 0.5) * T, y = ((k / COLS) | 0) * T + T / 2; c.fillStyle = `rgba(90,170,255,${(a * 0.8).toFixed(3)})`; c.fillRect(x - T / 2 + 3, y - T / 2 + 3, T - 6, T - 6);
+        c.strokeStyle = `rgba(200,235,255,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, T * (0.5 - 0.3 * q), 0, TAU); c.moveTo(x - 8, y); c.lineTo(x + 8, y); c.moveTo(x, y - 8); c.lineTo(x, y + 8); c.stroke(); }
+      continue;
+    }
     c.fillStyle = `rgba(255,30,15,${a.toFixed(3)})`; c.strokeStyle = `rgba(255,90,60,${Math.min(1, a * 2).toFixed(3)})`; c.lineWidth = 2;
     for (const k of w.cells) { const x = (k % COLS) * T, y = ((k / COLS) | 0) * T; c.fillRect(x + 3, y + 3, T - 6, T - 6); c.strokeRect(x + 4, y + 4, T - 8, T - 8); }
   }
@@ -8451,7 +8584,7 @@ function renderCampCard() {
     $('#camp-rules').textContent = (c.team ? `Toi et le ${CHARS[c.ally].name} contre ${c.foesTxt || foeName(c)} (ordis ${AI_LV_NAME[c.lv]}) · ${c.wins} manches gagnantes · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever`
       : c.boss ? `Toi et ${c.allies} alliés contre ${foeName(c)} (${c.hp} PV) · grande arène · un équipier soufflé laisse une tombe ${c.tomb} s : passe dessus pour le relever · les bombes des alliés ne te blessent pas (les tiennes, si) · ${c.time / 60} minutes au plus`
       : c.survive ? `Tiens ${c.survive} secondes sans te faire souffler · ${foeName(c)} enrage à ${c.rageAt} s · arène sans caisses`
-      : c.demon ? `Seul contre ${c.dname}, immense et immobile en haut de l'arène · tous tes pouvoirs au maximum dès le départ, ni caisses ni bonus · quand son cœur s'ouvre, pousse une bombe dedans par la colonne du milieu : ${c.hp} coups · ses sorts couvrent toute l'arène · ${c.time / 60} min`
+      : c.demon ? `D'abord un tunnel où tu ramasses tous les bonus, puis ${c.dname}, qui arpente le haut de l'arène (zone interdite) · quand son cœur s'ouvre, il s'arrête : pousse une bombe vers le haut, droit dans son cœur : ${c.hp} coups · ses sorts couvrent toute l'arène, et ses brûlures restent un moment · ${Math.round(c.time / 60 * 10) / 10} min`
       : c.ninja ? `Duel contre le ${foeName(c)} (3 PV) · tes explosions le touchent, et une bombe poussée sur lui pendant qu'il prépare une technique (cercle violet) aussi · ses shurikens te soufflent et font sauter les bombes qu'ils touchent · arène normale · une seule manche`
       : c.split ? `Contre ${foeName(c)} (ordi ${AI_LV_NAME[c.lv]}), plus gros et plus lent · soufflé, il se divise en 2 plus petits et plus rapides, puis encore une fois : 7 Gloop à souffler · arène normale · une seule manche`
       : c.targets ? `${tgtCount(c)} cibles en ${c.targets.length} vagues · ${c.maxB ? `jusqu'à ${c.maxB} bombes à la fois · toutes les cibles d'une vague tombent ensemble ou pas du tout · ` : ''}pousse, arrête et enchaîne tes bombes · ${c.ammo} bombes · ${Math.floor(c.time / 60)} min${c.time % 60 ? ' ' + (c.time % 60) + ' s' : ''} · attention, tes bombes (et les barils) peuvent te souffler${c.retryWave ? ' : tu recommences alors la vague' : ''}`
@@ -8539,10 +8672,10 @@ function startCampMatch(i) {
     blurActive(); return;
   }
   if (c.demon) {
-    // défi 10 : seul contre Malakor (G.dk, pas un joueur), avec tous les pouvoirs au maximum
+    // défi 10 : seul contre Malakor (G.dk, pas un joueur) ; d'abord le tunnel aux bonus
     setPlayers([me]); G.pointsMode = false; G.round = 1; G.winsNeeded = 1;
     newRound();
-    Object.assign(me, { maxBombs: MAX_BOMBS, range: MAX_RANGE, speedLv: MAX_SPEED_LV, kick: true, throw: true });
+    if (!c.tunnel) Object.assign(me, { maxBombs: MAX_BOMBS, range: MAX_RANGE, speedLv: MAX_SPEED_LV, kick: true, throw: true });   // avec le tunnel, on ramasse les bonus
     setupHud();
     menuEl.hidden = true; soloEl.hidden = true; endEl.hidden = true; pauseEl.hidden = true; campEl.hidden = true; vsEl.hidden = true;
     blurActive(); return;
