@@ -1580,10 +1580,10 @@ const CAMP = [
       // la 1re bombe file au fond (13,5) avant celle arrêtée en (11,5) ; (11,3) et (11,7) arrêtées à la main
       { list: [[11, 1], [13, 3], [13, 4], [13, 6], [13, 7], [11, 9]], combo: true, spots: [[11, 3], [13, 5], [11, 5], [11, 7]],
         msg: 'Six d\'un coup : la bombe du fond d\'abord !' },
-      // la cible qui esquive : dans le quart haut gauche (x 1-7, y 1-5), sans corde ; elle fuit les explosions comme un ordi niveau 10,
-      // lentement, sans sortir de son coin (x 1-3, y 1-3, autour du pilier). Piège possible : (1,1), (3,1) puis (3,3), en chaîne, avec (5,1) et (3,5)
-      { list: [[5, 1], [3, 5]], movers: [[1, 3]], combo: true, zone: [1, 1, 7, 5], nest: [1, 1, 3, 3], start: [5, 5], mvSpeed: 2,
-        spots: [[1, 1], [3, 1], [3, 3]], msg: 'Elle esquive comme un ordi : enferme-la dans son coin, en un seul combo !' },
+      // un ordi niveau 10 (Gavroche) dans le quart haut gauche (x 1-7, y 1-5), sans corde : il court dans tous les sens dans son coin
+      // (x 1-3, y 1-3, autour du pilier) pour ne pas être soufflé ; il ne pose pas de bombe et ne les repousse pas. Piège : (1,1), (3,1) puis (3,3)
+      { list: [], movers: [[1, 3]], moverSkin: 4, zone: [1, 1, 7, 5], nest: [1, 1, 3, 3], start: [5, 5], mvSpeed: 4,
+        spots: [[1, 1], [3, 1], [3, 3]], msg: 'Un ordi niveau 10 court dans son coin : coince-le avec tes bombes !' },
       // le grand bouquet : (13,3) puis (11,3), (13,7) puis (11,7), avec 3 barils relais
       { list: [[13, 1], [11, 1], [13, 5], [9, 5], [9, 9], [13, 9], [13, 11], [9, 11]], combo: true, kegs: [[11, 5], [11, 9], [11, 11]], stones: [[12, 9]],
         spots: [[13, 3], [11, 3], [13, 7], [11, 7]], msg: 'Le grand bouquet : 8 cibles d\'un coup !' },
@@ -7737,7 +7737,8 @@ function tgtWave(T4) {
   T4.placed = [];
   T4.list = (w.list || []).map((a, i) => tgtMake(a, i));
   // cibles qui esquivent (ordi niveau 10, dans leur coin) ; le joueur est enfermé dans le même quart de carte
-  for (const a of w.movers || []) T4.list.push({ ...tgtMake(a, T4.list.length), ai: true, path: [], thinkT: 0, wanderT: 1, inFl: false, v: w.mvSpeed || 2 });
+  for (const a of w.movers || []) T4.list.push({ ...tgtMake(a, T4.list.length), ai: true, path: [], thinkT: 0, wanderT: 0.4, inFl: false, v: w.mvSpeed || 2,
+    bot: w.moverSkin, face: 'down', phase: 0 });   // bot : perso dessiné à la place d'une cible
   T4.zone = w.zone || null; T4.nest = w.nest || null; T4.fence = w.zone ? 99 : T4.fence0;
   if (w.zone) {
     const me = G.players[0];
@@ -7854,7 +7855,7 @@ function tgtHit(o) {
   const x = (o.x + 0.5) * T, y = (o.y + 0.5) * T;
   for (let j = 0; j < 22; j++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 220; addP({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.6, max: 0.6, size: 2.6, color: ['#ffd166', '#ff5a3c', '#fff3e0', '#a8743f'][j % 4] }); }
   addP({ kind: 'text', x, y: y - 30, vx: 0, vy: -46, life: 1, max: 1, size: 22, color: '#ffd166', text: T4.hits === T4.total ? 'Dernière !' : `${T4.hits} / ${T4.total}` });
-  Sfx.boom(boomKind(G.players[0]), 0.45, earVol(o.x, o.y)); Sfx.play('item'); if (!reduceMotion) G.shake = Math.max(G.shake, 3);
+  Sfx.boom(boomKind(G.players[0]), 0.45, earVol(o.x, o.y)); Sfx.play(o.bot !== undefined ? 'death' : 'item'); if (!reduceMotion) G.shake = Math.max(G.shake, 3);
 }
 function tgtTick(dt) {
   const T4 = G.tg;
@@ -7903,6 +7904,7 @@ function tgtMover(o, dt) {
     if ((nk === meK || G.bombAt[nk]) && (Math.abs(o.x - cx) + Math.abs(o.y - cy) < 0.02)) o.path = [];   // case prise entre-temps : il repense
     else {
       const dx = n.x - o.x, dy = n.y - o.y, d = Math.abs(dx) + Math.abs(dy), st = o.v * dt;
+      o.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); o.phase += dt * o.v * Math.PI;
       if (d <= st) { o.x = n.x; o.y = n.y; o.path.shift(); } else { o.x += Math.sign(dx) * Math.min(st, Math.abs(dx)); o.y += Math.sign(dy) * Math.min(st, Math.abs(dy)); }
       return;
     }
@@ -7924,6 +7926,16 @@ function tgtMover(o, dt) {
     if (D.S[sk] !== Infinity || sk === meK) {
       const esc = findEscape(cx, cy, 0, 1 / o.v, AI_LV[9].margin, D, -1, false, shuffled(NB), null, 8);
       if (esc && esc.length) o.path = esc;
+    } else if (o.bot !== undefined) {
+      // ordi : à l'abri, il court dans tous les sens, vers une case sûre à 1-3 pas, plutôt loin du joueur
+      const prev = new Map([[sk, -1]]), q = [[sk, 0]], out = [];
+      for (let qi = 0; qi < q.length; qi++) {
+        const [k, d] = q[qi]; if (d) out.push(k); if (d >= 3) continue;
+        for (const [dx, dy] of NB) { const nk = k + dx + dy * COLS; if (prev.has(nk) || !passableAI(nk, -1) || D.S[nk] !== Infinity) continue; prev.set(nk, k); q.push([nk, d + 1]); }
+      }
+      let best = -1, bs = -Infinity;
+      for (const k of out) { const sc = Math.random() * 2 + (me && me.alive ? Math.hypot(k % COLS - me.x, ((k / COLS) | 0) - me.y) * 0.5 : 0); if (sc > bs) { bs = sc; best = k; } }
+      if (best >= 0) { const path = []; for (let k = best; k !== sk; k = prev.get(k)) path.unshift({ x: k % COLS, y: (k / COLS) | 0 }); o.path = path; }
     } else if ((o.wanderT -= AI_LV[9].think) <= 0) {
       // à l'abri : il se promène, en préférant les cases sûres d'où l'on peut encore fuir, loin du joueur
       o.wanderT = 0.6 + Math.random() * 1.2;
@@ -8047,6 +8059,11 @@ function drawRange(c, t) {
     if (!o.alive && o.miss) {   // cible éclair ratée : elle rentre dans le sol
       if (o.pop > 0.45) continue;
       const k = o.pop / 0.45; c.save(); c.globalAlpha = 1 - k; drawTarget(c, x, y - T * 0.08 + k * 14, T * 0.32, { scale: 1 - k * 0.7 }); c.restore(); continue;
+    }
+    if (o.bot !== undefined) {   // ordi de la vague 4 : dessiné comme un joueur (tournoie et disparaît quand il est soufflé)
+      if (!o.alive && o.pop > 0.7) continue;
+      drawChar(c, (o.x + 0.5) * T, (o.y + 0.5) * T, o.bot, palFor(1), o.alive ? o.face : 'down', o.phase, o.alive && o.path.length > 0, t, o.alive ? {} : { dead: Math.min(1, o.pop / 0.7) });
+      continue;
     }
     if (!o.alive) {
       if (o.pop > 0.7) continue;
